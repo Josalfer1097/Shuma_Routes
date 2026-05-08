@@ -33,6 +33,18 @@ function depotSvg() {
     </svg>`;
 }
 
+/** SVG string para marcador de bodega de regreso */
+function endDepotSvg() {
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 46" width="36" height="46">
+      <path d="M18 0C8.059 0 0 8.059 0 18c0 11 18 28 18 28S36 29 36 18C36 8.059 27.941 0 18 0z"
+            fill="#10B981"/>
+      <circle cx="18" cy="18" r="11" fill="white" opacity="0.95"/>
+      <text x="18" y="23" text-anchor="middle" font-size="14" fill="#10B981"
+            font-family="Inter,sans-serif">🏁</text>
+    </svg>`;
+}
+
 export default function MapView({ addresses, routes, depot }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
@@ -110,6 +122,9 @@ export default function MapView({ addresses, routes, depot }: Props) {
       const makeDepotIcon = () =>
         L.divIcon({ html: depotSvg(), iconSize: [36, 46], iconAnchor: [18, 46], popupAnchor: [0, -46], className: '' });
 
+      const makeEndDepotIcon = () =>
+        L.divIcon({ html: endDepotSvg(), iconSize: [36, 46], iconAnchor: [18, 46], popupAnchor: [0, -46], className: '' });
+
       if (routes.length > 0) {
         // Dibujar bodegas únicas
         const uniqueDepots = Array.from(
@@ -123,6 +138,20 @@ export default function MapView({ addresses, routes, depot }: Props) {
           bounds.push([d.lat, d.lng]);
         });
 
+        // Dibujar bodegas de regreso únicas (que no coincidan con las de salida)
+        const endDepots = routes
+          .map((r) => r.endDepot ?? r.depot)
+          .filter((ed) => !uniqueDepots.some((d) => d.id === ed.id));
+        const uniqueEndDepots = Array.from(new Map(endDepots.map((d) => [d.id, d])).values());
+        
+        uniqueEndDepots.forEach((d) => {
+          const marker = L.marker([d.lat, d.lng], { icon: makeEndDepotIcon() })
+            .bindPopup(`<b>🏁 Bodega de regreso: ${d.name}</b><br/><small>${d.address}</small>`)
+            .addTo(map);
+          markersRef.current.push(marker);
+          bounds.push([d.lat, d.lng]);
+        });
+
         // Dibujar rutas
         routes.forEach((route) => {
           const startCoord: [number, number] = [route.depot.lat, route.depot.lng];
@@ -131,24 +160,54 @@ export default function MapView({ addresses, routes, depot }: Props) {
             (route.endDepot ?? route.depot).lng,
           ];
 
-          // Construir el array manualmente: depot → stops en orden de Vroom → endDepot
-          const stopsCoords: [number, number][] = route.stops
-            .filter((s) => s.address.lat !== null && s.address.lng !== null)
-            .map((s) => [s.address.lat!, s.address.lng!]);
+          // Pintar alternativas de HERE con línea punteada gris
+          if (route.alternatives && route.alternatives.length > 0) {
+            route.alternatives.forEach((altPoly) => {
+              const altLine = L.polyline(altPoly, {
+                color: '#94A3B8', // gris (slate-400)
+                weight: 3,
+                opacity: 0.8,
+                dashArray: '5 5',
+              }).addTo(map);
+              markersRef.current.push(altLine);
+            });
+          }
 
-          const coordArray: [number, number][] = [
-            startCoord,
-            ...stopsCoords,
-            endCoord,
-          ];
-
-          if (coordArray.length >= 2) {
-            const polyline = L.polyline(coordArray, {
+          // Pintar ruta principal de HERE en color sólido (se usa route.color para diferenciarlas)
+          if (route.polyline && route.polyline.length > 0) {
+            const mainLine = L.polyline(route.polyline, {
               color: route.color,
-              weight: 4,
-              opacity: 0.85,
+              weight: 5,
+              opacity: 0.9,
             }).addTo(map);
-            markersRef.current.push(polyline);
+            markersRef.current.push(mainLine);
+            
+            // Si HERE no llega exacto a la bodega de regreso, añadir segmento punteado final
+            const last = route.polyline[route.polyline.length - 1];
+            if (Math.abs(last[0] - endCoord[0]) > 0.0002 || Math.abs(last[1] - endCoord[1]) > 0.0002) {
+              const closingLine = L.polyline([last, endCoord], {
+                color: route.color,
+                weight: 3,
+                opacity: 0.5,
+                dashArray: '6 6',
+              }).addTo(map);
+              markersRef.current.push(closingLine);
+            }
+          } else {
+            // Fallback: si no hay polyline de HERE, trazar líneas rectas
+            const stopsCoords: [number, number][] = route.stops
+              .filter((s) => s.address.lat !== null && s.address.lng !== null)
+              .map((s) => [s.address.lat!, s.address.lng!]);
+
+            const coordArray: [number, number][] = [startCoord, ...stopsCoords, endCoord];
+            if (coordArray.length >= 2) {
+              const polyline = L.polyline(coordArray, {
+                color: route.color,
+                weight: 4,
+                opacity: 0.85,
+              }).addTo(map);
+              markersRef.current.push(polyline);
+            }
           }
 
           route.stops.forEach((stop, idx) => {

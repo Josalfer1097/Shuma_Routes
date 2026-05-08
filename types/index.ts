@@ -72,6 +72,8 @@ export interface Route {
   stops: Stop[];
   invoices: string;
   polyline?: [number, number][];
+  /** Rutas alternativas devueltas por HERE (hasta 2) */
+  alternatives?: [number, number][][];
   totalDistance?: number;
   totalDuration?: number;
 }

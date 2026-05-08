@@ -136,6 +136,7 @@ export async function optimizeRoutes(
 
     // Obtener polyline de HERE Routing para esta ruta
     let polyline: [number, number][] = [];
+    let alternatives: [number, number][][] = [];
     if (stops.length > 0) {
       const endDep = vehicle.endDepot ?? vehicle.depot;
       const waypoints: [number, number][] = [
@@ -145,7 +146,9 @@ export async function optimizeRoutes(
       ];
 
       try {
-        polyline = await getRouteHERE(waypoints);
+        const hereResult = await getRouteHERE(waypoints);
+        polyline     = hereResult.polyline;
+        alternatives = hereResult.alternatives;
       } catch (e) {
         console.warn('HERE Routing no pudo trazar la polyline:', e);
       }
@@ -161,6 +164,7 @@ export async function optimizeRoutes(
       stops,
       invoices: vehicle.invoices,
       polyline,
+      alternatives,
       totalDistance: vroomRoute.distance,
       totalDuration: vroomRoute.duration,
     });

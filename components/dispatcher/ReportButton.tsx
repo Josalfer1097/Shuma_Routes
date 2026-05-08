@@ -103,6 +103,43 @@ export default function ReportButton({ routes }: Props) {
 
       cursorY += 30;
 
+      // Consideraciones del viaje
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.setDrawColor(203, 213, 225); // slate-300
+      doc.rect(13, cursorY, pageW - 26, 26, 'FD'); // Box
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(30, 41, 59);
+      doc.text('Consideraciones del viaje:', 17, cursorY + 6);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(71, 85, 105);
+      
+      const totalDist = route.totalDistance ? formatDistance(route.totalDistance) : '—';
+      const totalTime = route.totalDuration ? formatDuration(route.totalDuration) : '—';
+      
+      // Calcular hora estimada de regreso
+      let etaReturn = '—';
+      if (route.totalDuration) {
+        const returnDate = new Date(now.getTime() + route.totalDuration * 1000);
+        etaReturn = returnDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      }
+
+      doc.text(`• Distancia total: ${totalDist}`, 17, cursorY + 11);
+      doc.text(`• Tiempo est. con tráfico actual: ${totalTime}`, 17, cursorY + 15);
+      doc.text(`• Paradas a realizar: ${route.stops.length}`, 17, cursorY + 19);
+      doc.text(`• Hora est. regreso a bodega: ${etaReturn}`, 17, cursorY + 23);
+      
+      // Notas adicionales (columna derecha de la caja)
+      doc.setTextColor(100, 116, 139);
+      doc.text('Notas de seguridad:', pageW / 2 + 10, cursorY + 6);
+      doc.text('- Consulte condiciones climáticas antes de salir.', pageW / 2 + 10, cursorY + 11);
+      doc.text('- En caso de tráfico intenso considerar rutas alternas.', pageW / 2 + 10, cursorY + 15);
+      
+      cursorY += 32;
+
       // Tabla de paradas con distancia acumulada real
       let accumulated = 0;
       const tableRows = route.stops.map((stop) => {
