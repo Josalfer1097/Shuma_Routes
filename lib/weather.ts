@@ -12,7 +12,10 @@ const LAT = 19.4326;
 const LON = -99.1332;
 
 export async function getWeatherCDMX(): Promise<WeatherData> {
-  const url = \`https://api.openweathermap.org/data/2.5/weather?lat=\${LAT}&lon=\${LON}&appid=\${OWM_API_KEY}&units=metric&lang=es\`;
+  const url = 'https://api.openweathermap.org/data/2.5/weather?lat=' + 
+    LAT + '&lon=' + LON + 
+    '&appid=' + OWM_API_KEY + 
+    '&units=metric&lang=es';
   
   try {
     const res = await fetch(url, { next: { revalidate: 600 } }); // Cache for 10 mins
