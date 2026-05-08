@@ -16,11 +16,13 @@ export async function getWeatherCDMX(): Promise<WeatherData> {
     LAT + '&lon=' + LON + 
     '&appid=' + OWM_API_KEY + 
     '&units=metric&lang=es';
-  
+  console.log('Fetching OWM URL:', url); // <-- Debug de la URL completa (CUIDADO con exponer la API KEY en logs públicos)
+
   try {
     const res = await fetch(url, { next: { revalidate: 600 } }); // Cache for 10 mins
     if (!res.ok) {
-      throw new Error('No se pudo obtener el clima');
+      const errorText = await res.text();
+      throw new Error(`OWM API Falló con Status ${res.status}: ${errorText}`);
     }
     
     const data = await res.json();
