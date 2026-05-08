@@ -43,7 +43,7 @@ export async function getRouteHERE(
     apiKey:        HERE_API_KEY,
     transportMode: 'car',
     return:        'polyline',
-    departureTime: 'now',
+    departureTime: 'any',
     alternatives:  '2',
     origin:        `${origin[0]},${origin[1]}`,
     destination:   `${destination[0]},${destination[1]}`,

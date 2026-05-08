@@ -7,14 +7,15 @@ export interface WeatherData {
   alerts: string[];
 }
 
-const OWM_API_KEY = process.env.NEXT_PUBLIC_OWM_API_KEY!;
 const LAT = 19.4326;
 const LON = -99.1332;
 
 export async function getWeatherCDMX(): Promise<WeatherData> {
+  const apiKey = (process.env.NEXT_PUBLIC_OWM_API_KEY || '').trim();
+  
   const url = 'https://api.openweathermap.org/data/2.5/weather?lat=' + 
     LAT + '&lon=' + LON + 
-    '&appid=' + OWM_API_KEY + 
+    '&appid=' + apiKey + 
     '&units=metric&lang=es';
   console.log('Fetching OWM URL:', url); // <-- Debug de la URL completa (CUIDADO con exponer la API KEY en logs públicos)
 
