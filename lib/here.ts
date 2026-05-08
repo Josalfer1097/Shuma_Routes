@@ -20,7 +20,7 @@ export interface HERERouteResult {
 async function decodeSection(sectionPolyline: string): Promise<[number, number][]> {
   const { decode } = await import('@here/flexpolyline');
   const decoded = decode(sectionPolyline);
-  return decoded.polyline.map((pt: { lat: number; lng: number }) => [pt.lat, pt.lng]);
+  return decoded.polyline.map((pt: number[]) => [pt[0], pt[1]] as [number, number]);
 }
 
 /**
