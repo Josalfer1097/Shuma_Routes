@@ -2,12 +2,14 @@
 
 import type { Route } from '@/types';
 import { formatDuration, formatDistance } from '@/lib/osrm';
+import type { WeatherData } from '@/lib/weather';
 
 interface Props {
   routes: Route[];
+  weather?: WeatherData | null;
 }
 
-export default function ReportButton({ routes }: Props) {
+export default function ReportButton({ routes, weather }: Props) {
   if (routes.length === 0) return null;
 
   const handleGeneratePDF = async () => {
@@ -132,11 +134,23 @@ export default function ReportButton({ routes }: Props) {
       doc.text(`• Paradas a realizar: ${route.stops.length}`, 17, cursorY + 19);
       doc.text(`• Hora est. regreso a bodega: ${etaReturn}`, 17, cursorY + 23);
       
-      // Notas adicionales (columna derecha de la caja)
+      // Notas adicionales y clima (columna derecha de la caja)
       doc.setTextColor(100, 116, 139);
       doc.text('Notas de seguridad:', pageW / 2 + 10, cursorY + 6);
       doc.text('- Consulte condiciones climáticas antes de salir.', pageW / 2 + 10, cursorY + 11);
       doc.text('- En caso de tráfico intenso considerar rutas alternas.', pageW / 2 + 10, cursorY + 15);
+
+      if (weather) {
+        doc.setFont('helvetica', 'bold');
+        if (weather.alerts.length > 0) {
+          doc.setTextColor(239, 68, 68); // red-500
+          doc.text(`ALERTA: ${weather.alerts[0]}`, pageW / 2 + 10, cursorY + 20);
+        } else {
+          doc.setTextColor(16, 185, 129); // emerald-500
+          doc.text(`Clima óptimo: ${weather.temp}°C, ${weather.windSpeed}km/h`, pageW / 2 + 10, cursorY + 20);
+        }
+        doc.setFont('helvetica', 'normal');
+      }
       
       cursorY += 32;
 

@@ -1,10 +1,11 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useReducer, useState } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import type {
   Address, Vehicle, Route, AppState, AppStep, SharedRouteState,
 } from '@/types';
+import { getWeatherCDMX, type WeatherData } from '@/lib/weather';
 import { geocodeBatch, geocodeAddress } from '@/lib/nominatim';
 import { optimizeRoutes, assignVehicleColors } from '@/lib/vroom';
 import CSVUploader from '@/components/dispatcher/CSVUploader';
@@ -92,6 +93,11 @@ export default function DispatcherPage() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [activeTab, setActiveTab] = useState<'upload' | 'vehicles' | 'routes'>('upload');
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+
+  useEffect(() => {
+    getWeatherCDMX().then(setWeather).catch(console.error);
+  }, []);
 
   // Carga de CSV → geocodificación automática
   const handleAddressesLoaded = useCallback(async (addresses: Address[]) => {
@@ -201,6 +207,39 @@ export default function DispatcherPage() {
           </div>
         </div>
 
+        {/* Widget de Clima */}
+        {weather && (
+          <div className="px-4 py-3 border-b border-slate-700/50 shrink-0 bg-slate-800/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Clima CDMX</div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xl font-bold text-white">{weather.temp}°C</span>
+                  <span className="text-xs text-slate-300 capitalize">{weather.description}</span>
+                </div>
+                <div className="text-[11px] text-slate-500 mt-0.5">
+                  Humedad: {weather.humidity}% · Viento: {weather.windSpeed} km/h
+                </div>
+              </div>
+              <img 
+                src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`} 
+                alt="Clima" 
+                className="w-10 h-10 drop-shadow-md"
+              />
+            </div>
+            {weather.alerts.length > 0 && (
+              <div className="mt-2 px-2 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
+                <p className="text-[11px] font-medium text-yellow-400 flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {weather.alerts[0]}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-1 px-3 pt-3 pb-2 shrink-0">
           {tabs.map((tab) => (
@@ -250,7 +289,7 @@ export default function DispatcherPage() {
                 onShareRoute={handleShareRoute}
               />
               {state.routes.length > 0 && (
-                <ReportButton routes={state.routes} />
+                <ReportButton routes={state.routes} weather={weather} />
               )}
             </div>
           )}
