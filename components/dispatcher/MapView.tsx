@@ -13,11 +13,12 @@ interface Props {
 
 // ── Helpers para crear marcadores personalizados (HTML) ───────────
 
-function createDepotPin(title: string, color: string) {
+function createDepotPin(title: string, color: string, scale: number = 1) {
   const div = document.createElement('div');
   div.className = 'flex flex-col items-center';
-  // Traslación para que la punta inferior sea el ancla
-  div.style.transform = 'translate(0, -10px)';
+  // Traslación y escala solicitada, además de agregar filtro drop-shadow
+  div.style.transform = `translate(0, -10px) scale(${scale})`;
+  div.style.filter = 'drop-shadow(0px 4px 6px rgba(0,0,0,0.6))';
   div.innerHTML = `
     <div style="background-color: ${color};" class="text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-md border border-white mb-0.5 whitespace-nowrap">
       ${title}
@@ -27,12 +28,15 @@ function createDepotPin(title: string, color: string) {
   return div;
 }
 
-function createStopPin(color: string, number: string | number) {
+function createStopPin(number: string | number) {
   const div = document.createElement('div');
-  div.className = 'flex items-center justify-center rounded-full border-2 border-white text-white font-bold text-sm shadow-md';
-  div.style.backgroundColor = color;
-  div.style.width = '26px';
-  div.style.height = '26px';
+  // Fondo blanco, borde #FF6B00 (naranja brillante) y texto negro
+  div.className = 'flex items-center justify-center rounded-full border-[3px] font-bold text-sm shadow-md';
+  div.style.backgroundColor = '#FFFFFF';
+  div.style.borderColor = '#FF6B00';
+  div.style.color = '#000000';
+  div.style.width = '28px';
+  div.style.height = '28px';
   div.textContent = String(number);
   return div;
 }
@@ -132,7 +136,7 @@ export default function MapView({ addresses, routes, depot }: Props) {
         const marker = new AdvancedMarkerElement({
           position: { lat: d.lat, lng: d.lng },
           map,
-          content: createDepotPin('SALIDA', '#F97316'), // Naranja
+          content: createDepotPin('SALIDA', '#F97316', 1.4), // Naranja, escala 1.4 y sombra
         });
         addInfoWindow(marker, `<div style="font-family:sans-serif;padding:4px;"><b>🏭 ${d.name}</b><br/><small>${d.address}</small></div>`);
         markersRef.current.push(marker);
@@ -150,7 +154,7 @@ export default function MapView({ addresses, routes, depot }: Props) {
         const marker = new AdvancedMarkerElement({
           position: { lat: d.lat, lng: d.lng },
           map,
-          content: createDepotPin('REGRESO', '#10B981'), // Verde
+          content: createDepotPin('REGRESO', '#FFD700', 1.4), // Amarillo, escala 1.4 y sombra
         });
         addInfoWindow(marker, `<div style="font-family:sans-serif;padding:4px;"><b>🏁 Regreso: ${d.name}</b><br/><small>${d.address}</small></div>`);
         markersRef.current.push(marker);
@@ -166,13 +170,14 @@ export default function MapView({ addresses, routes, depot }: Props) {
             const altLine = new Polyline({
               path: altPoly.map(([lat, lng]) => ({ lat, lng })),
               map,
-              strokeColor: '#9CA3AF', // Gris
+              strokeColor: '#FFFFFF', // Blanco punteado
               strokeOpacity: 0,
+              zIndex: 1,
               icons: [
                 {
                   icon: {
                     path: 'M 0,-1 0,1',
-                    strokeOpacity: 0.5,
+                    strokeOpacity: 0.7, // Opacidad 0.7
                     scale: 2,
                     strokeWeight: 2,
                   },
@@ -187,12 +192,27 @@ export default function MapView({ addresses, routes, depot }: Props) {
 
         // Pintar ruta principal
         if (route.polyline && route.polyline.length > 0) {
-          const mainLine = new Polyline({
-            path: route.polyline.map(([lat, lng]) => ({ lat, lng })),
+          const path = route.polyline.map(([lat, lng]) => ({ lat, lng }));
+
+          // Halo negro (stroke de 2px de cada lado sumado a los 6px de la línea principal = 10px)
+          const haloLine = new Polyline({
+            path,
             map,
-            strokeColor: route.color,
-            strokeOpacity: 0.9,
-            strokeWeight: 5, // Línea sólida gruesa
+            strokeColor: '#000000',
+            strokeOpacity: 0.8,
+            strokeWeight: 10,
+            zIndex: 2,
+          });
+          markersRef.current.push(haloLine);
+
+          // Línea principal
+          const mainLine = new Polyline({
+            path,
+            map,
+            strokeColor: '#FF6B00', // Naranja brillante
+            strokeOpacity: 1.0,
+            strokeWeight: 6, // Grosor 6px
+            zIndex: 3,
             icons: [
               {
                 icon: {
@@ -200,12 +220,12 @@ export default function MapView({ addresses, routes, depot }: Props) {
                   scale: 2.5,
                   strokeOpacity: 1,
                   fillOpacity: 1,
-                  fillColor: route.color,
-                  strokeColor: '#ffffff',
-                  strokeWeight: 1.5,
+                  fillColor: '#FFFFFF', // Flechas direccionales blancas
+                  strokeColor: '#000000',
+                  strokeWeight: 1,
                 },
                 offset: '50px',
-                repeat: '200px', // Flechas direccionales cada 200px
+                repeat: '150px', // Cada 150px
               },
             ],
           });
@@ -226,7 +246,7 @@ export default function MapView({ addresses, routes, depot }: Props) {
           const marker = new AdvancedMarkerElement({
             position: { lat, lng },
             map,
-            content: createStopPin(route.color, stop.sequence),
+            content: createStopPin(stop.sequence),
           });
 
           const distStr = accumulated > 0 ? formatDistance(accumulated) : '—';
@@ -260,7 +280,7 @@ export default function MapView({ addresses, routes, depot }: Props) {
         const marker = new AdvancedMarkerElement({
           position: { lat: depot.lat, lng: depot.lng },
           map,
-          content: createDepotPin('SALIDA', '#F97316'),
+          content: createDepotPin('SALIDA', '#F97316', 1.4),
         });
         addInfoWindow(marker, `<div style="font-family:sans-serif;padding:4px;"><b>🏭 Depósito</b><br/><small>${depot.label}</small></div>`);
         markersRef.current.push(marker);
@@ -274,7 +294,7 @@ export default function MapView({ addresses, routes, depot }: Props) {
           const marker = new AdvancedMarkerElement({
             position: { lat: addr.lat!, lng: addr.lng! },
             map,
-            content: createStopPin('#64748B', '·'),
+            content: createStopPin('·'),
           });
           addInfoWindow(
             marker,
