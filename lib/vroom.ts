@@ -175,7 +175,8 @@ async function fallbackOptimizeRoutes(
 export async function optimizeRoutes(
   clusters: Cluster[],
   vehicles: Vehicle[],
-  departureTime: string
+  departureTime: string,
+  manualAssignments?: { addressId: string; vehicleIndex: number }[]
 ): Promise<Route[]> {
   const validClusters = clusters.filter((c) => c.addresses.length > 0);
 
@@ -217,6 +218,15 @@ export async function optimizeRoutes(
 
       cluster.addresses.forEach(addr => {
         validAddresses.push(addr);
+        
+        let allowedIndices = [vIdx];
+        if (manualAssignments) {
+          const manualMatch = manualAssignments.find(m => m.addressId === addr.id);
+          if (manualMatch) {
+            allowedIndices = [manualMatch.vehicleIndex];
+          }
+        }
+
         shipments.push({
           deliveries: [{
             arrivalLocation: { latitude: addr.lat!, longitude: addr.lng! },
@@ -224,7 +234,7 @@ export async function optimizeRoutes(
             timeWindows
           }],
           label: addr.name,
-          allowedVehicleIndices: [vIdx], // Forzar asignación a este vehículo/zona
+          allowedVehicleIndices: allowedIndices, // Forzar asignación a este vehículo/zona o al editado manualmente
           loadDemands: { parcels: { amount: '1' } },
         });
       });

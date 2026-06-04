@@ -188,6 +188,7 @@ export interface VroomPayload {
 // ─────────────────────────────────────────────
 
 export type AppStep =
+  | 'config'       // Paso 0: configuración global
   | 'upload'       // Paso 1: cargar CSV
   | 'geocoding'    // Paso 2: geocodificando direcciones
   | 'zones'        // Paso 2.5: validación de zonas/clusters
@@ -195,8 +196,15 @@ export type AppStep =
   | 'optimizing'   // Paso 4: calculando rutas
   | 'results';     // Paso 5: mostrando resultados
 
+export interface GlobalConfig {
+  departureDepot: Depot;
+  returnDepot: Depot | 'same';
+  departureTime: string; // HH:MM
+}
+
 export interface AppState {
   step: AppStep;
+  globalConfig: GlobalConfig | null;
   addresses: Address[];
   clusters: Cluster[];
   vehicles: Vehicle[];

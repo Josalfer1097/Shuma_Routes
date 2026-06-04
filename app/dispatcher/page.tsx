@@ -13,8 +13,9 @@ import VehicleForm from '@/components/dispatcher/VehicleForm';
 import RoutePanel from '@/components/dispatcher/RoutePanel';
 import OptimizeButton from '@/components/dispatcher/OptimizeButton';
 import ReportButton from '@/components/dispatcher/ReportButton';
+import WeatherBanner from '@/components/dispatcher/WeatherBanner';
 import { clusterDeliveries } from '@/lib/clustering';
-import type { Cluster } from '@/types';
+import type { Cluster, GlobalConfig } from '@/types';
 
 // Leaflet NO es compatible con SSR → dynamic import
 const MapView = dynamic(() => import('@/components/dispatcher/MapView'), {
@@ -58,10 +59,12 @@ type Action =
   | { type: 'SET_STEP'; payload: AppStep }
   | { type: 'SET_CLUSTERS'; payload: Cluster[] }
   | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'SET_DEPOT'; payload: { lat: number; lng: number; label: string } | null };
+  | { type: 'SET_DEPOT'; payload: { lat: number; lng: number; label: string } | null }
+  | { type: 'SET_GLOBAL_CONFIG'; payload: GlobalConfig };
 
 const initialState: AppState = {
-  step: 'upload',
+  step: 'config',
+  globalConfig: null,
   addresses: [],
   clusters: [],
   vehicles: [],
@@ -103,6 +106,8 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, error: action.payload, step: state.step === 'optimizing' ? 'vehicles' : state.step };
     case 'SET_DEPOT':
       return { ...state, depot: action.payload };
+    case 'SET_GLOBAL_CONFIG':
+      return { ...state, globalConfig: action.payload };
     default:
       return state;
   }
@@ -113,7 +118,7 @@ function appReducer(state: AppState, action: Action): AppState {
 export default function DispatcherPage() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'upload' | 'zones' | 'vehicles' | 'routes'>('upload');
+  const [activeTab, setActiveTab] = useState<'config' | 'upload' | 'zones' | 'vehicles' | 'routes'>('config');
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [numClusters, setNumClusters] = useState<number>(1);
 
@@ -199,20 +204,29 @@ export default function DispatcherPage() {
     dispatch({ type: 'SET_ERROR', payload: null });
     dispatch({ type: 'SET_STEP', payload: 'optimizing' });
 
-    // Transferir depósitos de cluster a vehículo según cantidad
+    // Transferir depósitos de cluster a vehículo según configuración global
     const assignedVehicles = state.vehicles.map((v, i) => {
       const cluster = state.clusters[i % state.clusters.length];
+      const startDepot = state.globalConfig?.departureDepot || cluster.depot;
+      const endDepot = state.globalConfig?.returnDepot === 'same' 
+        ? startDepot 
+        : (state.globalConfig?.returnDepot || cluster.depot);
+
       return {
         ...v,
-        depot: cluster.depot,
-        endDepot: cluster.depot,
+        depot: startDepot,
+        endDepot: endDepot,
         zoneName: cluster.name,
       };
     });
 
     try {
-      // Pasamos los clusters confirmados para que cada cluster sea un vehículo
-      const departureTime = new Date().toISOString(); // Para tráfico real
+      // Construir la fecha ISO combinando hoy con la hora configurada
+      const today = new Date();
+      const timeParts = (state.globalConfig?.departureTime || '08:00').split(':');
+      today.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+      const departureTime = today.toISOString(); // Para tráfico real
+
       const routes = await optimizeRoutes(state.clusters, assignedVehicles, departureTime);
       dispatch({ type: 'SET_ROUTES', payload: routes });
       setActiveTab('routes');
@@ -244,7 +258,47 @@ export default function DispatcherPage() {
     });
   }, [state.routes, state.depot]);
 
+  // Re-optimizar después de edición manual
+  const handleReoptimize = useCallback(async (manualRoutes: Route[]) => {
+    setIsOptimizing(true);
+    dispatch({ type: 'SET_ERROR', payload: null });
+    dispatch({ type: 'SET_STEP', payload: 'optimizing' });
+
+    try {
+      const today = new Date();
+      const timeParts = (state.globalConfig?.departureTime || '08:00').split(':');
+      today.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+      const departureTime = today.toISOString();
+
+      // Construir manualAssignments map (addressId -> vehicleIndex)
+      const manualAssignments = manualRoutes.flatMap((r, vIndex) => 
+        r.stops.map(s => ({ addressId: s.address.id, vehicleIndex: vIndex }))
+      );
+
+      // Los vehículos deben mantener el orden de las rutas editadas
+      const vehiclesInOrder = manualRoutes.map(r => state.vehicles.find(v => v.id === r.vehicleId)!);
+      
+      const assignedVehicles = vehiclesInOrder.map((v, i) => {
+        const startDepot = state.globalConfig?.departureDepot || v.depot;
+        const endDepot = state.globalConfig?.returnDepot === 'same' 
+          ? startDepot 
+          : (state.globalConfig?.returnDepot || v.depot);
+        return { ...v, depot: startDepot, endDepot: endDepot };
+      });
+
+      const routes = await optimizeRoutes(state.clusters, assignedVehicles, departureTime, manualAssignments);
+      dispatch({ type: 'SET_ROUTES', payload: routes });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al reoptimizar';
+      dispatch({ type: 'SET_ERROR', payload: msg });
+    } finally {
+      dispatch({ type: 'SET_STEP', payload: 'results' });
+      setIsOptimizing(false);
+    }
+  }, [state.clusters, state.vehicles, state.globalConfig]);
+
   const tabs = [
+    { id: 'config' as const, label: 'Conf.', count: 0 },
     { id: 'upload' as const, label: 'Dir.', count: state.addresses.length },
     { id: 'zones' as const, label: 'Zonas', count: state.clusters.length },
     { id: 'vehicles' as const, label: 'Choferes', count: state.vehicles.length },
@@ -272,35 +326,25 @@ export default function DispatcherPage() {
         </div>
 
         {/* Widget de Clima */}
-        {weather && (
-          <div className="px-4 py-3 border-b border-slate-700/50 shrink-0 bg-slate-800/30">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Clima CDMX</div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-xl font-bold text-white">{weather.temp}°C</span>
-                  <span className="text-xs text-slate-300 capitalize">{weather.description}</span>
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5">
-                  Humedad: {weather.humidity}% · Viento: {weather.windSpeed} km/h
-                </div>
-              </div>
-              <img 
-                src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`} 
-                alt="Clima" 
-                className="w-10 h-10 drop-shadow-md"
-              />
+        {weather && <WeatherBanner weather={weather} />}
+
+        {/* Global Config Chip */}
+        {state.globalConfig && (
+          <div className="px-4 py-2 border-b border-slate-700/50 shrink-0 bg-blue-500/5 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[11px] text-blue-300">
+              <svg className="w-3.5 h-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>
+                {state.globalConfig.departureDepot.name.split(' ')[0]} → {state.globalConfig.returnDepot === 'same' ? 'Misma' : (state.globalConfig.returnDepot as any).name?.split(' ')[0]} | {state.globalConfig.departureTime}
+              </span>
             </div>
-            {weather.alerts.length > 0 && (
-              <div className="mt-2 px-2 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
-                <p className="text-[11px] font-medium text-yellow-400 flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  {weather.alerts[0]}
-                </p>
-              </div>
-            )}
+            <button 
+              onClick={() => setActiveTab('config')}
+              className="text-[10px] text-blue-400 hover:text-white transition-colors underline"
+            >
+              Cambiar
+            </button>
           </div>
         )}
 
@@ -331,9 +375,21 @@ export default function DispatcherPage() {
 
         {/* Contenido del tab */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+          {/* Tab: Configuración */}
+          {activeTab === 'config' && (
+            <ConfigPanel 
+              currentConfig={state.globalConfig}
+              onSave={(conf) => {
+                dispatch({ type: 'SET_GLOBAL_CONFIG', payload: conf });
+                dispatch({ type: 'SET_STEP', payload: 'upload' });
+                setActiveTab('upload');
+              }}
+            />
+          )}
+
           {/* Tab: Direcciones */}
           {activeTab === 'upload' && (
-            <CSVUploader onAddressesLoaded={handleAddressesLoaded} />
+            <CSVUploader onAddressesLoaded={handleAddressesLoaded} disabled={!state.globalConfig} />
           )}
 
           {/* Tab: Zonas */}
@@ -394,6 +450,8 @@ export default function DispatcherPage() {
               <RoutePanel
                 routes={state.routes}
                 onShareRoute={handleShareRoute}
+                onReoptimize={handleReoptimize}
+                allVehicles={state.vehicles}
               />
               {state.routes.length > 0 && (
                 <ReportButton routes={state.routes} weather={weather} />
@@ -500,6 +558,71 @@ export default function DispatcherPage() {
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+// ─── Componente de Configuración Global ────────────────────────
+
+function ConfigPanel({ currentConfig, onSave }: { currentConfig: any, onSave: (conf: any) => void }) {
+  const DEPOTS = [
+    { id: 'san_pablo', name: 'San Pablo', lat: 19.3550675, lng: -99.0939998, address: 'C. San Pablo 7, El Santuario, Iztapalapa, 09836 CDMX' },
+    { id: 'division', name: 'División del Norte', lat: 19.3464401, lng: -99.1501142, address: 'Av. División del Nte. 2825, Parque San Andrés, Coyoacán, 04040 CDMX' }
+  ];
+
+  const [depotId, setDepotId] = useState(currentConfig?.departureDepot?.id || 'san_pablo');
+  const [returnDepotId, setReturnDepotId] = useState(currentConfig?.returnDepot === 'same' ? 'same' : (currentConfig?.returnDepot?.id || 'same'));
+  const [time, setTime] = useState(currentConfig?.departureTime || '08:00');
+
+  const handleSave = () => {
+    const dep = DEPOTS.find(d => d.id === depotId)!;
+    const ret = returnDepotId === 'same' ? 'same' : DEPOTS.find(d => d.id === returnDepotId)!;
+    onSave({ departureDepot: dep, returnDepot: ret, departureTime: time });
+  };
+
+  return (
+    <div className="bg-slate-800 rounded-xl border border-slate-700 p-4 space-y-4">
+      <h3 className="text-sm font-bold text-white mb-2">Configuración Global de Ruta</h3>
+      
+      <div>
+        <label className="block text-xs font-medium text-slate-400 mb-1">Bodega de salida</label>
+        <select 
+          value={depotId} 
+          onChange={(e) => setDepotId(e.target.value)}
+          className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
+        >
+          {DEPOTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-slate-400 mb-1">Bodega de regreso</label>
+        <select 
+          value={returnDepotId} 
+          onChange={(e) => setReturnDepotId(e.target.value)}
+          className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
+        >
+          <option value="same">Misma que salida</option>
+          {DEPOTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-slate-400 mb-1">Hora estimada de salida</label>
+        <input 
+          type="time" 
+          value={time} 
+          onChange={(e) => setTime(e.target.value)}
+          className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
+        />
+      </div>
+
+      <button 
+        onClick={handleSave}
+        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 rounded-lg transition-colors mt-2 text-sm shadow-md"
+      >
+        Continuar
+      </button>
     </div>
   );
 }

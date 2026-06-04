@@ -1,6 +1,6 @@
-nombre,direccion
-Cliente 1,"Av. Insurgentes Sur 1234 Del Valle Benito Juárez Ciudad de México CDMX"
-Cliente 2,"Paseo de la Reforma 222 Cuauhtémoc Ciudad de México CDMX"
-Cliente 3,"Av. Revolución 500 San Ángel Álvaro Obregón Ciudad de México CDMX"
-Cliente 4,"Calzada de Tlalpan 1000 Santa Cruz Atoyac Benito Juárez Ciudad de México CDMX"
-Cliente 5,"Av. Universidad 300 Copilco Universidad Coyoacán Ciudad de México CDMX"
+factura,cliente,direccion
+F-001,Ferretería López,"Av. Insurgentes Sur 1234 Del Valle Benito Juárez CDMX"
+F-002,Materiales Norte,"Paseo de la Reforma 222 Cuauhtémoc CDMX"
+F-003,Construcciones Pérez,"Av. Revolución 500 San Ángel Álvaro Obregón CDMX"
+F-004,Ferrecentro SA,"Calzada de Tlalpan 1000 Santa Cruz Atoyac Benito Juárez CDMX"
+F-005,Distribuidora Oriente,"Av. Universidad 300 Copilco Coyoacán CDMX"

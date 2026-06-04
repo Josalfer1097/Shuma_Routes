@@ -7,6 +7,7 @@ import { nanoid } from 'nanoid';
 
 interface Props {
   onAddressesLoaded: (addresses: Address[]) => void;
+  disabled?: boolean;
 }
 
 interface CSVRow {
@@ -17,7 +18,7 @@ interface CSVRow {
   [key: string]: string | undefined;
 }
 
-export default function CSVUploader({ onAddressesLoaded }: Props) {
+export default function CSVUploader({ onAddressesLoaded, disabled }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<Address[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -96,16 +97,18 @@ export default function CSVUploader({ onAddressesLoaded }: Props) {
     <div className="space-y-3">
       {/* Drop zone */}
       <div
-        onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onClick={() => !disabled && inputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); if(!disabled) setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
+        onDrop={(e) => !disabled && handleDrop(e)}
         className={`
           relative flex flex-col items-center justify-center gap-2 cursor-pointer
           border-2 border-dashed rounded-xl p-6 transition-all duration-200
           ${isDragging
             ? 'border-blue-400 bg-blue-500/10'
-            : 'border-slate-600 hover:border-blue-500 hover:bg-slate-700/50'
+            : disabled
+              ? 'border-slate-700 opacity-50 cursor-not-allowed'
+              : 'border-slate-600 hover:border-blue-500 hover:bg-slate-700/50'
           }
         `}
       >
@@ -126,6 +129,7 @@ export default function CSVUploader({ onAddressesLoaded }: Props) {
           accept=".csv"
           className="hidden"
           onChange={handleFileInput}
+          disabled={disabled}
         />
       </div>
 
