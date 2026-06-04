@@ -33,6 +33,7 @@ export interface Driver {
   id: string;
   name: string;
   matricula: string;
+  defaultType?: 'Camión grande' | 'Camión chico' | 'Camioneta';
 }
 
 export interface Cluster {

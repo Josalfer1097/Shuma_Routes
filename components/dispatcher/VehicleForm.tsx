@@ -66,7 +66,14 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
             </label>
             <select
               value={driverId}
-              onChange={(e) => setDriverId(e.target.value)}
+              onChange={(e) => {
+                const newId = e.target.value;
+                setDriverId(newId);
+                const driver = DRIVERS.find(d => d.id === newId);
+                if (driver?.defaultType) {
+                  setVehicleType(driver.defaultType);
+                }
+              }}
               className={inputCls}
             >
               {DRIVERS.map((d) => (
