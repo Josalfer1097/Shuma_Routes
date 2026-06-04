@@ -1,6 +1,6 @@
 nombre,direccion
-Cliente 1,Insurgentes Sur 1234 Ciudad de Mexico CDMX
-Cliente 2,Paseo de la Reforma 222 Ciudad de Mexico CDMX
-Cliente 3,Revolucion 500 Ciudad de Mexico CDMX
-Cliente 4,Calzada de Tlalpan 1000 Ciudad de Mexico CDMX
-Cliente 5,Universidad 300 Ciudad de Mexico CDMX
+Cliente 1,Av. Insurgentes Sur 1234, Del Valle, Benito Juárez, Ciudad de México, CDMX
+Cliente 2,Paseo de la Reforma 222, Cuauhtémoc, Ciudad de México, CDMX
+Cliente 3,Av. Revolución 500, San Ángel, Álvaro Obregón, Ciudad de México, CDMX
+Cliente 4,Calzada de Tlalpan 1000, Santa Cruz Atoyac, Benito Juárez, Ciudad de México, CDMX
+Cliente 5,Av. Universidad 300, Copilco Universidad, Coyoacán, Ciudad de México, CDMX
