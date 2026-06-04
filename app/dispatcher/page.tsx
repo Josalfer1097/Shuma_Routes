@@ -13,6 +13,8 @@ import VehicleForm from '@/components/dispatcher/VehicleForm';
 import RoutePanel from '@/components/dispatcher/RoutePanel';
 import OptimizeButton from '@/components/dispatcher/OptimizeButton';
 import ReportButton from '@/components/dispatcher/ReportButton';
+import { clusterDeliveries } from '@/lib/clustering';
+import type { Cluster } from '@/types';
 
 // Leaflet NO es compatible con SSR → dynamic import
 const MapView = dynamic(() => import('@/components/dispatcher/MapView'), {
@@ -30,6 +32,21 @@ const MapView = dynamic(() => import('@/components/dispatcher/MapView'), {
   ),
 });
 
+const ZoneMap = dynamic(() => import('@/components/dispatcher/ZoneMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-slate-800/50 rounded-xl">
+      <div className="flex flex-col items-center gap-3">
+        <svg className="w-8 h-8 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+        <span className="text-sm text-slate-400">Cargando zonas…</span>
+      </div>
+    </div>
+  ),
+});
+
 // ─── Estado y reducer ──────────────────────────────────────
 
 type Action =
@@ -39,12 +56,14 @@ type Action =
   | { type: 'REMOVE_VEHICLE'; payload: string }
   | { type: 'SET_ROUTES'; payload: Route[] }
   | { type: 'SET_STEP'; payload: AppStep }
+  | { type: 'SET_CLUSTERS'; payload: Cluster[] }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_DEPOT'; payload: { lat: number; lng: number; label: string } | null };
 
 const initialState: AppState = {
   step: 'upload',
   addresses: [],
+  clusters: [],
   vehicles: [],
   routes: [],
   depot: null,
@@ -78,8 +97,10 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, routes: action.payload, step: 'results', error: null };
     case 'SET_STEP':
       return { ...state, step: action.payload };
+    case 'SET_CLUSTERS':
+      return { ...state, clusters: action.payload };
     case 'SET_ERROR':
-      return { ...state, error: action.payload, step: 'vehicles' };
+      return { ...state, error: action.payload, step: state.step === 'optimizing' ? 'vehicles' : state.step };
     case 'SET_DEPOT':
       return { ...state, depot: action.payload };
     default:
@@ -92,8 +113,9 @@ function appReducer(state: AppState, action: Action): AppState {
 export default function DispatcherPage() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'upload' | 'vehicles' | 'routes'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'zones' | 'vehicles' | 'routes'>('upload');
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [numClusters, setNumClusters] = useState<number>(1);
 
   useEffect(() => {
     getWeatherCDMX().then(setWeather).catch(console.error);
@@ -102,7 +124,6 @@ export default function DispatcherPage() {
   // Carga de CSV → geocodificación automática
   const handleAddressesLoaded = useCallback(async (addresses: Address[]) => {
     dispatch({ type: 'SET_ADDRESSES', payload: addresses });
-    setActiveTab('vehicles');
 
     // Depósito por defecto: centro de CDMX (ajustable)
     const depotResult = { lat: 19.4326, lng: -99.1332, label: 'Depósito CDMX' };
@@ -139,7 +160,19 @@ export default function DispatcherPage() {
     }
 
     dispatch({ type: 'SET_ADDRESSES', payload: updatedAddresses });
-    dispatch({ type: 'SET_STEP', payload: 'vehicles' });
+    
+    const validCount = updatedAddresses.filter(a => a.lat !== null).length;
+    let suggestedClusters = state.vehicles.length;
+    if (suggestedClusters === 0) {
+      suggestedClusters = Math.max(1, Math.min(6, Math.ceil(validCount / 8)));
+    }
+    setNumClusters(suggestedClusters);
+    
+    const generatedClusters = clusterDeliveries(updatedAddresses, suggestedClusters);
+    dispatch({ type: 'SET_CLUSTERS', payload: generatedClusters });
+    
+    dispatch({ type: 'SET_STEP', payload: 'zones' });
+    setActiveTab('zones');
 
     // Si todas las direcciones fallaron, mostramos un error global
     const successCount = updatedAddresses.filter(a => a.lat !== null).length;
@@ -153,8 +186,12 @@ export default function DispatcherPage() {
 
   // Optimización de rutas
   const handleOptimize = useCallback(async () => {
-    if (!state.depot) {
-      dispatch({ type: 'SET_ERROR', payload: 'No hay depósito configurado.' });
+    if (state.clusters.length === 0) {
+      dispatch({ type: 'SET_ERROR', payload: 'No hay zonas generadas.' });
+      return;
+    }
+    if (state.vehicles.length === 0) {
+      dispatch({ type: 'SET_ERROR', payload: 'No hay choferes registrados.' });
       return;
     }
 
@@ -162,8 +199,21 @@ export default function DispatcherPage() {
     dispatch({ type: 'SET_ERROR', payload: null });
     dispatch({ type: 'SET_STEP', payload: 'optimizing' });
 
+    // Transferir depósitos de cluster a vehículo según cantidad
+    const assignedVehicles = state.vehicles.map((v, i) => {
+      const cluster = state.clusters[i % state.clusters.length];
+      return {
+        ...v,
+        depot: cluster.depot,
+        endDepot: cluster.depot,
+        zoneName: cluster.name,
+      };
+    });
+
     try {
-      const routes = await optimizeRoutes(state.addresses, state.vehicles, state.depot!);
+      // Pasamos los clusters confirmados para que cada cluster sea un vehículo
+      const departureTime = new Date().toISOString(); // Para tráfico real
+      const routes = await optimizeRoutes(state.clusters, assignedVehicles, departureTime);
       dispatch({ type: 'SET_ROUTES', payload: routes });
       setActiveTab('routes');
     } catch (err) {
@@ -172,7 +222,7 @@ export default function DispatcherPage() {
     } finally {
       setIsOptimizing(false);
     }
-  }, [state.addresses, state.vehicles, state.depot]);
+  }, [state.addresses, state.vehicles, state.depot, state.clusters]);
 
   // Compartir link con el chofer
   const handleShareRoute = useCallback((vehicleId: string) => {
@@ -195,7 +245,8 @@ export default function DispatcherPage() {
   }, [state.routes, state.depot]);
 
   const tabs = [
-    { id: 'upload' as const, label: 'Direcciones', count: state.addresses.length },
+    { id: 'upload' as const, label: 'Dir.', count: state.addresses.length },
+    { id: 'zones' as const, label: 'Zonas', count: state.clusters.length },
     { id: 'vehicles' as const, label: 'Choferes', count: state.vehicles.length },
     { id: 'routes' as const, label: 'Rutas', count: state.routes.length },
   ];
@@ -285,6 +336,49 @@ export default function DispatcherPage() {
             <CSVUploader onAddressesLoaded={handleAddressesLoaded} />
           )}
 
+          {/* Tab: Zonas */}
+          {activeTab === 'zones' && (
+            <div className="space-y-4">
+              <div className="bg-slate-700/50 p-4 rounded-xl border border-slate-700">
+                <label className="block text-xs font-bold text-slate-400 mb-2">
+                  Número de zonas sugeridas (basado en {state.addresses.length} paradas):
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="1"
+                    max="6"
+                    value={numClusters}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setNumClusters(val);
+                      const newClusters = clusterDeliveries(state.addresses, val);
+                      dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
+                    }}
+                    className="flex-1 accent-blue-500"
+                  />
+                  <span className="text-xl font-bold text-white w-6 text-center">{numClusters}</span>
+                </div>
+              </div>
+              
+              <ul className="space-y-2">
+                {state.clusters.map((cluster) => (
+                  <li key={cluster.id} className="p-3 bg-slate-800 rounded-lg border-l-4" style={{ borderColor: cluster.color }}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-200">{cluster.name}</h4>
+                        <p className="text-xs text-slate-400">{cluster.addresses.length} paradas</p>
+                      </div>
+                      <div className="text-[10px] bg-slate-700 px-2 py-1 rounded text-slate-300">
+                        {cluster.depot.name}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Tab: Choferes */}
           {activeTab === 'vehicles' && (
             <VehicleForm
@@ -316,23 +410,52 @@ export default function DispatcherPage() {
               <p className="text-xs text-red-400">{state.error}</p>
             </div>
           )}
-          <OptimizeButton
-            step={state.step}
-            addresses={state.addresses}
-            vehicles={state.vehicles}
-            isOptimizing={isOptimizing}
-            onOptimize={handleOptimize}
-          />
+          
+          {activeTab === 'zones' && (
+            <button
+              onClick={() => {
+                dispatch({ type: 'SET_STEP', payload: 'vehicles' });
+                setActiveTab('vehicles');
+              }}
+              className="w-full px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-xl shadow-md transition-all"
+            >
+              Confirmar Zonas y Asignar Choferes
+            </button>
+          )}
+
+          {activeTab !== 'zones' && (
+            <OptimizeButton
+              step={state.step}
+              addresses={state.addresses}
+              vehicles={state.vehicles}
+              isOptimizing={isOptimizing}
+              onOptimize={handleOptimize}
+            />
+          )}
         </div>
       </aside>
 
       {/* ── MAPA ─────────────────────────────────────────────── */}
       <main className="flex-1 relative overflow-hidden">
-        <MapView
-          addresses={state.addresses}
-          routes={state.routes}
-          depot={state.depot}
-        />
+        {state.step === 'zones' ? (
+          <ZoneMap
+            clusters={state.clusters}
+            onConfirm={() => {
+              dispatch({ type: 'SET_STEP', payload: 'vehicles' });
+              setActiveTab('vehicles');
+            }}
+            onRegroup={() => {
+              const regenerated = clusterDeliveries(state.addresses, numClusters);
+              dispatch({ type: 'SET_CLUSTERS', payload: regenerated });
+            }}
+          />
+        ) : (
+          <MapView
+            addresses={state.addresses}
+            routes={state.routes}
+            depot={state.depot}
+          />
+        )}
 
         {/* Badge de estado */}
         {state.step === 'geocoding' && (

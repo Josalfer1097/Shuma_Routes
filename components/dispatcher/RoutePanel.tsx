@@ -72,7 +72,14 @@ export default function RoutePanel({ routes, onShareRoute }: Props) {
                   style={{ backgroundColor: route.color }}
                 />
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold text-slate-200">{route.driverName}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-200">{route.driverName}</p>
+                    {route.zoneName && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-700/50 text-slate-300 border border-slate-600/50">
+                        {route.zoneName}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500">
                     {route.stops.length} paradas
                     {route.totalDistance && ` · ${formatDistance(route.totalDistance)}`}

@@ -35,6 +35,15 @@ export interface Driver {
   matricula: string;
 }
 
+export interface Cluster {
+  id: string;
+  name: string;
+  centroid: { lat: number; lng: number };
+  addresses: Address[];
+  depot: Depot;
+  color: string;
+}
+
 /** Vehículo / Chofer */
 export interface Vehicle {
   id: string;
@@ -43,6 +52,7 @@ export interface Vehicle {
   vehicleId: string;
   capacity: number;
   color: string;
+  zoneName?: string;
   /** Bodega de salida */
   depot: Depot;
   /** Bodega de regreso (si difiere de la de salida) */
@@ -76,6 +86,7 @@ export interface Route {
   alternatives?: [number, number][][];
   totalDistance?: number;
   totalDuration?: number;
+  zoneName?: string;
 }
 
 /** Estado compartido despachador → chofer */
@@ -179,6 +190,7 @@ export interface VroomPayload {
 export type AppStep =
   | 'upload'       // Paso 1: cargar CSV
   | 'geocoding'    // Paso 2: geocodificando direcciones
+  | 'zones'        // Paso 2.5: validación de zonas/clusters
   | 'vehicles'     // Paso 3: agregar choferes
   | 'optimizing'   // Paso 4: calculando rutas
   | 'results';     // Paso 5: mostrando resultados
@@ -186,6 +198,7 @@ export type AppStep =
 export interface AppState {
   step: AppStep;
   addresses: Address[];
+  clusters: Cluster[];
   vehicles: Vehicle[];
   routes: Route[];
   depot: { lat: number; lng: number; label: string } | null;

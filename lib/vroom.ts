@@ -3,6 +3,7 @@ import type {
   Vehicle,
   Route,
   Stop,
+  Cluster,
 } from '@/types';
 import { getRouteGoogle } from './here';
 
@@ -67,59 +68,18 @@ function getHaversineDistance(
  * Executed purely in client-side JS when Google API or local Vroom server is unavailable.
  */
 async function fallbackOptimizeRoutes(
-  addresses: Address[],
-  vehicles: Vehicle[],
-  depot: { lat: number; lng: number }
+  clusters: Cluster[],
+  vehicles: Vehicle[]
 ): Promise<Route[]> {
-  // 1. Assign each address to the closest vehicle's depot, respecting capacity
-  const vehicleRoutesData = vehicles.map((v) => ({
-    vehicle: v,
-    assignedAddresses: [] as Address[],
-    currentLoad: 0,
-  }));
-
-  // Sort addresses by distance to the nearest depot to start greedy assignments
-  const addressAssignments = addresses.map((addr) => {
-    const distances = vehicles.map((v) => ({
-      vehicleId: v.id,
-      dist: getHaversineDistance({ lat: addr.lat!, lng: addr.lng! }, v.depot),
-    }));
-    distances.sort((a, b) => a.dist - b.dist);
-    return { address: addr, distances };
-  });
-
-  // Assign addresses greedy based on capacity
-  for (const { address, distances } of addressAssignments) {
-    let assigned = false;
-    for (const d of distances) {
-      const rData = vehicleRoutesData.find((r) => r.vehicle.id === d.vehicleId);
-      if (rData && rData.currentLoad < rData.vehicle.capacity) {
-        rData.assignedAddresses.push(address);
-        rData.currentLoad += 1;
-        assigned = true;
-        break;
-      }
-    }
-    // If all full, assign to the closest vehicle anyway
-    if (!assigned) {
-      const closestId = distances[0].vehicleId;
-      const rData = vehicleRoutesData.find((r) => r.vehicle.id === closestId);
-      if (rData) {
-        rData.assignedAddresses.push(address);
-        rData.currentLoad += 1;
-      }
-    }
-  }
-
-  // 2. For each vehicle, sort addresses using Greedy Nearest Neighbor TSP
   const routes: Route[] = [];
 
-  for (let idx = 0; idx < vehicleRoutesData.length; idx++) {
-    const { vehicle, assignedAddresses } = vehicleRoutesData[idx];
+  for (let idx = 0; idx < vehicles.length; idx++) {
+    const vehicle = vehicles[idx];
+    const cluster = clusters[idx % clusters.length];
     const color = DRIVER_COLORS[idx % DRIVER_COLORS.length];
 
     const stops: Stop[] = [];
-    const unvisited = [...assignedAddresses];
+    const unvisited = [...cluster.addresses];
     let currentPos: { lat: number; lng: number } = vehicle.depot;
     let accumulatedDistance = 0;
     let accumulatedDuration = 0;
@@ -141,8 +101,6 @@ async function fallbackOptimizeRoutes(
       }
 
       const nextAddr = unvisited.splice(nearestIndex, 1)[0];
-      
-      // Calculate travel stats (assume average speed of 30 km/h = 8.33 m/s)
       const travelSpeed = 8.33; // m/s
       const travelDuration = minDistance / travelSpeed;
       const serviceDuration = 120; // 2 mins service
@@ -161,7 +119,6 @@ async function fallbackOptimizeRoutes(
       currentPos = { lat: nextAddr.lat!, lng: nextAddr.lng! };
     }
 
-    // Add trip back to end depot
     const endDep = vehicle.endDepot ?? vehicle.depot;
     const finalDistance = getHaversineDistance(currentPos, endDep);
     const finalDuration = finalDistance / 8.33;
@@ -173,6 +130,7 @@ async function fallbackOptimizeRoutes(
       driverName: vehicle.driverName,
       matricula: vehicle.matricula,
       color,
+      zoneName: cluster.name,
       depot: vehicle.depot,
       endDepot: endDep,
       stops,
@@ -184,7 +142,6 @@ async function fallbackOptimizeRoutes(
     });
   }
 
-  // 3. For each route with stops, call Google routing asynchronously if possible to get real polylines
   return Promise.all(
     routes.map(async (route) => {
       if (route.stops.length > 0) {
@@ -216,63 +173,68 @@ async function fallbackOptimizeRoutes(
  * y luego obtiene la geometría de Google Routes API.
  */
 export async function optimizeRoutes(
-  addresses: Address[],
+  clusters: Cluster[],
   vehicles: Vehicle[],
-  depot: { lat: number; lng: number }
+  departureTime: string
 ): Promise<Route[]> {
-  const validAddresses = addresses.filter((a) => a.lat !== null && a.lng !== null);
+  const validClusters = clusters.filter((c) => c.addresses.length > 0);
 
-  if (validAddresses.length === 0) {
-    throw new Error('No hay direcciones geocodificadas para optimizar.');
+  if (validClusters.length === 0) {
+    throw new Error('No hay zonas generadas con direcciones válidas.');
   }
   if (vehicles.length === 0) {
     throw new Error('No hay vehículos/choferes registrados.');
   }
 
   try {
-    // 1. Construir el payload para Google Route Optimization API
-    const shipments = validAddresses.map((addr, idx) => ({
-      deliveries: [
-        {
-          arrivalLocation: {
-            latitude: addr.lat!,
-            longitude: addr.lng!,
-          },
-          duration: '120s', // 2 minutos de servicio
-        },
-      ],
-      label: addr.name,
-      loadDemands: {
-        parcels: {
-          amount: '1',
-        },
-      },
-    }));
-
-    const googleVehicles = vehicles.map((v) => {
+    const shipments: any[] = [];
+    const googleVehicles: any[] = [];
+    const validAddresses: Address[] = [];
+    const datePrefix = departureTime.split('T')[0]; // para timeWindows
+    
+    vehicles.forEach((v, vIdx) => {
+      const cluster = validClusters[vIdx % validClusters.length];
       const endDep = v.endDepot ?? v.depot;
-      return {
-        startLocation: {
-          latitude: v.depot.lat,
-          longitude: v.depot.lng,
-        },
-        endLocation: {
-          latitude: endDep.lat,
-          longitude: endDep.lng,
-        },
+      
+      googleVehicles.push({
+        startLocation: { latitude: v.depot.lat, longitude: v.depot.lng },
+        endLocation: { latitude: endDep.lat, longitude: endDep.lng },
         label: v.driverName,
-        loadLimits: {
-          parcels: {
-            maxLoad: v.capacity.toString(),
-          },
-        },
-      };
+        loadLimits: { parcels: { maxLoad: v.capacity.toString() } },
+      });
+
+      const isCentroNorte = cluster.name.includes('Centro') || cluster.name.includes('Norte');
+      let timeWindows: any[] | undefined = undefined;
+
+      if (isCentroNorte) {
+        // Valid windows avoiding 7-9 and 18-20
+        timeWindows = [
+          { startTime: `${datePrefix}T00:00:00Z`, endTime: `${datePrefix}T07:00:00Z` },
+          { startTime: `${datePrefix}T09:00:00Z`, endTime: `${datePrefix}T18:00:00Z` },
+          { startTime: `${datePrefix}T20:00:00Z`, endTime: `${datePrefix}T23:59:59Z` }
+        ];
+      }
+
+      cluster.addresses.forEach(addr => {
+        validAddresses.push(addr);
+        shipments.push({
+          deliveries: [{
+            arrivalLocation: { latitude: addr.lat!, longitude: addr.lng! },
+            duration: '120s',
+            timeWindows
+          }],
+          label: addr.name,
+          allowedVehicleIndices: [vIdx], // Forzar asignación a este vehículo/zona
+          loadDemands: { parcels: { amount: '1' } },
+        });
+      });
     });
 
     const payload = {
       model: {
         shipments,
         vehicles: googleVehicles,
+        globalStartTime: departureTime,
       },
     };
 
@@ -371,7 +333,7 @@ export async function optimizeRoutes(
     return routes;
   } catch (err) {
     console.warn('Google Route Optimization API failed or billing not active. Using client-side routing fallback:', err);
-    return fallbackOptimizeRoutes(validAddresses, vehicles, depot);
+    return fallbackOptimizeRoutes(validClusters, vehicles);
   }
 }
 
