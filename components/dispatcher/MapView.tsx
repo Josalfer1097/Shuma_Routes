@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 import type { Address, Route } from '@/types';
 
 interface Props {
@@ -46,226 +47,341 @@ function endDepotSvg() {
 }
 
 export default function MapView({ addresses, routes, depot }: Props) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const markersRef = useRef<any[]>([]);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const markersRef = useRef<(google.maps.Marker | google.maps.Polyline)[]>([]);
+  const [mapInitialized, setMapInitialized] = useState(false);
 
-  // ── Inicializar mapa (todo Leaflet es async para evitar SSR) ───────────
+  // ── Inicializar Google Maps ───────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    // Inyectar CSS de Leaflet dinámicamente
-    if (!document.getElementById('leaflet-css')) {
-      const link = document.createElement('link');
-      link.id = 'leaflet-css';
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
-    }
-
-    let destroyed = false;
-
-    import('leaflet').then((L) => {
-      if (destroyed || !containerRef.current || mapRef.current) return;
-
-      // Fix iconos con webpack/Next.js
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-      });
-
-      const map = L.map(containerRef.current, {
-        center: [23.6345, -102.5528],
-        zoom: 5,
-        zoomControl: true,
-      });
-
-      const hereKey = process.env.NEXT_PUBLIC_HERE_API_KEY;
-      L.tileLayer(
-        `https://maps.hereapi.com/v3/base/mc/{z}/{x}/{y}/png?apiKey=${hereKey}&style=explore.day`,
-        {
-          attribution: '© HERE 2024',
-          maxZoom: 20,
-        }
-      ).addTo(map);
-
-      mapRef.current = map;
+    setOptions({
+      key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+      v: 'weekly',
     });
 
+    let active = true;
+
+    importLibrary('maps')
+      .then(() => {
+        if (!active || !containerRef.current || mapRef.current) return;
+
+        const map = new google.maps.Map(containerRef.current, {
+          center: { lat: 19.4326, lng: -99.1332 }, // Centro por defecto en CDMX
+          zoom: 12,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          styles: [
+            {
+              featureType: 'all',
+              elementType: 'labels.text.fill',
+              stylers: [{ color: '#747474' }],
+            },
+            {
+              featureType: 'administrative.locality',
+              elementType: 'labels.text.fill',
+              stylers: [{ color: '#d59563' }],
+            },
+            {
+              featureType: 'poi',
+              elementType: 'labels.text.fill',
+              stylers: [{ color: '#d59563' }],
+            },
+            {
+              featureType: 'road',
+              elementType: 'geometry',
+              stylers: [{ color: '#f5f5f5' }],
+            },
+            {
+              featureType: 'road.arterial',
+              elementType: 'geometry',
+              stylers: [{ color: '#ffffff' }],
+            },
+            {
+              featureType: 'road.highway',
+              elementType: 'geometry',
+              stylers: [{ color: '#f8c967' }],
+            },
+            {
+              featureType: 'water',
+              elementType: 'geometry',
+              stylers: [{ color: '#c9c9c9' }],
+            },
+            {
+              featureType: 'water',
+              elementType: 'labels.text.fill',
+              stylers: [{ color: '#9e9e9e' }],
+            },
+          ],
+        });
+
+        mapRef.current = map;
+        infoWindowRef.current = new google.maps.InfoWindow();
+        setMapInitialized(true);
+      })
+      .catch((err: any) => {
+        console.error('Error loading Google Maps API:', err);
+      });
+
     return () => {
-      destroyed = true;
-      mapRef.current?.remove();
+      active = false;
+      markersRef.current.forEach((obj) => obj.setMap(null));
+      markersRef.current = [];
       mapRef.current = null;
+      infoWindowRef.current = null;
+      setMapInitialized(false);
     };
   }, []);
 
   // ── Actualizar markers y polylines ─────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapInitialized) return;
 
     // Limpiar capas anteriores
-    markersRef.current.forEach((layer) => layer.remove());
+    markersRef.current.forEach((obj) => obj.setMap(null));
     markersRef.current = [];
 
-    import('leaflet').then((L) => {
-      const bounds: [number, number][] = [];
+    const bounds = new google.maps.LatLngBounds();
+    let hasPoints = false;
 
-      const makeDriverIcon = (color: string, label: string | number) =>
-        L.divIcon({ html: driverSvg(color, label), iconSize: [32, 42], iconAnchor: [16, 42], popupAnchor: [0, -42], className: '' });
+    // Helper para crear marcadores SVG personalizados
+    const makeSvgIcon = (svgString: string, w: number, h: number, ax: number, ay: number) => ({
+      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgString),
+      scaledSize: new google.maps.Size(w, h),
+      anchor: new google.maps.Point(ax, ay),
+    });
 
-      const makeDepotIcon = () =>
-        L.divIcon({ html: depotSvg(), iconSize: [36, 46], iconAnchor: [18, 46], popupAnchor: [0, -46], className: '' });
+    // Helper para añadir InfoWindow a un marcador
+    const addInfoWindow = (marker: google.maps.Marker, htmlContent: string) => {
+      marker.addListener('click', () => {
+        if (infoWindowRef.current) {
+          infoWindowRef.current.setContent(htmlContent);
+          infoWindowRef.current.open(map, marker);
+        }
+      });
+    };
 
-      const makeEndDepotIcon = () =>
-        L.divIcon({ html: endDepotSvg(), iconSize: [36, 46], iconAnchor: [18, 46], popupAnchor: [0, -46], className: '' });
-
-      if (routes.length > 0) {
-        // Dibujar bodegas únicas
-        const uniqueDepots = Array.from(
-          new Map(routes.map((r) => [r.depot.id, r.depot])).values()
+    if (routes.length > 0) {
+      // Dibujar bodegas únicas
+      const uniqueDepots = Array.from(
+        new Map(routes.map((r) => [r.depot.id, r.depot])).values()
+      );
+      uniqueDepots.forEach((d) => {
+        const marker = new google.maps.Marker({
+          position: { lat: d.lat, lng: d.lng },
+          map,
+          icon: makeSvgIcon(depotSvg(), 36, 46, 18, 46),
+        });
+        addInfoWindow(
+          marker,
+          `<b>🏭 ${d.name}</b><br/><small>${d.address}</small>`
         );
-        uniqueDepots.forEach((d) => {
-          const marker = L.marker([d.lat, d.lng], { icon: makeDepotIcon() })
-            .bindPopup(`<b>🏭 ${d.name}</b><br/><small>${d.address}</small>`)
-            .addTo(map);
-          markersRef.current.push(marker);
-          bounds.push([d.lat, d.lng]);
+        markersRef.current.push(marker);
+        bounds.extend({ lat: d.lat, lng: d.lng });
+        hasPoints = true;
+      });
+
+      // Dibujar bodegas de regreso únicas
+      const endDepots = routes
+        .map((r) => r.endDepot ?? r.depot)
+        .filter((ed) => !uniqueDepots.some((d) => d.id === ed.id));
+      const uniqueEndDepots = Array.from(new Map(endDepots.map((d) => [d.id, d])).values());
+
+      uniqueEndDepots.forEach((d) => {
+        const marker = new google.maps.Marker({
+          position: { lat: d.lat, lng: d.lng },
+          map,
+          icon: makeSvgIcon(endDepotSvg(), 36, 46, 18, 46),
         });
+        addInfoWindow(
+          marker,
+          `<b>🏁 Bodega de regreso: ${d.name}</b><br/><small>${d.address}</small>`
+        );
+        markersRef.current.push(marker);
+        bounds.extend({ lat: d.lat, lng: d.lng });
+        hasPoints = true;
+      });
 
-        // Dibujar bodegas de regreso únicas (que no coincidan con las de salida)
-        const endDepots = routes
-          .map((r) => r.endDepot ?? r.depot)
-          .filter((ed) => !uniqueDepots.some((d) => d.id === ed.id));
-        const uniqueEndDepots = Array.from(new Map(endDepots.map((d) => [d.id, d])).values());
-        
-        uniqueEndDepots.forEach((d) => {
-          const marker = L.marker([d.lat, d.lng], { icon: makeEndDepotIcon() })
-            .bindPopup(`<b>🏁 Bodega de regreso: ${d.name}</b><br/><small>${d.address}</small>`)
-            .addTo(map);
-          markersRef.current.push(marker);
-          bounds.push([d.lat, d.lng]);
-        });
+      // Dibujar rutas
+      routes.forEach((route) => {
+        const startCoord = { lat: route.depot.lat, lng: route.depot.lng };
+        const endCoord = {
+          lat: (route.endDepot ?? route.depot).lat,
+          lng: (route.endDepot ?? route.depot).lng,
+        };
 
-        // Dibujar rutas
-        routes.forEach((route) => {
-          const startCoord: [number, number] = [route.depot.lat, route.depot.lng];
-          const endCoord: [number, number]   = [
-            (route.endDepot ?? route.depot).lat,
-            (route.endDepot ?? route.depot).lng,
-          ];
-
-          // Pintar alternativas de HERE con línea punteada gris
-          if (route.alternatives && route.alternatives.length > 0) {
-            route.alternatives.forEach((altPoly) => {
-              const altLine = L.polyline(altPoly, {
-                color: '#94A3B8', // gris (slate-400)
-                weight: 3,
-                opacity: 0.8,
-                dashArray: '5 5',
-              }).addTo(map);
-              markersRef.current.push(altLine);
+        // Pintar alternativas con línea punteada gris
+        if (route.alternatives && route.alternatives.length > 0) {
+          route.alternatives.forEach((altPoly) => {
+            const altLine = new google.maps.Polyline({
+              path: altPoly.map(([lat, lng]) => ({ lat, lng })),
+              map,
+              strokeColor: '#94A3B8',
+              strokeOpacity: 0,
+              icons: [
+                {
+                  icon: {
+                    path: 'M 0,-1 0,1',
+                    strokeOpacity: 0.8,
+                    scale: 2,
+                    strokeWeight: 3,
+                  },
+                  offset: '0',
+                  repeat: '12px',
+                },
+              ],
             });
-          }
-
-          // Pintar ruta principal de HERE en color sólido (se usa route.color para diferenciarlas)
-          if (route.polyline && route.polyline.length > 0) {
-            const mainLine = L.polyline(route.polyline, {
-              color: route.color,
-              weight: 5,
-              opacity: 0.9,
-            }).addTo(map);
-            markersRef.current.push(mainLine);
-            
-            // Si HERE no llega exacto a la bodega de regreso, añadir segmento punteado final
-            const last = route.polyline[route.polyline.length - 1];
-            if (Math.abs(last[0] - endCoord[0]) > 0.0002 || Math.abs(last[1] - endCoord[1]) > 0.0002) {
-              const closingLine = L.polyline([last, endCoord], {
-                color: route.color,
-                weight: 3,
-                opacity: 0.5,
-                dashArray: '6 6',
-              }).addTo(map);
-              markersRef.current.push(closingLine);
-            }
-          } else {
-            // Fallback: si no hay polyline de HERE, trazar líneas rectas
-            const stopsCoords: [number, number][] = route.stops
-              .filter((s) => s.address.lat !== null && s.address.lng !== null)
-              .map((s) => [s.address.lat!, s.address.lng!]);
-
-            const coordArray: [number, number][] = [startCoord, ...stopsCoords, endCoord];
-            if (coordArray.length >= 2) {
-              const polyline = L.polyline(coordArray, {
-                color: route.color,
-                weight: 4,
-                opacity: 0.85,
-              }).addTo(map);
-              markersRef.current.push(polyline);
-            }
-          }
-
-          route.stops.forEach((stop, idx) => {
-            if (stop.address.lat === null || stop.address.lng === null) return;
-            const lat = stop.address.lat;
-            const lng = stop.address.lng;
-            const marker = L.marker([lat, lng], { icon: makeDriverIcon(route.color, idx + 1) })
-              .bindPopup(`
-                <div style="font-family:Inter,sans-serif;min-width:160px">
-                  <div style="font-weight:600;color:${route.color};margin-bottom:4px">
-                    Parada ${stop.sequence} · ${route.driverName}
-                  </div>
-                  <div style="font-weight:500;color:#1e293b">${stop.address.name}</div>
-                  <div style="font-size:12px;color:#64748b;margin-top:2px">${stop.address.raw}</div>
-                </div>
-              `)
-              .addTo(map);
-            markersRef.current.push(marker);
-            bounds.push([lat, lng]);
+            markersRef.current.push(altLine);
           });
-        });
-      } else {
-        // Sin rutas: depósito global + direcciones
-        if (depot) {
-          const marker = L.marker([depot.lat, depot.lng], { icon: makeDepotIcon() })
-            .bindPopup(`<b>🏭 Depósito</b><br/><small>${depot.label}</small>`)
-            .addTo(map);
-          markersRef.current.push(marker);
-          bounds.push([depot.lat, depot.lng]);
         }
 
-        addresses
-          .filter((a) => a.lat !== null && a.lng !== null)
-          .forEach((addr) => {
-            const marker = L.marker([addr.lat!, addr.lng!], { icon: makeDriverIcon('#64748B', '·') })
-              .bindPopup(`
-                <div style="font-family:Inter,sans-serif">
-                  <div style="font-weight:500;color:#1e293b">${addr.name}</div>
-                  <div style="font-size:12px;color:#64748b">${addr.raw}</div>
-                </div>
-              `)
-              .addTo(map);
-            markersRef.current.push(marker);
-            bounds.push([addr.lat!, addr.lng!]);
+        // Pintar ruta principal
+        if (route.polyline && route.polyline.length > 0) {
+          const mainLine = new google.maps.Polyline({
+            path: route.polyline.map(([lat, lng]) => ({ lat, lng })),
+            map,
+            strokeColor: route.color,
+            strokeOpacity: 0.9,
+            strokeWeight: 5,
           });
+          markersRef.current.push(mainLine);
+
+          // Si la ruta no termina exacto en la bodega, trazar línea final punteada
+          const last = route.polyline[route.polyline.length - 1];
+          if (Math.abs(last[0] - endCoord.lat) > 0.0002 || Math.abs(last[1] - endCoord.lng) > 0.0002) {
+            const closingLine = new google.maps.Polyline({
+              path: [
+                { lat: last[0], lng: last[1] },
+                { lat: endCoord.lat, lng: endCoord.lng },
+              ],
+              map,
+              strokeColor: route.color,
+              strokeOpacity: 0,
+              icons: [
+                {
+                  icon: {
+                    path: 'M 0,-1 0,1',
+                    strokeOpacity: 0.6,
+                    scale: 2,
+                    strokeWeight: 3,
+                  },
+                  offset: '0',
+                  repeat: '10px',
+                },
+              ],
+            });
+            markersRef.current.push(closingLine);
+          }
+        } else {
+          // Fallback: líneas rectas
+          const stopsCoords = route.stops
+            .filter((s) => s.address.lat !== null && s.address.lng !== null)
+            .map((s) => ({ lat: s.address.lat!, lng: s.address.lng! }));
+
+          const coordArray = [startCoord, ...stopsCoords, endCoord];
+          if (coordArray.length >= 2) {
+            const polyline = new google.maps.Polyline({
+              path: coordArray,
+              map,
+              strokeColor: route.color,
+              strokeOpacity: 0.85,
+              strokeWeight: 4,
+            });
+            markersRef.current.push(polyline);
+          }
+        }
+
+        // Paradas de la ruta
+        route.stops.forEach((stop, idx) => {
+          if (stop.address.lat === null || stop.address.lng === null) return;
+          const lat = stop.address.lat;
+          const lng = stop.address.lng;
+
+          const marker = new google.maps.Marker({
+            position: { lat, lng },
+            map,
+            icon: makeSvgIcon(driverSvg(route.color, idx + 1), 32, 42, 16, 42),
+          });
+
+          addInfoWindow(
+            marker,
+            `
+            <div style="font-family:Inter,sans-serif;min-width:160px;padding:2px">
+              <div style="font-weight:600;color:${route.color};margin-bottom:4px">
+                Parada ${stop.sequence} · ${route.driverName}
+              </div>
+              <div style="font-weight:500;color:#1e293b">${stop.address.name}</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px">${stop.address.raw}</div>
+            </div>
+            `
+          );
+
+          markersRef.current.push(marker);
+          bounds.extend({ lat, lng });
+          hasPoints = true;
+        });
+      });
+    } else {
+      // Sin rutas: mostrar depósito global + direcciones individuales
+      if (depot) {
+        const marker = new google.maps.Marker({
+          position: { lat: depot.lat, lng: depot.lng },
+          map,
+          icon: makeSvgIcon(depotSvg(), 36, 46, 18, 46),
+        });
+        addInfoWindow(
+          marker,
+          `<b>🏭 Depósito</b><br/><small>${depot.label}</small>`
+        );
+        markersRef.current.push(marker);
+        bounds.extend({ lat: depot.lat, lng: depot.lng });
+        hasPoints = true;
       }
 
-      if (bounds.length > 0) {
-        map.fitBounds(bounds, { padding: [40, 40] });
-      }
-    });
-  }, [addresses, routes, depot]);
+      addresses
+        .filter((a) => a.lat !== null && a.lng !== null)
+        .forEach((addr) => {
+          const marker = new google.maps.Marker({
+            position: { lat: addr.lat!, lng: addr.lng! },
+            map,
+            icon: makeSvgIcon(driverSvg('#64748B', '·'), 32, 42, 16, 42),
+          });
+          addInfoWindow(
+            marker,
+            `
+            <div style="font-family:Inter,sans-serif;padding:2px">
+              <div style="font-weight:500;color:#1e293b">${addr.name}</div>
+              <div style="font-size:12px;color:#64748b">${addr.raw}</div>
+            </div>
+            `
+          );
+          markersRef.current.push(marker);
+          bounds.extend({ lat: addr.lat!, lng: addr.lng! });
+          hasPoints = true;
+        });
+    }
+
+    if (hasPoints) {
+      map.fitBounds(bounds);
+      // Evitar zoom demasiado alto si sólo hay un punto
+      const listener = map.addListener('bounds_changed', () => {
+        if (map.getZoom()! > 16) {
+          map.setZoom(16);
+        }
+        google.maps.event.removeListener(listener);
+      });
+    }
+  }, [addresses, routes, depot, mapInitialized]);
 
   return (
     <div
       ref={containerRef}
       className="w-full h-full rounded-xl overflow-hidden"
-      style={{ minHeight: '400px' }}
+      style={{ minHeight: '400px', backgroundColor: '#0f172a' }}
     />
   );
 }

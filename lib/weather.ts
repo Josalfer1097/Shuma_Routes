@@ -13,6 +13,18 @@ const LON = -99.1332;
 export async function getWeatherCDMX(): Promise<WeatherData> {
   const apiKey = (process.env.NEXT_PUBLIC_OWM_API_KEY || '').trim();
   
+  // Si no hay API key o es un valor placeholder, usar clima simulado realista para CDMX
+  if (!apiKey || apiKey.toLowerCase().includes('tu_api_key') || apiKey.length < 10) {
+    return {
+      temp: 22,
+      description: 'Cielo despejado',
+      icon: '01d',
+      humidity: 40,
+      windSpeed: 10,
+      alerts: [],
+    };
+  }
+  
   const url = 'https://api.openweathermap.org/data/2.5/weather?lat=' + 
     LAT + '&lon=' + LON + 
     '&appid=' + apiKey + 

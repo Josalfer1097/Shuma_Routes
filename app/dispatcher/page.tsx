@@ -127,7 +127,11 @@ export default function DispatcherPage() {
           updated = { ...addr, geocoded: true, geocodeError: 'No encontrada' };
         }
       } catch (err) {
-        updated = { ...addr, geocoded: true, geocodeError: 'Error al geocodificar' };
+        let msg = 'Error al geocodificar';
+        if (err instanceof Error && err.message.includes('REQUEST_DENIED')) {
+          msg = 'API Key rechazada (REQUEST_DENIED)';
+        }
+        updated = { ...addr, geocoded: true, geocodeError: msg };
       }
 
       updatedAddresses[i] = updated;
@@ -136,6 +140,15 @@ export default function DispatcherPage() {
 
     dispatch({ type: 'SET_ADDRESSES', payload: updatedAddresses });
     dispatch({ type: 'SET_STEP', payload: 'vehicles' });
+
+    // Si todas las direcciones fallaron, mostramos un error global
+    const successCount = updatedAddresses.filter(a => a.lat !== null).length;
+    if (successCount === 0 && updatedAddresses.length > 0) {
+      dispatch({ 
+        type: 'SET_ERROR', 
+        payload: 'No se pudo geocodificar ninguna dirección. Verifica tu API Key de Google (Geocoding API habilitada y sin restricciones de referrer).' 
+      });
+    }
   }, []);
 
   // Optimización de rutas
@@ -344,7 +357,7 @@ export default function DispatcherPage() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            Optimizando con Vroom…
+            Optimizando con Google…
           </div>
         )}
 

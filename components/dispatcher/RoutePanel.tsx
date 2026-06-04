@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Route, Stop } from '@/types';
 import { formatDuration, formatDistance } from '@/lib/osrm';
 
@@ -13,6 +13,13 @@ export default function RoutePanel({ routes, onShareRoute }: Props) {
   const [expandedRoute, setExpandedRoute] = useState<string | null>(
     routes[0]?.vehicleId ?? null
   );
+
+  // Auto-expand first route when routes change
+  useEffect(() => {
+    if (routes.length > 0 && !expandedRoute) {
+      setExpandedRoute(routes[0].vehicleId);
+    }
+  }, [routes, expandedRoute]);
 
   if (routes.length === 0) {
     return (

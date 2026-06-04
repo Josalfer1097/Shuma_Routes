@@ -19,146 +19,183 @@ export default function ReportButton({ routes, weather }: Props) {
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
     const now = new Date();
+    const currentYear = now.getFullYear();
+
     const dateStr = now.toLocaleDateString('es-MX', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
-    const timeStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    const dateStrFormatted = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+    const timeStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const generationDateTime = `${dateStrFormatted}, ${timeStr}`;
 
-    // ── Encabezado ──────────────────────────────────────────
-    doc.setFillColor(15, 23, 42); // slate-900
-    doc.rect(0, 0, pageW, 28, 'F');
+    // ─── PÁGINA 1: PORTADA EJECUTIVA ───
 
+    // Header Logo "SHUMA RUTAS"
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
-    doc.setTextColor(255, 255, 255);
-    doc.text('Shuma Rutas', 14, 13);
+    doc.setTextColor(30, 58, 138); // navy #1E3A8A
+    doc.text('SHUMA RUTAS', 20, 30);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(148, 163, 184); // slate-400
-    doc.text('Sistema de optimización de rutas de entrega', 14, 19);
-    doc.text(`Generado: ${dateStr}, ${timeStr}`, 14, 24);
+    // Línea divisoria del Header
+    doc.setDrawColor(30, 58, 138); // navy #1E3A8A
+    doc.setLineWidth(0.8);
+    doc.line(20, 34, 190, 34);
 
-    // Resumen en el encabezado
-    const totalStops = routes.reduce((a, r) => a + r.stops.length, 0);
+    // Título del reporte
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(96, 165, 250); // blue-400
-    const summaryX = pageW - 14;
-    doc.text(`${routes.length} rutas · ${totalStops} paradas`, summaryX, 13, { align: 'right' });
+    doc.setFontSize(22);
+    doc.setTextColor(30, 41, 59); // slate-800
+    doc.text('Reporte de Rutas de Entrega', 20, 48);
 
-    let cursorY = 36;
+    // Fecha y hora de generación
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139); // slate-500
+    doc.text(`Generado: ${generationDateTime}`, 20, 55);
 
-    // ── Por cada chofer ──────────────────────────────────────
-    routes.forEach((route, routeIdx) => {
-      // Verificar espacio en página
-      if (cursorY > 240) {
-        doc.addPage();
-        cursorY = 16;
-      }
+    // Totales para el Resumen General
+    const totalDrivers = routes.length;
+    const totalStops = routes.reduce((acc, r) => acc + r.stops.length, 0);
+    const totalDistanceMeters = routes.reduce((acc, r) => acc + (r.totalDistance || 0), 0);
+    const totalDistanceKm = (totalDistanceMeters / 1000).toFixed(1);
+    const totalDurationSeconds = routes.reduce((acc, r) => acc + (r.totalDuration || 0), 0);
+    const totalDurationStr = formatDuration(totalDurationSeconds);
 
-      // Color del chofer como acento
-      const hex = route.color;
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
+    // RESUMEN GENERAL en tabla
+    autoTable(doc, {
+      startY: 64,
+      head: [['Total de Choferes', 'Total de Paradas', 'Distancia Combinada', 'Tiempo Estimado Total']],
+      body: [[totalDrivers.toString(), totalStops.toString(), `${totalDistanceKm} km`, totalDurationStr]],
+      margin: { left: 20, right: 20 },
+      theme: 'striped',
+      headStyles: {
+        fillColor: [30, 58, 138], // navy #1E3A8A
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center',
+        fontSize: 9,
+      },
+      bodyStyles: {
+        halign: 'center',
+        fontSize: 11,
+        fontStyle: 'bold',
+        textColor: [30, 41, 59], // slate-800
+        cellPadding: 4,
+      },
+      styles: {
+        font: 'helvetica',
+        lineColor: [226, 232, 240], // slate-200
+        lineWidth: 0.1,
+      },
+    });
 
-      // Barra de color lateral
-      doc.setFillColor(r, g, b);
-      doc.rect(10, cursorY, 2, 26, 'F');
+    let currentY = (doc as any).lastAutoTable.finalY;
 
-      // Header del chofer
-      doc.setFillColor(30, 41, 59); // slate-800
-      doc.rect(13, cursorY, pageW - 23, 26, 'F');
+    // Sección: Resumen por Chofer
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(30, 41, 59); // slate-800
+    doc.text('Resumen de Rutas por Chofer', 20, currentY + 12);
+
+    // TABLA RESUMEN POR CHOFER
+    const driverRows = routes.map((route) => [
+      route.driverName,
+      route.matricula || '—',
+      route.depot.name,
+      route.endDepot?.name || route.depot.name,
+      route.stops.length.toString(),
+      route.totalDistance ? formatDistance(route.totalDistance) : '—',
+      route.totalDuration ? formatDuration(route.totalDuration) : '—',
+    ]);
+
+    autoTable(doc, {
+      startY: currentY + 16,
+      head: [['Chofer', 'Matrícula', 'Bodega Salida', 'Bodega Regreso', 'Paradas', 'Distancia', 'Tiempo Estimado']],
+      body: driverRows,
+      margin: { left: 20, right: 20 },
+      theme: 'striped',
+      headStyles: {
+        fillColor: [30, 58, 138], // navy #1E3A8A
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8.5,
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252], // slate-50 #F8FAFC
+      },
+      styles: {
+        font: 'helvetica',
+        fontSize: 8,
+        cellPadding: 2.5,
+        lineColor: [226, 232, 240], // slate-200
+        lineWidth: 0.1,
+        textColor: [51, 65, 85], // slate-700
+      },
+      columnStyles: {
+        4: { halign: 'center' },
+        5: { halign: 'right' },
+        6: { halign: 'right' },
+      },
+    });
+
+    // ─── PÁGINAS SIGUIENTES: UNA POR CHOFER ───
+    routes.forEach((route) => {
+      doc.addPage();
+
+      // Header: Nombre de chofer y matrícula
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(30, 58, 138); // navy #1E3A8A
+      doc.text('SHUMA RUTAS', 20, 25);
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
-      doc.setTextColor(r, g, b);
-      doc.text(`${routeIdx + 1}. ${route.driverName}`, 17, cursorY + 7);
+      doc.setTextColor(30, 41, 59); // slate-800
+      doc.text(`${route.driverName}  ·  Matrícula: ${route.matricula || '—'}`, 190, 25, { align: 'right' });
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(203, 213, 225); // slate-300
+      // Línea divisoria
+      doc.setDrawColor(30, 58, 138); // navy #1E3A8A
+      doc.setLineWidth(0.5);
+      doc.line(20, 28, 190, 28);
 
-      const vehicleData = `Mat. ${route.matricula ?? '—'}`;
-      doc.text(vehicleData, 17, cursorY + 13);
-      doc.text(`Bodega: ${route.depot.name}`, 17, cursorY + 18);
-
-      if (route.totalDuration || route.totalDistance) {
-        const stats = [
-          route.totalDistance ? formatDistance(route.totalDistance) : null,
-          route.totalDuration ? formatDuration(route.totalDuration) : null,
-        ].filter(Boolean).join(' · ');
-        doc.text(stats, 17, cursorY + 23);
-      }
-
-      // Facturas
-      const vehicleInvoices = route.invoices;
-      if (vehicleInvoices) {
-        doc.setTextColor(251, 191, 36); // amber-400
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.text(`Facturas: ${vehicleInvoices}`, pageW - 14, cursorY + 13, { align: 'right' });
-        doc.setFont('helvetica', 'normal');
-      }
-
-      cursorY += 30;
-
-      // Consideraciones del viaje
-      doc.setFillColor(248, 250, 252); // slate-50
-      doc.setDrawColor(203, 213, 225); // slate-300
-      doc.rect(13, cursorY, pageW - 26, 26, 'FD'); // Box
-      
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.setTextColor(30, 41, 59);
-      doc.text('Consideraciones del viaje:', 17, cursorY + 6);
-      
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(71, 85, 105);
-      
-      const totalDist = route.totalDistance ? formatDistance(route.totalDistance) : '—';
-      const totalTime = route.totalDuration ? formatDuration(route.totalDuration) : '—';
-      
       // Calcular hora estimada de regreso
       let etaReturn = '—';
       if (route.totalDuration) {
         const returnDate = new Date(now.getTime() + route.totalDuration * 1000);
-        etaReturn = returnDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        etaReturn = returnDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
       }
 
-      doc.text(`• Distancia total: ${totalDist}`, 17, cursorY + 11);
-      doc.text(`• Tiempo est. con tráfico actual: ${totalTime}`, 17, cursorY + 15);
-      doc.text(`• Paradas a realizar: ${route.stops.length}`, 17, cursorY + 19);
-      doc.text(`• Hora est. regreso a bodega: ${etaReturn}`, 17, cursorY + 23);
-      
-      // Notas adicionales y clima (columna derecha de la caja)
-      doc.setTextColor(100, 116, 139);
-      doc.text('Notas de seguridad:', pageW / 2 + 10, cursorY + 6);
-      doc.text('- Consulte condiciones climáticas antes de salir.', pageW / 2 + 10, cursorY + 11);
-      doc.text('- En caso de tráfico intenso considerar rutas alternas.', pageW / 2 + 10, cursorY + 15);
+      // Datos del viaje: caja slate-50
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.rect(20, 34, 170, 24, 'FD');
 
-      if (weather) {
-        doc.setFont('helvetica', 'bold');
-        if (weather.alerts.length > 0) {
-          doc.setTextColor(239, 68, 68); // red-500
-          doc.text(`ALERTA: ${weather.alerts[0]}`, pageW / 2 + 10, cursorY + 20);
-        } else {
-          doc.setTextColor(16, 185, 129); // emerald-500
-          doc.text(`Clima óptimo: ${weather.temp}°C, ${weather.windSpeed}km/h`, pageW / 2 + 10, cursorY + 20);
-        }
-        doc.setFont('helvetica', 'normal');
-      }
-      
-      cursorY += 32;
+      // Etiquetas
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(30, 58, 138); // navy #1E3A8A
+      doc.text('Bodega Salida:', 24, 40);
+      doc.text('Bodega Regreso:', 24, 45);
+      doc.text('Distancia Total:', 24, 50);
 
-      // Tabla de paradas con distancia acumulada real
+      doc.text('Tiempo Estimado:', 110, 40);
+      doc.text('Hora Est. Regreso:', 110, 45);
+
+      // Valores
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 65, 85); // slate-700
+      doc.text(route.depot.name, 49, 40);
+      doc.text(route.endDepot?.name || route.depot.name, 51, 45);
+      doc.text(route.totalDistance ? formatDistance(route.totalDistance) : '—', 49, 50);
+
+      doc.text(route.totalDuration ? formatDuration(route.totalDuration) : '—', 138, 40);
+      doc.text(etaReturn, 139, 45);
+
+      // TABLA DE PARADAS
       let accumulated = 0;
-      const tableRows = route.stops.map((stop) => {
-        // stop.distance viene de Vroom = distancia recorrida hasta esa parada desde el inicio
-        // Si tiene valor, úsarlo directamente (ya es acumulado desde Vroom)
+      const stopRows = route.stops.map((stop) => {
         if (stop.distance != null) {
           accumulated = stop.distance;
         }
@@ -172,52 +209,115 @@ export default function ReportButton({ routes, weather }: Props) {
       });
 
       autoTable(doc, {
-        startY: cursorY,
-        head: [['#', 'Destinatario', 'Dirección', 'Dist. acum.', 'ETA']],
-        body: tableRows,
-        margin: { left: 13, right: 10 },
-        styles: {
-          fontSize: 8,
-          cellPadding: 2.5,
-          textColor: [30, 41, 59],
-        },
+        startY: 64,
+        head: [['#', 'Cliente', 'Dirección completa', 'Dist. acum. (km)', 'ETA estimada']],
+        body: stopRows,
+        margin: { left: 20, right: 20 },
+        theme: 'striped',
         headStyles: {
-          fillColor: [r, g, b],
+          fillColor: [30, 58, 138], // navy #1E3A8A
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 8,
+          fontSize: 8.5,
         },
         alternateRowStyles: {
-          fillColor: [241, 245, 249], // slate-100
+          fillColor: [248, 250, 252], // slate-50
+        },
+        styles: {
+          font: 'helvetica',
+          fontSize: 8,
+          cellPadding: 3,
+          lineColor: [226, 232, 240], // slate-200
+          lineWidth: 0.1,
+          textColor: [51, 65, 85], // slate-700
         },
         columnStyles: {
           0: { halign: 'center', cellWidth: 10 },
-          1: { cellWidth: 40 },
-          2: { cellWidth: 80 },
-          3: { halign: 'right', cellWidth: 22 },
-          4: { halign: 'right', cellWidth: 20 },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 75 },
+          3: { halign: 'right', cellWidth: 25 },
+          4: { halign: 'right', cellWidth: 25 },
         },
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      cursorY = (doc as any).lastAutoTable.finalY + 10;
+      let finalY = (doc as any).lastAutoTable.finalY || 64;
+
+      // Sección "Consideraciones"
+      // Verificar si cabe en la página actual o agregamos página (necesitamos ~35mm de margen)
+      if (finalY + 35 > pageH - 20) {
+        doc.addPage();
+        finalY = 25; // Resetear Y para consideraciones en nueva página
+      }
+
+      const boxY = finalY + 8;
+
+      // Clima CDMX text
+      let weatherText = 'Clima CDMX actual: No disponible';
+      if (weather) {
+        const desc = weather.description.charAt(0).toUpperCase() + weather.description.slice(1);
+        weatherText = `Clima CDMX actual: ${weather.temp}°C - ${desc}`;
+      }
+
+      // Preparar facturas text y envoltura
+      const invoicesText = route.invoices ? route.invoices : 'Ninguna';
+      const fullInvoicesText = `• Llevar documentación de facturas: ${invoicesText}`;
+      const wrappedInvoices = doc.splitTextToSize(fullInvoicesText, 160);
+      const invoicesLinesCount = wrappedInvoices.length;
+
+      // Calcular altura del recuadro
+      const boxHeight = 16 + (invoicesLinesCount * 4);
+
+      // Dibujar caja
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.rect(20, boxY, 170, boxHeight, 'FD');
+
+      // Título Sección
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(30, 58, 138); // navy #1E3A8A
+      doc.text('Consideraciones de la Ruta', 24, boxY + 6);
+
+      // Contenido
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(51, 65, 85); // slate-700
+      doc.text(`• ${weatherText}`, 24, boxY + 11);
+      doc.text('• Verificar condiciones de tráfico antes de salir.', 24, boxY + 16);
+
+      // Imprimir facturas envueltas
+      wrappedInvoices.forEach((line: string, idx: number) => {
+        doc.text(line, 24, boxY + 21 + (idx * 4));
+      });
     });
 
-    // ── Pie de página ─────────────────────────────────────────
+    // ─── POST-PROCESAMIENTO: FOOTERS EN TODAS LAS PÁGINAS ───
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
-      const pageH = doc.internal.pageSize.getHeight();
-      doc.setFillColor(15, 23, 42);
-      doc.rect(0, pageH - 10, pageW, 10, 'F');
+
+      // Línea sutil de pie de página
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.setLineWidth(0.2);
+      doc.line(20, pageH - 20, pageW - 20, pageH - 20);
+
+      // Contenido
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
+      doc.setFontSize(8);
       doc.setTextColor(100, 116, 139); // slate-500
-      doc.text('Generado por Shuma Rutas — Confidencial', 14, pageH - 4);
-      doc.text(`Pág. ${i} / ${totalPages}`, pageW - 14, pageH - 4, { align: 'right' });
+
+      if (i === 1) {
+        // Portada
+        const footerText = `Grupo Shuma © ${currentYear} — Documento confidencial`;
+        doc.text(footerText, pageW / 2, pageH - 14, { align: 'center' });
+      } else {
+        // Páginas siguientes
+        doc.text(`Grupo Shuma © ${currentYear} — Documento confidencial`, 20, pageH - 14);
+        doc.text(`Página ${i} de ${totalPages}`, pageW - 20, pageH - 14, { align: 'right' });
+      }
     }
 
-    doc.save(`shuma-rutas-${now.toISOString().slice(0, 10)}.pdf`);
+    doc.save(`reporte-rutas-shuma-${now.toISOString().slice(0, 10)}.pdf`);
   };
 
   return (

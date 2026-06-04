@@ -1,52 +1,56 @@
-import type { NominatimResult } from '@/types';
-
-const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
-const USER_AGENT = 'ShumaRutas/1.0 (contacto@shuma.mx)';
-
-/** Delay entre llamadas para respetar el rate-limit de Nominatim (1 req/s) */
-const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 /**
- * Geocodifica una dirección usando Nominatim (OpenStreetMap).
- * Retorna null si no se encontraron resultados.
+ * Geocodifica una dirección usando Google Geocoding API via fetch.
+ * Evita bloqueos y retorna null si no se encontraron resultados o hay errores.
  */
 export async function geocodeAddress(
   query: string,
   countryCode = 'mx'
 ): Promise<{ lat: number; lng: number; label: string } | null> {
-  const params = new URLSearchParams({
-    q: query,
-    format: 'json',
-    limit: '1',
-    countrycodes: countryCode,
-    addressdetails: '0',
-  });
-
-  const res = await fetch(`${NOMINATIM_BASE}/search?${params.toString()}`, {
-    headers: {
-      'User-Agent': USER_AGENT,
-      'Accept-Language': 'es',
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Nominatim error ${res.status}: ${res.statusText}`);
+  if (!GOOGLE_API_KEY) {
+    console.error('Falta la API Key de Google Maps');
+    return null;
   }
 
-  const results: NominatimResult[] = await res.json();
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+    query
+  )}&key=${GOOGLE_API_KEY}&language=es&region=${countryCode.toUpperCase()}`;
 
-  if (results.length === 0) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
 
-  const top = results[0];
-  return {
-    lat: parseFloat(top.lat),
-    lng: parseFloat(top.lon),
-    label: top.display_name,
-  };
+    const data = await res.json();
+
+    if (data.status === 'ZERO_RESULTS') {
+      return null;
+    }
+
+    if (data.status !== 'OK') {
+      throw new Error(`Google Geocoder falló con status: ${data.status}`);
+    }
+
+    if (!data.results || data.results.length === 0) {
+      return null;
+    }
+
+    const top = data.results[0];
+    const lat = top.geometry.location.lat;
+    const lng = top.geometry.location.lng;
+    const label = top.formatted_address || query;
+
+    return { lat, lng, label };
+  } catch (err) {
+    console.error('Error al geocodificar:', err);
+    throw err;
+  }
 }
 
 /**
- * Geocodifica un array de queries en serie con rate-limit de 1s.
+ * Geocodifica un array de queries en serie con un retardo mínimo de 50ms.
  * Retorna un array paralelo con el resultado (o null si falló).
  */
 export async function geocodeBatch(
@@ -56,11 +60,12 @@ export async function geocodeBatch(
   const results: ({ lat: number; lng: number; label: string } | null)[] = [];
 
   for (let i = 0; i < queries.length; i++) {
-    if (i > 0) await delay(1100); // Nominatim: max 1 req/s
+    if (i > 0) await new Promise((res) => setTimeout(res, 50));
     try {
       const result = await geocodeAddress(queries[i]);
       results.push(result);
-    } catch {
+    } catch (err) {
+      console.error('Error al geocodificar:', err);
       results.push(null);
     }
     onProgress?.(i + 1, queries.length);
@@ -70,27 +75,33 @@ export async function geocodeBatch(
 }
 
 /**
- * Reverse geocoding: obtiene la dirección a partir de coordenadas.
+ * Obtiene la dirección a partir de coordenadas usando Google Maps Geocoding API via fetch.
  */
 export async function reverseGeocode(
   lat: number,
   lng: number
 ): Promise<string | null> {
-  const params = new URLSearchParams({
-    lat: lat.toString(),
-    lon: lng.toString(),
-    format: 'json',
-  });
+  if (!GOOGLE_API_KEY) {
+    console.error('Falta la API Key de Google Maps');
+    return null;
+  }
 
-  const res = await fetch(`${NOMINATIM_BASE}/reverse?${params.toString()}`, {
-    headers: {
-      'User-Agent': USER_AGENT,
-      'Accept-Language': 'es',
-    },
-  });
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_API_KEY}&language=es`;
 
-  if (!res.ok) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
 
-  const data = await res.json();
-  return data.display_name ?? null;
+    const data = await res.json();
+
+    if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+      return null;
+    }
+    return data.results[0].formatted_address || null;
+  } catch (err) {
+    console.error('Error al hacer geocodificación inversa:', err);
+    return null;
+  }
 }

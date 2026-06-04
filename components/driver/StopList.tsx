@@ -93,7 +93,7 @@ export default function StopList({ route, stops, onComplete }: Props) {
 
       {/* Footer */}
       <div className="py-4 text-center">
-        <p className="text-xs text-slate-600">Shuma Rutas · Optimizado con OSRM + Vroom</p>
+        <p className="text-xs text-slate-600">Shuma Rutas · Optimizado con Google Maps</p>
       </div>
     </div>
   );

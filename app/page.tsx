@@ -100,7 +100,7 @@ export default function HomePage() {
 
         {/* Footer */}
         <p className="text-center text-xs text-slate-700 mt-8">
-          Powered by OSRM · Vroom · OpenStreetMap
+          Powered by Google Maps
         </p>
       </div>
     </main>
