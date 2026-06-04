@@ -7,8 +7,7 @@ import type {
 } from '@/types';
 import { getRouteGoogle } from './here';
 
-const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-const OPTIMIZATION_API_URL = 'https://routeoptimization.googleapis.com/v1/projects/shuma-rutas:optimizeTours';
+
 
 /** Colores predeterminados para los choferes (hasta 10) */
 const DRIVER_COLORS = [
@@ -25,10 +24,10 @@ const DRIVER_COLORS = [
 ];
 
 /**
- * Llama a la API de Optimización de Rutas de Google Cloud.
+ * Llama a la API de Optimización de Rutas de Google Cloud a través del proxy local.
  */
 async function callGoogleRouteOptimization(payload: any): Promise<any> {
-  const url = `${OPTIMIZATION_API_URL}?key=${GOOGLE_API_KEY}`;
+  const url = '/api/optimize';
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -37,7 +36,7 @@ async function callGoogleRouteOptimization(payload: any): Promise<any> {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Google Route Optimization error ${res.status}: ${text}`);
+    throw new Error(`Google Route Optimization proxy error ${res.status}: ${text}`);
   }
 
   return await res.json();
