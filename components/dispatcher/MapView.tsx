@@ -9,6 +9,7 @@ interface Props {
   addresses: Address[];
   routes: Route[];
   depot: { lat: number; lng: number; label: string } | null;
+  hiddenRouteIds?: string[];
 }
 
 // ── Helpers para crear marcadores personalizados (HTML) ───────────
@@ -41,7 +42,7 @@ function createStopPin(number: string | number) {
   return div;
 }
 
-export default function MapView({ addresses, routes, depot }: Props) {
+export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
@@ -164,6 +165,8 @@ export default function MapView({ addresses, routes, depot }: Props) {
 
       // Dibujar rutas (Polylines)
       routes.forEach((route) => {
+        if (hiddenRouteIds.includes(route.vehicleId)) return; // No dibujar ruta oculta
+
         // Pintar alternativas
         if (route.alternatives && route.alternatives.length > 0) {
           route.alternatives.forEach((altPoly) => {

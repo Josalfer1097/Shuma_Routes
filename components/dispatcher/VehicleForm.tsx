@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import type { Vehicle } from '@/types';
-import DEPOTS from '@/lib/depots';
 import DRIVERS from '@/lib/drivers';
 
 interface Props {
@@ -22,8 +21,7 @@ const inputCls = `w-full px-3 py-2 text-sm bg-slate-700 border border-slate-600 
 
 export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
   const [driverId, setDriverId]   = useState(DRIVERS[0].id);
-  const [depotId, setDepotId]     = useState(DEPOTS[0].id);
-  const [endDepotId, setEndDepotId] = useState(DEPOTS[0].id);
+  const [vehicleType, setVehicleType] = useState<'Camión grande' | 'Camión chico' | 'Camioneta'>('Camión grande');
   const [capacity, setCapacity]   = useState('');
   const [invoices, setInvoices]   = useState('');
   const [formError, setFormError] = useState<string | null>(null);
@@ -35,27 +33,23 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
     const selectedDriver = DRIVERS.find(d => d.id === driverId);
     if (!selectedDriver) { setFormError('Chofer no válido.'); return; }
 
-    const selectedDepot = DEPOTS.find(d => d.id === depotId);
-    if (!selectedDepot) { setFormError('Bodega no válida.'); return; }
-
-    const selectedEndDepot = DEPOTS.find(d => d.id === endDepotId) ?? selectedDepot;
-
     const newVehicle: Vehicle = {
       id: crypto.randomUUID(),
       driverName: selectedDriver.name,
       matricula: selectedDriver.matricula,
       vehicleId: `VH-${vehicles.length + 1}`,
+      type: vehicleType,
       capacity: parseInt(capacity) || 9999,
       color: DRIVER_COLORS[vehicles.length % DRIVER_COLORS.length],
-      depot: selectedDepot,
-      endDepot: selectedEndDepot,
+      // Depots will be overwritten by global config in page.tsx
+      depot: { id: '', name: '', address: '', lat: 0, lng: 0 },
+      endDepot: { id: '', name: '', address: '', lat: 0, lng: 0 },
       invoices: invoices.trim(),
     };
 
     onAdd(newVehicle);
     setDriverId(DRIVERS[0].id);
-    setDepotId(DEPOTS[0].id);
-    setEndDepotId(DEPOTS[0].id);
+    setVehicleType('Camión grande');
     setCapacity('');
     setInvoices('');
   };
@@ -63,9 +57,8 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
   return (
     <div className="space-y-4">
       {/* Formulario */}
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="space-y-2">
-
+      <form onSubmit={handleSubmit} className="space-y-3 bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+        <div className="space-y-3">
           {/* Chofer */}
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1">
@@ -84,35 +77,19 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
             </select>
           </div>
 
-          {/* Bodega salida */}
+          {/* Tipo */}
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1">
-              Bodega de salida *
+              Tipo de vehículo *
             </label>
             <select
-              value={depotId}
-              onChange={(e) => setDepotId(e.target.value)}
+              value={vehicleType}
+              onChange={(e) => setVehicleType(e.target.value as any)}
               className={inputCls}
             >
-              {DEPOTS.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Bodega regreso */}
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">
-              Bodega de regreso
-            </label>
-            <select
-              value={endDepotId}
-              onChange={(e) => setEndDepotId(e.target.value)}
-              className={inputCls}
-            >
-              {DEPOTS.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
+              <option value="Camión grande">Camión grande</option>
+              <option value="Camión chico">Camión chico</option>
+              <option value="Camioneta">Camioneta</option>
             </select>
           </div>
 
@@ -146,18 +123,20 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
           </div>
         </div>
 
-        {formError && <p className="text-xs text-red-400">{formError}</p>}
+        {formError && <p className="text-xs text-red-400 mt-2">{formError}</p>}
 
         <button
           type="submit"
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg
+          disabled={vehicles.length >= 6}
+          className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2 rounded-lg
                      bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-500
+                     disabled:opacity-50 disabled:cursor-not-allowed
                      text-sm font-medium text-slate-300 transition-all duration-200"
         >
           <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          Agregar chofer
+          {vehicles.length >= 6 ? 'Máximo 6 camiones' : 'Agregar camión'}
         </button>
       </form>
 
@@ -165,7 +144,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
       {vehicles.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-            {vehicles.length} {vehicles.length === 1 ? 'chofer' : 'choferes'} registrados
+            {vehicles.length} {vehicles.length === 1 ? 'camión' : 'camiones'} listos
           </p>
           <ul className="space-y-1.5">
             {vehicles.map((v) => (
@@ -181,8 +160,8 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                     <span className="ml-1.5 text-xs text-slate-500 font-normal">Mat. {v.matricula}</span>
                   </p>
                   <p className="text-xs text-slate-500">
-                    {v.capacity < 9999 && `${v.capacity} bultos · `}
-                    Bodega: {v.depot.name}
+                    {v.type}
+                    {v.capacity < 9999 && ` · Máx ${v.capacity} bultos`}
                   </p>
                   {v.invoices && (
                     <p className="text-xs text-amber-400/80 truncate mt-0.5">📄 {v.invoices}</p>
@@ -207,7 +186,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
 
       {vehicles.length === 0 && (
         <div className="text-center py-4">
-          <p className="text-xs text-slate-600">Agrega al menos un chofer para optimizar rutas</p>
+          <p className="text-xs text-slate-600">Agrega al menos un camión para optimizar rutas</p>
         </div>
       )}
     </div>

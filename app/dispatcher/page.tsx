@@ -55,6 +55,7 @@ type Action =
   | { type: 'UPDATE_ADDRESS'; payload: Address }
   | { type: 'ADD_VEHICLE'; payload: Vehicle }
   | { type: 'REMOVE_VEHICLE'; payload: string }
+  | { type: 'SWAP_VEHICLES'; payload: { index1: number; index2: number } }
   | { type: 'SET_ROUTES'; payload: Route[] }
   | { type: 'SET_STEP'; payload: AppStep }
   | { type: 'SET_CLUSTERS'; payload: Cluster[] }
@@ -96,6 +97,13 @@ function appReducer(state: AppState, action: Action): AppState {
           state.vehicles.filter((v) => v.id !== action.payload)
         ),
       };
+    case 'SWAP_VEHICLES': {
+      const newVehicles = [...state.vehicles];
+      const temp = newVehicles[action.payload.index1];
+      newVehicles[action.payload.index1] = newVehicles[action.payload.index2];
+      newVehicles[action.payload.index2] = temp;
+      return { ...state, vehicles: newVehicles };
+    }
     case 'SET_ROUTES':
       return { ...state, routes: action.payload, step: 'results', error: null };
     case 'SET_STEP':
@@ -103,7 +111,7 @@ function appReducer(state: AppState, action: Action): AppState {
     case 'SET_CLUSTERS':
       return { ...state, clusters: action.payload };
     case 'SET_ERROR':
-      return { ...state, error: action.payload, step: state.step === 'optimizing' ? 'vehicles' : state.step };
+      return { ...state, error: action.payload, step: state.step === 'optimizing' ? 'zones' : state.step };
     case 'SET_DEPOT':
       return { ...state, depot: action.payload };
     case 'SET_GLOBAL_CONFIG':
@@ -118,9 +126,11 @@ function appReducer(state: AppState, action: Action): AppState {
 export default function DispatcherPage() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'config' | 'upload' | 'zones' | 'vehicles' | 'routes'>('config');
+  const [activeTab, setActiveTab] = useState<'config' | 'upload' | 'zones' | 'routes'>('config');
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [numClusters, setNumClusters] = useState<number>(1);
+  const [showInlineVehicleForm, setShowInlineVehicleForm] = useState(false);
+  const [hiddenRouteIds, setHiddenRouteIds] = useState<string[]>([]);
 
   useEffect(() => {
     getWeatherCDMX().then(setWeather).catch(console.error);
@@ -167,13 +177,12 @@ export default function DispatcherPage() {
     dispatch({ type: 'SET_ADDRESSES', payload: updatedAddresses });
     
     const validCount = updatedAddresses.filter(a => a.lat !== null).length;
-    let suggestedClusters = state.vehicles.length;
-    if (suggestedClusters === 0) {
-      suggestedClusters = Math.max(1, Math.min(6, Math.ceil(validCount / 8)));
-    }
-    setNumClusters(suggestedClusters);
+    let finalClustersCount = state.vehicles.length;
+    if (finalClustersCount === 0) finalClustersCount = 1; // Fallback just in case
     
-    const generatedClusters = clusterDeliveries(updatedAddresses, suggestedClusters);
+    setNumClusters(finalClustersCount);
+    
+    const generatedClusters = clusterDeliveries(updatedAddresses, finalClustersCount);
     dispatch({ type: 'SET_CLUSTERS', payload: generatedClusters });
     
     dispatch({ type: 'SET_STEP', payload: 'zones' });
@@ -301,7 +310,6 @@ export default function DispatcherPage() {
     { id: 'config' as const, label: 'Conf.', count: 0 },
     { id: 'upload' as const, label: 'Dir.', count: state.addresses.length },
     { id: 'zones' as const, label: 'Zonas', count: state.clusters.length },
-    { id: 'vehicles' as const, label: 'Choferes', count: state.vehicles.length },
     { id: 'routes' as const, label: 'Rutas', count: state.routes.length },
   ];
 
@@ -379,6 +387,9 @@ export default function DispatcherPage() {
           {activeTab === 'config' && (
             <ConfigPanel 
               currentConfig={state.globalConfig}
+              vehicles={state.vehicles}
+              onAddVehicle={(v) => dispatch({ type: 'ADD_VEHICLE', payload: v })}
+              onRemoveVehicle={(id) => dispatch({ type: 'REMOVE_VEHICLE', payload: id })}
               onSave={(conf) => {
                 dispatch({ type: 'SET_GLOBAL_CONFIG', payload: conf });
                 dispatch({ type: 'SET_STEP', payload: 'upload' });
@@ -395,53 +406,70 @@ export default function DispatcherPage() {
           {/* Tab: Zonas */}
           {activeTab === 'zones' && (
             <div className="space-y-4">
-              <div className="bg-slate-700/50 p-4 rounded-xl border border-slate-700">
-                <label className="block text-xs font-bold text-slate-400 mb-2">
-                  Número de zonas sugeridas (basado en {state.addresses.length} paradas):
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min="1"
-                    max="6"
-                    value={numClusters}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      setNumClusters(val);
-                      const newClusters = clusterDeliveries(state.addresses, val);
-                      dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
-                    }}
-                    className="flex-1 accent-blue-500"
-                  />
-                  <span className="text-xl font-bold text-white w-6 text-center">{numClusters}</span>
+              <div className="flex items-center justify-between bg-slate-700/50 p-3 rounded-xl border border-slate-700">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Zonas ({state.clusters.length})</h3>
+                  <p className="text-xs text-slate-400">1 zona por camión</p>
                 </div>
+                <button
+                  onClick={() => setShowInlineVehicleForm(!showInlineVehicleForm)}
+                  className="px-3 py-1.5 text-xs font-bold bg-slate-600 hover:bg-slate-500 rounded-lg text-white"
+                >
+                  {showInlineVehicleForm ? 'Cancelar' : '+ Agregar camión'}
+                </button>
               </div>
-              
+
+              {showInlineVehicleForm && (
+                <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
+                  <VehicleForm
+                    vehicles={state.vehicles}
+                    onAdd={(v) => {
+                      dispatch({ type: 'ADD_VEHICLE', payload: v });
+                      setShowInlineVehicleForm(false);
+                      // Recalcular zonas con el nuevo número de vehículos
+                      const newClusters = clusterDeliveries(state.addresses, state.vehicles.length + 1);
+                      dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
+                      setNumClusters(state.vehicles.length + 1);
+                    }}
+                    onRemove={(id) => dispatch({ type: 'REMOVE_VEHICLE', payload: id })}
+                  />
+                </div>
+              )}
+
               <ul className="space-y-2">
-                {state.clusters.map((cluster) => (
-                  <li key={cluster.id} className="p-3 bg-slate-800 rounded-lg border-l-4" style={{ borderColor: cluster.color }}>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-200">{cluster.name}</h4>
-                        <p className="text-xs text-slate-400">{cluster.addresses.length} paradas</p>
+                {state.clusters.map((cluster, idx) => {
+                  const assignedVehicle = state.vehicles[idx];
+                  return (
+                    <li key={cluster.id} className="p-3 bg-slate-800 rounded-lg border-l-4" style={{ borderColor: cluster.color }}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-200">{cluster.name}</h4>
+                          <p className="text-xs text-slate-400">{cluster.addresses.length} paradas</p>
+                        </div>
                       </div>
-                      <div className="text-[10px] bg-slate-700 px-2 py-1 rounded text-slate-300">
-                        {cluster.depot.name}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Chofer Asignado</label>
+                        <select
+                          value={assignedVehicle?.id || ''}
+                          onChange={(e) => {
+                            const newVehicleId = e.target.value;
+                            const newIdx = state.vehicles.findIndex(v => v.id === newVehicleId);
+                            if (newIdx !== -1 && newIdx !== idx) {
+                              dispatch({ type: 'SWAP_VEHICLES', payload: { index1: idx, index2: newIdx } });
+                            }
+                          }}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-md p-1.5 text-xs text-slate-200 outline-none"
+                        >
+                          {state.vehicles.map(v => (
+                            <option key={v.id} value={v.id}>{v.driverName} ({v.type})</option>
+                          ))}
+                        </select>
                       </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
-          )}
-
-          {/* Tab: Choferes */}
-          {activeTab === 'vehicles' && (
-            <VehicleForm
-              vehicles={state.vehicles}
-              onAdd={(v) => dispatch({ type: 'ADD_VEHICLE', payload: v })}
-              onRemove={(id) => dispatch({ type: 'REMOVE_VEHICLE', payload: id })}
-            />
           )}
 
           {/* Tab: Rutas */}
@@ -452,6 +480,14 @@ export default function DispatcherPage() {
                 onShareRoute={handleShareRoute}
                 onReoptimize={handleReoptimize}
                 allVehicles={state.vehicles}
+                hiddenRouteIds={hiddenRouteIds}
+                onToggleRouteVisibility={(vehicleId) => {
+                  setHiddenRouteIds((prev) => 
+                    prev.includes(vehicleId) 
+                      ? prev.filter((id) => id !== vehicleId) 
+                      : [...prev, vehicleId]
+                  );
+                }}
               />
               {state.routes.length > 0 && (
                 <ReportButton routes={state.routes} weather={weather} />
@@ -472,12 +508,12 @@ export default function DispatcherPage() {
           {activeTab === 'zones' && (
             <button
               onClick={() => {
-                dispatch({ type: 'SET_STEP', payload: 'vehicles' });
-                setActiveTab('vehicles');
+                dispatch({ type: 'SET_STEP', payload: 'optimizing' });
+                handleOptimize();
               }}
               className="w-full px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-xl shadow-md transition-all"
             >
-              Confirmar Zonas y Asignar Choferes
+              Confirmar Zonas y Optimizar
             </button>
           )}
 
@@ -499,8 +535,8 @@ export default function DispatcherPage() {
           <ZoneMap
             clusters={state.clusters}
             onConfirm={() => {
-              dispatch({ type: 'SET_STEP', payload: 'vehicles' });
-              setActiveTab('vehicles');
+              dispatch({ type: 'SET_STEP', payload: 'optimizing' });
+              handleOptimize();
             }}
             onRegroup={() => {
               const regenerated = clusterDeliveries(state.addresses, numClusters);
@@ -512,6 +548,7 @@ export default function DispatcherPage() {
             addresses={state.addresses}
             routes={state.routes}
             depot={state.depot}
+            hiddenRouteIds={hiddenRouteIds}
           />
         )}
 
@@ -564,7 +601,19 @@ export default function DispatcherPage() {
 
 // ─── Componente de Configuración Global ────────────────────────
 
-function ConfigPanel({ currentConfig, onSave }: { currentConfig: any, onSave: (conf: any) => void }) {
+function ConfigPanel({ 
+  currentConfig, 
+  vehicles,
+  onAddVehicle,
+  onRemoveVehicle,
+  onSave 
+}: { 
+  currentConfig: any, 
+  vehicles: Vehicle[],
+  onAddVehicle: (v: Vehicle) => void,
+  onRemoveVehicle: (id: string) => void,
+  onSave: (conf: any) => void 
+}) {
   const DEPOTS = [
     { id: 'san_pablo', name: 'San Pablo', lat: 19.3550675, lng: -99.0939998, address: 'C. San Pablo 7, El Santuario, Iztapalapa, 09836 CDMX' },
     { id: 'division', name: 'División del Norte', lat: 19.3464401, lng: -99.1501142, address: 'Av. División del Nte. 2825, Parque San Andrés, Coyoacán, 04040 CDMX' }
@@ -581,47 +630,54 @@ function ConfigPanel({ currentConfig, onSave }: { currentConfig: any, onSave: (c
   };
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 p-4 space-y-4">
-      <h3 className="text-sm font-bold text-white mb-2">Configuración Global de Ruta</h3>
-      
-      <div>
-        <label className="block text-xs font-medium text-slate-400 mb-1">Bodega de salida</label>
-        <select 
-          value={depotId} 
-          onChange={(e) => setDepotId(e.target.value)}
-          className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
-        >
-          {DEPOTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
+    <div className="space-y-4">
+      {/* GLOBAL CONFIGURATION */}
+      <div className="bg-slate-800 rounded-xl border border-slate-700 p-4 space-y-4">
+        <h3 className="text-sm font-bold text-white mb-2">Configuración Global de Ruta</h3>
+        
+        <div>
+          <label className="block text-xs font-medium text-slate-400 mb-1">Bodega de salida</label>
+          <select 
+            value={depotId} 
+            onChange={(e) => setDepotId(e.target.value)}
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
+          >
+            {DEPOTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-400 mb-1">Bodega de regreso</label>
+          <select 
+            value={returnDepotId} 
+            onChange={(e) => setReturnDepotId(e.target.value)}
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
+          >
+            <option value="same">Misma que salida</option>
+            {DEPOTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-400 mb-1">Hora estimada de salida</label>
+          <input 
+            type="time" 
+            value={time} 
+            onChange={(e) => setTime(e.target.value)}
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
+          />
+        </div>
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-slate-400 mb-1">Bodega de regreso</label>
-        <select 
-          value={returnDepotId} 
-          onChange={(e) => setReturnDepotId(e.target.value)}
-          className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
-        >
-          <option value="same">Misma que salida</option>
-          {DEPOTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-slate-400 mb-1">Hora estimada de salida</label>
-        <input 
-          type="time" 
-          value={time} 
-          onChange={(e) => setTime(e.target.value)}
-          className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
-        />
-      </div>
+      {/* VEHICLES / FLEET CONFIGURATION */}
+      <VehicleForm vehicles={vehicles} onAdd={onAddVehicle} onRemove={onRemoveVehicle} />
 
       <button 
         onClick={handleSave}
-        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 rounded-lg transition-colors mt-2 text-sm shadow-md"
+        disabled={vehicles.length === 0}
+        className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-md text-sm mt-4"
       >
-        Continuar
+        Continuar al paso 2
       </button>
     </div>
   );

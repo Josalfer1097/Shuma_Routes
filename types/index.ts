@@ -50,6 +50,7 @@ export interface Vehicle {
   driverName: string;
   matricula: string;
   vehicleId: string;
+  type: 'Camión grande' | 'Camión chico' | 'Camioneta';
   capacity: number;
   color: string;
   zoneName?: string;
@@ -188,13 +189,12 @@ export interface VroomPayload {
 // ─────────────────────────────────────────────
 
 export type AppStep =
-  | 'config'       // Paso 0: configuración global
-  | 'upload'       // Paso 1: cargar CSV
-  | 'geocoding'    // Paso 2: geocodificando direcciones
-  | 'zones'        // Paso 2.5: validación de zonas/clusters
-  | 'vehicles'     // Paso 3: agregar choferes
-  | 'optimizing'   // Paso 4: calculando rutas
-  | 'results';     // Paso 5: mostrando resultados
+  | 'config'       // Paso 1: configuración global y flota
+  | 'upload'       // Paso 2: cargar CSV
+  | 'geocoding'    // Paso 2 (transición): geocodificando direcciones
+  | 'zones'        // Paso 3: validación de zonas/clusters
+  | 'optimizing'   // Paso 3 (transición): calculando rutas
+  | 'results';     // Paso 4 y 5: mostrando rutas y compartir
 
 export interface GlobalConfig {
   departureDepot: Depot;
