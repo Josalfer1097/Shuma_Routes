@@ -196,7 +196,7 @@ export default function DispatcherPage() {
         payload: 'No se pudo geocodificar ninguna dirección. Verifica tu API Key de Google (Geocoding API habilitada y sin restricciones de referrer).' 
       });
     }
-  }, []);
+  }, [state.vehicles.length]);
 
   // Optimización de rutas
   const handleOptimize = useCallback(async () => {

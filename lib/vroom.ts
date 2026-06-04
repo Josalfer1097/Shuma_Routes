@@ -74,7 +74,8 @@ async function fallbackOptimizeRoutes(
 
   for (let idx = 0; idx < vehicles.length; idx++) {
     const vehicle = vehicles[idx];
-    const cluster = clusters[idx % clusters.length];
+    const cluster = clusters[idx];
+    if (!cluster) continue;
     const color = DRIVER_COLORS[idx % DRIVER_COLORS.length];
 
     const stops: Stop[] = [];
@@ -177,10 +178,8 @@ export async function optimizeRoutes(
   departureTime: string,
   manualAssignments?: { addressId: string; vehicleIndex: number }[]
 ): Promise<Route[]> {
-  const validClusters = clusters.filter((c) => c.addresses.length > 0);
-
-  if (validClusters.length === 0) {
-    throw new Error('No hay zonas generadas con direcciones válidas.');
+  if (clusters.length === 0) {
+    throw new Error('No hay zonas generadas.');
   }
   if (vehicles.length === 0) {
     throw new Error('No hay vehículos/choferes registrados.');
@@ -193,7 +192,9 @@ export async function optimizeRoutes(
     const datePrefix = departureTime.split('T')[0]; // para timeWindows
     
     vehicles.forEach((v, vIdx) => {
-      const cluster = validClusters[vIdx % validClusters.length];
+      const cluster = clusters[vIdx];
+      if (!cluster) return;
+      
       const endDep = v.endDepot ?? v.depot;
       
       googleVehicles.push({
@@ -342,7 +343,7 @@ export async function optimizeRoutes(
     return routes;
   } catch (err) {
     console.warn('Google Route Optimization API failed or billing not active. Using client-side routing fallback:', err);
-    return fallbackOptimizeRoutes(validClusters, vehicles);
+    return fallbackOptimizeRoutes(clusters, vehicles);
   }
 }
 
