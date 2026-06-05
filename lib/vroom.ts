@@ -168,6 +168,18 @@ async function fallbackOptimizeRoutes(
 }
 
 /**
+ * Helper para combinar la fecha global con la hora específica del vehículo.
+ */
+function buildVehicleStartTime(globalIso: string, specificTime?: string): string {
+  if (!specificTime) return globalIso;
+  const dateObj = new Date(globalIso);
+  const [hh, mm] = specificTime.split(':');
+  if (!hh || !mm) return globalIso;
+  dateObj.setHours(parseInt(hh, 10), parseInt(mm, 10), 0, 0);
+  return dateObj.toISOString();
+}
+
+/**
  * Función principal de optimización.
  * Toma las direcciones y vehículos, llama a Google Route Optimization API
  * y luego obtiene la geometría de Google Routes API.
@@ -184,12 +196,14 @@ export async function optimizeSingleVehicle(
   const datePrefix = departureTime.split('T')[0];
 
   const endDep = vehicle.endDepot ?? vehicle.depot;
+  const vehicleStartTime = buildVehicleStartTime(departureTime, vehicle.departureTime);
 
   const googleVehicle = {
     startLocation: { latitude: vehicle.depot.lat, longitude: vehicle.depot.lng },
     endLocation: { latitude: endDep.lat, longitude: endDep.lng },
     label: vehicle.driverName,
     loadLimits: { parcels: { maxLoad: vehicle.capacity.toString() } },
+    startTimeWindows: [{ startTime: vehicleStartTime }],
   };
 
   const isCentroNorte = zoneName.includes('Centro') || zoneName.includes('Norte');
@@ -221,7 +235,7 @@ export async function optimizeSingleVehicle(
     model: {
       shipments,
       vehicles: [googleVehicle],
-      globalStartTime: departureTime,
+      globalStartTime: departureTime, // Fallback base
     },
   };
 
@@ -298,6 +312,7 @@ export async function optimizeSingleVehicle(
     alternatives,
     totalDistance,
     totalDuration,
+    departureTime: vehicle.departureTime,
   };
 }
 
@@ -328,12 +343,14 @@ export async function optimizeRoutes(
       if (!cluster) return;
       
       const endDep = v.endDepot ?? v.depot;
+      const vehicleStartTime = buildVehicleStartTime(departureTime, v.departureTime);
       
       googleVehicles.push({
         startLocation: { latitude: v.depot.lat, longitude: v.depot.lng },
         endLocation: { latitude: endDep.lat, longitude: endDep.lng },
         label: v.driverName,
         loadLimits: { parcels: { maxLoad: v.capacity.toString() } },
+        startTimeWindows: [{ startTime: vehicleStartTime }],
       });
 
       const isCentroNorte = cluster.name.includes('Centro') || cluster.name.includes('Norte');
@@ -376,7 +393,7 @@ export async function optimizeRoutes(
       model: {
         shipments,
         vehicles: googleVehicles,
-        globalStartTime: departureTime,
+        globalStartTime: departureTime, // Fallback base
       },
     };
 
@@ -469,6 +486,7 @@ export async function optimizeRoutes(
         alternatives,
         totalDistance,
         totalDuration,
+        departureTime: vehicle.departureTime,
       });
     }
 

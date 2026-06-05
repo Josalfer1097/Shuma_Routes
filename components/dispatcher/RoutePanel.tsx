@@ -16,6 +16,8 @@ interface Props {
   hiddenRouteIds?: string[];
   onToggleRouteVisibility?: (vehicleId: string) => void;
   onReoptimizeSingle?: (vehicleId: string, stops: Stop[]) => void; // Para CAMBIO 4
+  globalDepartureTime?: string;
+  onVehicleTimeChange?: (vehicleId: string, timeStr: string) => void;
 }
 
 function getHaversineDistance(
@@ -42,7 +44,9 @@ export default function RoutePanel({
   allVehicles,
   hiddenRouteIds = [],
   onToggleRouteVisibility,
-  onReoptimizeSingle
+  onReoptimizeSingle,
+  globalDepartureTime = '08:00',
+  onVehicleTimeChange
 }: Props) {
   const [expandedRoute, setExpandedRoute] = useState<string | null>(routes[0]?.vehicleId ?? null);
   const [isEditing, setIsEditing] = useState(false);
@@ -338,11 +342,33 @@ export default function RoutePanel({
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500">
-                        {route.stops.length} paradas
-                        {route.totalDistance !== undefined && ` · ${formatDistance(route.totalDistance)}`}
-                        {route.totalDuration !== undefined && ` · ${formatDuration(route.totalDuration)}`}
-                      </p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <p className="text-xs text-slate-500">
+                          {route.stops.length} paradas
+                          {route.totalDistance !== undefined && ` · ${formatDistance(route.totalDistance)}`}
+                          {route.totalDuration !== undefined && ` · ${formatDuration(route.totalDuration)}`}
+                        </p>
+                        
+                        {/* INPUT HORA DE SALIDA */}
+                        <div 
+                          className="flex items-center gap-1"
+                          onClick={(e) => e.stopPropagation()} // Prevenir expansión al hacer click en el input
+                        >
+                          <svg className={`w-3.5 h-3.5 ${route.departureTime ? 'text-blue-400' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <input
+                            type="time"
+                            value={route.departureTime || globalDepartureTime}
+                            onChange={(e) => {
+                              if (onVehicleTimeChange) onVehicleTimeChange(route.vehicleId, e.target.value);
+                            }}
+                            className={`bg-transparent border-none p-0 text-xs font-medium focus:ring-0 ${
+                              route.departureTime ? 'text-blue-400' : 'text-slate-400'
+                            }`}
+                          />
+                        </div>
+                      </div>
                     </div>
                     
                     <div className="flex items-center gap-2">

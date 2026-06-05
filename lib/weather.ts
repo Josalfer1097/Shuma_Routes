@@ -7,11 +7,12 @@ export interface WeatherData {
   alerts: string[];
 }
 
-const LAT = 19.4326;
-const LON = -99.1332;
-
-export async function getWeatherCDMX(): Promise<WeatherData> {
+export async function getWeatherCDMX(lat: number, lng: number): Promise<WeatherData> {
   const apiKey = (process.env.NEXT_PUBLIC_OWM_API_KEY || '').trim();
+  
+  // NOTA: La API Key de OpenWeatherMap (NEXT_PUBLIC_OWM_API_KEY) está intencionalmente expuesta 
+  // del lado del cliente. OWM permite esto ya que son keys gratuitas/públicas por diseño y su 
+  // restricción principal se basa en rate limiting o HTTP Referrer, no en ocultamiento estricto.
   
   // Si no hay API key o es un valor placeholder, usar clima simulado realista para CDMX
   if (!apiKey || apiKey.toLowerCase().includes('tu_api_key') || apiKey.length < 10) {
@@ -26,7 +27,7 @@ export async function getWeatherCDMX(): Promise<WeatherData> {
   }
   
   const url = 'https://api.openweathermap.org/data/2.5/weather?lat=' + 
-    LAT + '&lon=' + LON + 
+    lat + '&lon=' + lng + 
     '&appid=' + apiKey + 
     '&units=metric&lang=es';
   console.log('Fetching OWM URL:', url); // <-- Debug de la URL completa (CUIDADO con exponer la API KEY en logs públicos)
@@ -51,8 +52,8 @@ export async function getWeatherCDMX(): Promise<WeatherData> {
 
     return {
       temp: Math.round(data.main.temp),
-      description: data.weather[0]?.description || 'Desconocido',
-      icon: data.weather[0]?.icon || '01d',
+      description: data.weather?.[0]?.description || 'Sin datos',
+      icon: data.weather?.[0]?.icon || '01d',
       humidity: data.main.humidity,
       windSpeed: Math.round(windKmH),
       alerts,

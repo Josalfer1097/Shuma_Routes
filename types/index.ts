@@ -58,8 +58,11 @@ export interface Vehicle {
   /** Bodega de salida */
   depot: Depot;
   /** Bodega de regreso (si difiere de la de salida) */
-  endDepot: Depot;
+  endDepot?: Depot;
+  /** Facturas/notas del despachador */
   invoices: string;
+  /** Hora de salida individual para este vehículo (ISO string) */
+  departureTime?: string;
 }
 
 export interface ClusteringConfig {
@@ -91,6 +94,8 @@ export interface Route {
   endDepot: Depot;
   stops: Stop[];
   invoices: string;
+  /** Hora de salida individual para este vehículo (ISO string) */
+  departureTime?: string;
   polyline?: [number, number][];
   /** Rutas alternativas devueltas por HERE (hasta 2) */
   alternatives?: [number, number][][];

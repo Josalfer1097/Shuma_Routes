@@ -20,7 +20,12 @@ const inputCls = `w-full px-3 py-2 text-sm bg-slate-700 border border-slate-600 
   focus:ring-1 focus:ring-blue-500 transition-colors`;
 
 export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
-  const [driverId, setDriverId]   = useState(DRIVERS[0].id);
+  const assignedDriverIds = vehicles.map(v => v.driverName);
+  
+  // Encontrar el primer chofer no asignado para seleccionarlo por defecto
+  const firstAvailableDriver = DRIVERS.find(d => !assignedDriverIds.includes(d.name));
+  
+  const [driverId, setDriverId]   = useState(firstAvailableDriver?.id || DRIVERS[0].id);
   const [vehicleType, setVehicleType] = useState<'Camión grande' | 'Camión chico' | 'Camioneta'>('Camión grande');
   const [capacity, setCapacity]   = useState('');
   const [invoices, setInvoices]   = useState('');
@@ -48,7 +53,11 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
     };
 
     onAdd(newVehicle);
-    setDriverId(DRIVERS[0].id);
+    
+    // Al agregar, recalcular el próximo disponible excluyendo el que se acaba de agregar
+    const nextAssigned = [...assignedDriverIds, selectedDriver.name];
+    const nextAvailable = DRIVERS.find(d => !nextAssigned.includes(d.name));
+    setDriverId(nextAvailable?.id || DRIVERS[0].id);
     setVehicleType('Camión grande');
     setCapacity('');
     setInvoices('');
@@ -57,7 +66,8 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
   return (
     <div className="space-y-4">
       {/* Formulario */}
-      <form onSubmit={handleSubmit} className="space-y-3 bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+      {firstAvailableDriver ? (
+        <form onSubmit={handleSubmit} className="space-y-3 bg-slate-800/50 p-4 rounded-xl border border-slate-700">
         <div className="space-y-3">
           {/* Chofer */}
           <div>
@@ -76,11 +86,19 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
               }}
               className={inputCls}
             >
-              {DRIVERS.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} — Mat. {d.matricula}
-                </option>
-              ))}
+              {DRIVERS.map((d) => {
+                const isAssigned = assignedDriverIds.includes(d.name);
+                return (
+                  <option 
+                    key={d.id} 
+                    value={d.id} 
+                    disabled={isAssigned}
+                    className={isAssigned ? 'opacity-50 cursor-not-allowed bg-slate-800 text-slate-500' : ''}
+                  >
+                    {d.name} — Mat. {d.matricula} {isAssigned ? '(Asignado)' : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -145,9 +163,14 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
           </svg>
           {vehicles.length >= 6 ? 'Máximo 6 camiones' : 'Agregar camión'}
         </button>
-      </form>
+        </form>
+      ) : (
+        <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 text-center text-sm text-slate-400">
+          Todos los choferes han sido asignados
+        </div>
+      )}
 
-      {/* Lista */}
+      {/* Lista de vehículos */}
       {vehicles.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">

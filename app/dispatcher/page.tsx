@@ -55,6 +55,7 @@ type Action =
   | { type: 'UPDATE_ADDRESS'; payload: Address }
   | { type: 'ADD_VEHICLE'; payload: Vehicle }
   | { type: 'REMOVE_VEHICLE'; payload: string }
+  | { type: 'UPDATE_VEHICLE'; payload: { id: string; changes: Partial<Vehicle> } }
   | { type: 'SWAP_VEHICLES'; payload: { index1: number; index2: number } }
   | { type: 'SET_ROUTES'; payload: Route[] }
   | { type: 'SET_STEP'; payload: AppStep }
@@ -99,6 +100,15 @@ function appReducer(state: AppState, action: Action): AppState {
           state.vehicles.filter((v) => v.id !== action.payload)
         ),
       };
+    case 'UPDATE_VEHICLE':
+      return {
+        ...state,
+        vehicles: state.vehicles.map((v) =>
+          v.vehicleId === action.payload.id || v.id === action.payload.id
+            ? { ...v, ...action.payload.changes }
+            : v
+        ),
+      };
     case 'SWAP_VEHICLES': {
       const newVehicles = [...state.vehicles];
       const temp = newVehicles[action.payload.index1];
@@ -137,8 +147,18 @@ export default function DispatcherPage() {
   const [hiddenRouteIds, setHiddenRouteIds] = useState<string[]>([]);
 
   useEffect(() => {
-    getWeatherCDMX().then(setWeather).catch(console.error);
-  }, []);
+    const lat = state.globalConfig?.departureDepot?.lat || 19.4326;
+    const lng = state.globalConfig?.departureDepot?.lng || -99.1332;
+    
+    const fetchWeather = () => {
+      getWeatherCDMX(lat, lng).then(setWeather).catch(console.error);
+    };
+    
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 10 * 60 * 1000); // 10 minutos
+    
+    return () => clearInterval(interval);
+  }, [state.globalConfig?.departureDepot]);
 
   // Carga de CSV → geocodificación automática
   const handleAddressesLoaded = useCallback(async (addresses: Address[]) => {
@@ -564,6 +584,20 @@ export default function DispatcherPage() {
                 allVehicles={state.vehicles}
                 hiddenRouteIds={hiddenRouteIds}
                 onReoptimizeSingle={handleReoptimizeSingle}
+                globalDepartureTime={state.globalConfig?.departureTime}
+                onVehicleTimeChange={(vehicleId, timeStr) => {
+                  dispatch({ 
+                    type: 'UPDATE_VEHICLE', 
+                    payload: { id: vehicleId, changes: { departureTime: timeStr } } 
+                  });
+                  // También actualizar la ruta activa para que se refleje inmediatamente
+                  dispatch({
+                    type: 'SET_ROUTES',
+                    payload: state.routes.map(r => 
+                      r.vehicleId === vehicleId ? { ...r, departureTime: timeStr } : r
+                    )
+                  });
+                }}
                 onToggleRouteVisibility={(vehicleId) => {
                   setHiddenRouteIds((prev) => 
                     prev.includes(vehicleId) 
