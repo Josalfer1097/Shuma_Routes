@@ -10,15 +10,15 @@ import { GoogleAuth } from 'google-auth-library';
  * 6. Configurar GOOGLE_PROJECT_ID=shuma-rutas (o el ID real del proyecto) en .env.local
  */
 
-const auth = new GoogleAuth({
-  credentials: JSON.parse(
-    process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}'
-  ),
-  scopes: ['https://www.googleapis.com/auth/cloud-platform']
-});
-
 export async function POST(req: Request) {
   try {
+    const auth = new GoogleAuth({
+      credentials: JSON.parse(
+        process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}'
+      ),
+      scopes: ['https://www.googleapis.com/auth/cloud-platform']
+    });
+
     const body = await req.json();
     const client = await auth.getClient();
     const token = await client.getAccessToken();
