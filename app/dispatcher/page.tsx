@@ -781,7 +781,12 @@ function ConfigPanel({
 
   const [depotId, setDepotId] = useState(currentConfig?.departureDepot?.id || 'san_pablo');
   const [returnDepotId, setReturnDepotId] = useState(currentConfig?.returnDepot === 'same' ? 'same' : (currentConfig?.returnDepot?.id || 'same'));
-  const [time, setTime] = useState(currentConfig?.departureTime || '08:00');
+  const [time, setTime] = useState(() => {
+    if (currentConfig?.departureTime) return currentConfig.departureTime;
+    const now = new Date();
+    now.setMinutes(Math.ceil((now.getMinutes() + 10) / 5) * 5);
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  });
 
   const handleSave = () => {
     const dep = DEPOTS.find(d => d.id === depotId)!;
