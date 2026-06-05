@@ -468,7 +468,7 @@ export default function RoutePanel({
 
       <ConfirmationModal
         isOpen={modalState !== null}
-        title={`Mover parada a ${allVehicles?.find(v => v.id === modalState?.toRouteId)?.driverName || 'nuevo chofer'}`}
+        title={`Mover ${modalState?.stop?.address.invoice ? `[${modalState.stop.address.invoice}]` : (modalState?.stop?.address.clientName ? `[${modalState.stop.address.clientName}]` : 'parada')} a ${allVehicles?.find(v => v.id === modalState?.toRouteId)?.driverName || 'nuevo chofer'}`}
         haversineExtraKm={modalState?.haversineExtraKm || 0}
         isRestrictedZone={modalState?.isRestrictedZone || false}
         onConfirm={handleModalConfirm}

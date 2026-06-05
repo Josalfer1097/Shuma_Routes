@@ -13,6 +13,10 @@ interface Props {
 interface CSVRow {
   nombre?: string;
   name?: string;
+  cliente?: string;
+  clientName?: string;
+  factura?: string;
+  invoice?: string;
   direccion?: string;
   address?: string;
   [key: string]: string | undefined;
@@ -46,15 +50,29 @@ export default function CSVUploader({ onAddressesLoaded, disabled }: Props) {
               const addr = row.direccion ?? row.address ?? '';
               return addr.trim().length > 0;
             })
-            .map((row) => ({
-              id: nanoid(),
-              raw: row.direccion ?? row.address ?? '',
-              name: row.nombre ?? row.name ?? 'Sin nombre',
-              lat: null,
-              lng: null,
-              label: '',
-              geocoded: false,
-            }));
+            .map((row) => {
+              const addrText = row.direccion ?? row.address ?? '';
+              const client = row.cliente ?? row.clientName ?? row.nombre ?? row.name;
+              const inv = row.factura ?? row.invoice;
+              
+              // Determinar el mejor "name" a mostrar
+              let finalName = 'Sin nombre';
+              if (client && client.trim()) finalName = client.trim();
+              else if (inv && inv.trim()) finalName = `Factura: ${inv.trim()}`;
+              else if (addrText) finalName = addrText.substring(0, 30) + '...';
+
+              return {
+                id: nanoid(),
+                raw: addrText,
+                name: finalName,
+                clientName: client?.trim() || undefined,
+                invoice: inv?.trim() || undefined,
+                lat: null,
+                lng: null,
+                label: '',
+                geocoded: false,
+              };
+            });
 
           if (addresses.length === 0) {
             setError(

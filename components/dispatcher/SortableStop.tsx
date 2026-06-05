@@ -57,7 +57,13 @@ export default function SortableStop({
       </div>
       <div className="flex-1 min-w-0 pointer-events-none">
         <p className="text-xs font-medium text-slate-300 truncate">
-          {stop.address.name}
+          {stop.address.clientName 
+            ? stop.address.clientName 
+            : stop.address.invoice 
+              ? `Factura: ${stop.address.invoice}` 
+              : (stop.address.name && stop.address.name !== 'Sin nombre' 
+                ? stop.address.name 
+                : stop.address.raw.substring(0, 30) + '...')}
         </p>
         <p className="text-[11px] text-slate-500 truncate">{stop.address.raw}</p>
       </div>

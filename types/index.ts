@@ -9,8 +9,10 @@ export interface Address {
   id: string;
   /** Texto original del CSV */
   raw: string;
-  /** Nombre del destinatario */
+  /** Nombre del destinatario o cliente */
   name: string;
+  clientName?: string;
+  invoice?: string;
   /** Coordenadas geocodificadas */
   lat: number | null;
   lng: number | null;
