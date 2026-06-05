@@ -47,6 +47,7 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
   const mapRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const markersRef = useRef<any[]>([]);
+  const routeLayersRef = useRef<{ [vehicleId: string]: any[] }>({});
   const [mapInitialized, setMapInitialized] = useState(false);
 
   // ── Inicializar Google Maps ───────────────────────────────────────────
@@ -111,6 +112,7 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
       else obj.map = null; // AdvancedMarkerElement
     });
     markersRef.current = [];
+    routeLayersRef.current = {};
 
     const bounds = new google.maps.LatLngBounds();
     let hasPoints = false;
@@ -165,7 +167,8 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
 
       // Dibujar rutas (Polylines)
       routes.forEach((route) => {
-        if (hiddenRouteIds.includes(route.vehicleId)) return; // No dibujar ruta oculta
+        const isVisible = !hiddenRouteIds.includes(route.vehicleId);
+        routeLayersRef.current[route.vehicleId] = [];
 
         // Pintar alternativas
         if (route.alternatives && route.alternatives.length > 0) {
@@ -173,6 +176,7 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
             const altLine = new Polyline({
               path: altPoly.map(([lat, lng]) => ({ lat, lng })),
               map,
+              visible: isVisible,
               strokeColor: '#FFFFFF', // Blanco punteado
               strokeOpacity: 0,
               zIndex: 1,
@@ -190,6 +194,7 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
               ],
             });
             markersRef.current.push(altLine);
+            routeLayersRef.current[route.vehicleId].push(altLine);
           });
         }
 
@@ -201,17 +206,20 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
           const haloLine = new Polyline({
             path,
             map,
+            visible: isVisible,
             strokeColor: '#000000',
             strokeOpacity: 0.8,
             strokeWeight: 10,
             zIndex: 2,
           });
           markersRef.current.push(haloLine);
+          routeLayersRef.current[route.vehicleId].push(haloLine);
 
           // Línea principal
           const mainLine = new Polyline({
             path,
             map,
+            visible: isVisible,
             strokeColor: route.color || '#FF6B00',
             strokeOpacity: 1.0,
             strokeWeight: 6, // Grosor 6px
@@ -233,6 +241,7 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
             ],
           });
           markersRef.current.push(mainLine);
+          routeLayersRef.current[route.vehicleId].push(mainLine);
         }
 
         // Paradas de la ruta
@@ -248,7 +257,7 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
 
           const marker = new AdvancedMarkerElement({
             position: { lat, lng },
-            map,
+            map: isVisible ? map : null,
             content: createStopPin(stop.sequence),
           });
 
@@ -273,6 +282,7 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
           );
 
           markersRef.current.push(marker);
+          routeLayersRef.current[route.vehicleId].push(marker);
           bounds.extend({ lat, lng });
           hasPoints = true;
         });
@@ -326,6 +336,21 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
       });
     }
   }, [addresses, routes, depot, mapInitialized]);
+
+  // ── Toggle visibilidad de rutas (useEffect B) ─────────────────────────
+  useEffect(() => {
+    Object.entries(routeLayersRef.current).forEach(([vehicleId, elements]) => {
+      const isVisible = !hiddenRouteIds.includes(vehicleId);
+      elements.forEach((obj) => {
+        if (typeof obj.setVisible === 'function') {
+          obj.setVisible(isVisible); // Polylines
+        } else {
+          // AdvancedMarkerElement
+          obj.map = isVisible ? mapRef.current : null;
+        }
+      });
+    });
+  }, [hiddenRouteIds]);
 
   return (
     <div
