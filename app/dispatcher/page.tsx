@@ -254,13 +254,24 @@ export default function DispatcherPage() {
     });
 
     try {
-      // Construir la fecha ISO combinando hoy con la hora configurada
       const today = new Date();
       const currentMins = today.getHours() * 60 + today.getMinutes();
+
+      // Check all vehicles for invalid times
+      for (const v of assignedVehicles) {
+        const timeStr = v.departureTime || state.globalConfig?.departureTime || '08:00';
+        const [h, m] = timeStr.split(':').map(Number);
+        const targetMins = (h || 0) * 60 + (m || 0);
+        if (targetMins < currentMins) {
+          dispatch({ type: 'SET_ERROR', payload: `La hora de salida de ${v.driverName} ya pasó. Ajusta la hora antes de optimizar.` });
+          setIsOptimizing(false);
+          return;
+        }
+      }
+
+      // Construir la fecha ISO combinando hoy con la hora configurada
       const timeParts = (state.globalConfig?.departureTime || '08:00').split(':');
-      const targetMins = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
       today.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
-      if (targetMins < currentMins) today.setDate(today.getDate() + 1);
       const departureTime = today.toISOString(); // Para tráfico real
 
       const routes = await optimizeRoutes(state.clusters, assignedVehicles, departureTime);
@@ -303,10 +314,22 @@ export default function DispatcherPage() {
     try {
       const today = new Date();
       const currentMins = today.getHours() * 60 + today.getMinutes();
+
+      // Check all vehicles for invalid times
+      for (const v of state.vehicles) {
+        const route = manualRoutes.find(r => r.vehicleId === v.id) || state.routes.find(r => r.vehicleId === v.id);
+        const timeStr = route?.departureTime || v.departureTime || state.globalConfig?.departureTime || '08:00';
+        const [h, m] = timeStr.split(':').map(Number);
+        const targetMins = (h || 0) * 60 + (m || 0);
+        if (targetMins < currentMins) {
+          dispatch({ type: 'SET_ERROR', payload: `La hora de salida de ${v.driverName} ya pasó. Ajusta la hora antes de optimizar.` });
+          setIsOptimizing(false);
+          return;
+        }
+      }
+
       const timeParts = (state.globalConfig?.departureTime || '08:00').split(':');
-      const targetMins = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
       today.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
-      if (targetMins < currentMins) today.setDate(today.getDate() + 1);
       const departureTime = today.toISOString();
 
       // Construir manualAssignments map (addressId -> vehicleIndex)
@@ -343,14 +366,25 @@ export default function DispatcherPage() {
     try {
       const today = new Date();
       const currentMins = today.getHours() * 60 + today.getMinutes();
-      const timeParts = (state.globalConfig?.departureTime || '08:00').split(':');
-      const targetMins = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
-      today.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
-      if (targetMins < currentMins) today.setDate(today.getDate() + 1);
-      const departureTime = today.toISOString();
 
       const vehicle = state.vehicles.find(v => v.id === vehicleId);
       if (!vehicle) throw new Error('Vehículo no encontrado');
+
+      const route = state.routes.find(r => r.vehicleId === vehicleId);
+      const timeStr = route?.departureTime || vehicle.departureTime || state.globalConfig?.departureTime || '08:00';
+      const [h, m] = timeStr.split(':').map(Number);
+      const targetMins = (h || 0) * 60 + (m || 0);
+      if (targetMins < currentMins) {
+        dispatch({ type: 'SET_ERROR', payload: `La hora de salida de ${vehicle.driverName} ya pasó. Ajusta la hora antes de optimizar.` });
+        setIsOptimizing(false);
+        return;
+      }
+
+      const timeParts = (state.globalConfig?.departureTime || '08:00').split(':');
+      today.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+      const departureTime = today.toISOString();
+
+
 
       const addresses = manualStops.map(s => s.address);
       const routeColor = state.routes.find(r => r.vehicleId === vehicleId)?.color || '#FF6B00';
@@ -787,22 +821,26 @@ function ConfigPanel({
         <div>
           <div className="flex justify-between items-center mb-1">
             <label className="block text-xs font-medium text-slate-400">Hora estimada de salida</label>
-            <span className="text-[10px] text-slate-500 font-medium bg-slate-800/50 px-2 py-0.5 rounded-full border border-slate-700">
-              {(() => {
-                const now = new Date();
-                const currentMins = now.getHours() * 60 + now.getMinutes();
-                const [h, m] = (time || '08:00').split(':').map(Number);
-                const targetMins = (h || 0) * 60 + (m || 0);
-                return targetMins < currentMins ? '📅 Mañana' : '📅 Hoy';
-              })()}
-            </span>
           </div>
           <input 
             type="time" 
             value={time} 
             onChange={(e) => setTime(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
+            className={`w-full bg-slate-900 border ${(() => {
+              const now = new Date();
+              const currentMins = now.getHours() * 60 + now.getMinutes();
+              const [h, m] = (time || '08:00').split(':').map(Number);
+              return (h * 60 + m) < currentMins ? 'border-red-500 text-red-400' : 'border-slate-700 text-slate-200';
+            })()} rounded-lg p-2 text-sm outline-none focus:border-blue-500`}
           />
+          {(() => {
+            const now = new Date();
+            const currentMins = now.getHours() * 60 + now.getMinutes();
+            const [h, m] = (time || '08:00').split(':').map(Number);
+            return (h * 60 + m) < currentMins ? (
+              <p className="text-red-500 text-[10px] mt-1">⚠️ Esta hora ya pasó</p>
+            ) : null;
+          })()}
         </div>
       </div>
 
@@ -811,7 +849,12 @@ function ConfigPanel({
 
       <button 
         onClick={handleSave}
-        disabled={vehicles.length === 0}
+        disabled={vehicles.length === 0 || (() => {
+          const now = new Date();
+          const currentMins = now.getHours() * 60 + now.getMinutes();
+          const [h, m] = (time || '08:00').split(':').map(Number);
+          return (h * 60 + m) < currentMins;
+        })()}
         className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-md text-sm mt-4"
       >
         Continuar al paso 2

@@ -351,31 +351,44 @@ export default function RoutePanel({
                         
                         {/* INPUT HORA DE SALIDA */}
                         <div 
-                          className="flex items-center gap-1"
+                          className="flex flex-col items-start gap-0.5"
                           onClick={(e) => e.stopPropagation()} // Prevenir expansión al hacer click en el input
                         >
-                          <span className="text-[9px] text-slate-500 font-medium mr-1 bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700">
+                          <div className="flex items-center gap-1">
                             {(() => {
                               const now = new Date();
                               const currentMins = now.getHours() * 60 + now.getMinutes();
                               const [h, m] = (route.departureTime || globalDepartureTime || '08:00').split(':').map(Number);
                               const targetMins = (h || 0) * 60 + (m || 0);
-                              return targetMins < currentMins ? 'Mañana' : 'Hoy';
+                              const isPast = targetMins < currentMins;
+                              return (
+                                <>
+                                  <svg className={`w-3.5 h-3.5 ${isPast ? 'text-red-400' : route.departureTime ? 'text-blue-400' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <input
+                                    type="time"
+                                    value={route.departureTime || globalDepartureTime}
+                                    onChange={(e) => {
+                                      if (onVehicleTimeChange) onVehicleTimeChange(route.vehicleId, e.target.value);
+                                    }}
+                                    className={`bg-transparent ${isPast ? 'border border-red-500 rounded px-1' : 'border-none p-0'} text-xs font-medium focus:ring-0 ${
+                                      isPast ? 'text-red-400' : route.departureTime ? 'text-blue-400' : 'text-slate-400'
+                                    }`}
+                                  />
+                                </>
+                              );
                             })()}
-                          </span>
-                          <svg className={`w-3.5 h-3.5 ${route.departureTime ? 'text-blue-400' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <input
-                            type="time"
-                            value={route.departureTime || globalDepartureTime}
-                            onChange={(e) => {
-                              if (onVehicleTimeChange) onVehicleTimeChange(route.vehicleId, e.target.value);
-                            }}
-                            className={`bg-transparent border-none p-0 text-xs font-medium focus:ring-0 ${
-                              route.departureTime ? 'text-blue-400' : 'text-slate-400'
-                            }`}
-                          />
+                          </div>
+                          {(() => {
+                            const now = new Date();
+                            const currentMins = now.getHours() * 60 + now.getMinutes();
+                            const [h, m] = (route.departureTime || globalDepartureTime || '08:00').split(':').map(Number);
+                            const targetMins = (h || 0) * 60 + (m || 0);
+                            return targetMins < currentMins ? (
+                              <span className="text-[9px] text-red-500 ml-4 font-medium">⚠️ Esta hora ya pasó</span>
+                            ) : null;
+                          })()}
                         </div>
                       </div>
                     </div>
