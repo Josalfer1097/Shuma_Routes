@@ -28,6 +28,10 @@ export async function POST(req: Request) {
     }
 
     const projectId = process.env.GOOGLE_PROJECT_ID || 'shuma-rutas';
+
+    console.log('Payload enviado a Google:', JSON.stringify(body, null, 2));
+    console.log('Token (primeros 20 chars):', token.token.substring(0, 20));
+
     const response = await fetch(
       `https://cloudoptimization.googleapis.com/v1/projects/${projectId}:optimizeTours`,
       {
