@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
     const projectId = process.env.GOOGLE_PROJECT_ID || 'shuma-rutas';
     const response = await fetch(
-      `https://routeoptimization.googleapis.com/v1/projects/${projectId}:optimizeTours`,
+      `https://cloudoptimization.googleapis.com/v1/projects/${projectId}:optimizeTours`,
       {
         method: 'POST',
         headers: {
@@ -43,13 +43,21 @@ export async function POST(req: Request) {
     const data = await response.json();
     
     if (!response.ok) {
-      console.error('Google Route Optimization API Error:', data);
+      console.error('Google error:', {
+        status: response.status,
+        body: data,
+        scope: 'https://www.googleapis.com/auth/cloud-platform'
+      });
       return Response.json(data, { status: response.status });
     }
 
     return Response.json(data);
-  } catch (error) {
-    console.error('API /api/optimize error:', error);
+  } catch (error: any) {
+    console.error('Google error:', {
+      status: error.status,
+      body: error.body || error.message,
+      scope: 'https://www.googleapis.com/auth/cloud-platform'
+    });
     return Response.json(
       { error: 'Error interno en el servidor proxy' }, 
       { status: 500 }
