@@ -256,8 +256,11 @@ export default function DispatcherPage() {
     try {
       // Construir la fecha ISO combinando hoy con la hora configurada
       const today = new Date();
+      const currentMins = today.getHours() * 60 + today.getMinutes();
       const timeParts = (state.globalConfig?.departureTime || '08:00').split(':');
+      const targetMins = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
       today.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+      if (targetMins < currentMins) today.setDate(today.getDate() + 1);
       const departureTime = today.toISOString(); // Para tráfico real
 
       const routes = await optimizeRoutes(state.clusters, assignedVehicles, departureTime);
@@ -299,8 +302,11 @@ export default function DispatcherPage() {
 
     try {
       const today = new Date();
+      const currentMins = today.getHours() * 60 + today.getMinutes();
       const timeParts = (state.globalConfig?.departureTime || '08:00').split(':');
+      const targetMins = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
       today.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+      if (targetMins < currentMins) today.setDate(today.getDate() + 1);
       const departureTime = today.toISOString();
 
       // Construir manualAssignments map (addressId -> vehicleIndex)
@@ -336,8 +342,11 @@ export default function DispatcherPage() {
 
     try {
       const today = new Date();
+      const currentMins = today.getHours() * 60 + today.getMinutes();
       const timeParts = (state.globalConfig?.departureTime || '08:00').split(':');
+      const targetMins = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
       today.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+      if (targetMins < currentMins) today.setDate(today.getDate() + 1);
       const departureTime = today.toISOString();
 
       const vehicle = state.vehicles.find(v => v.id === vehicleId);
@@ -776,7 +785,18 @@ function ConfigPanel({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1">Hora estimada de salida</label>
+          <div className="flex justify-between items-center mb-1">
+            <label className="block text-xs font-medium text-slate-400">Hora estimada de salida</label>
+            <span className="text-[10px] text-slate-500 font-medium bg-slate-800/50 px-2 py-0.5 rounded-full border border-slate-700">
+              {(() => {
+                const now = new Date();
+                const currentMins = now.getHours() * 60 + now.getMinutes();
+                const [h, m] = (time || '08:00').split(':').map(Number);
+                const targetMins = (h || 0) * 60 + (m || 0);
+                return targetMins < currentMins ? '📅 Mañana' : '📅 Hoy';
+              })()}
+            </span>
+          </div>
           <input 
             type="time" 
             value={time} 

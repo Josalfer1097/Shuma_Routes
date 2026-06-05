@@ -172,10 +172,19 @@ async function fallbackOptimizeRoutes(
  */
 function buildVehicleStartTime(globalIso: string, specificTime?: string): string {
   if (!specificTime) return globalIso;
-  const dateObj = new Date(globalIso);
-  const [hh, mm] = specificTime.split(':');
-  if (!hh || !mm) return globalIso;
-  dateObj.setHours(parseInt(hh, 10), parseInt(mm, 10), 0, 0);
+  const now = new Date();
+  const currentMins = now.getHours() * 60 + now.getMinutes();
+  const [hh, mm] = specificTime.split(':').map(Number);
+  if (isNaN(hh) || isNaN(mm)) return globalIso;
+  
+  const targetMins = hh * 60 + mm;
+  const dateObj = new Date(); // Base from today
+  dateObj.setHours(hh, mm, 0, 0);
+  
+  if (targetMins < currentMins) {
+    dateObj.setDate(dateObj.getDate() + 1);
+  }
+  
   return dateObj.toISOString();
 }
 

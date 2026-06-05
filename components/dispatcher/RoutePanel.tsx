@@ -354,6 +354,15 @@ export default function RoutePanel({
                           className="flex items-center gap-1"
                           onClick={(e) => e.stopPropagation()} // Prevenir expansión al hacer click en el input
                         >
+                          <span className="text-[9px] text-slate-500 font-medium mr-1 bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700">
+                            {(() => {
+                              const now = new Date();
+                              const currentMins = now.getHours() * 60 + now.getMinutes();
+                              const [h, m] = (route.departureTime || globalDepartureTime || '08:00').split(':').map(Number);
+                              const targetMins = (h || 0) * 60 + (m || 0);
+                              return targetMins < currentMins ? 'Mañana' : 'Hoy';
+                            })()}
+                          </span>
                           <svg className={`w-3.5 h-3.5 ${route.departureTime ? 'text-blue-400' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
