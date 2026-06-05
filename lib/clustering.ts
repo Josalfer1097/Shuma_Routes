@@ -1,4 +1,4 @@
-import type { Address, Cluster, Depot } from '@/types';
+import type { Address, Cluster, Depot, ClusteringConfig, Vehicle } from '@/types';
 import DEPOTS from './depots';
 
 const SAN_PABLO = DEPOTS.find(d => d.id === 'san-pablo')!;
@@ -36,10 +36,15 @@ function getZoneName(centroid: { lat: number, lng: number }): string {
   return 'Centro';
 }
 
-export function clusterDeliveries(addresses: Address[], numClusters: number): Cluster[] {
+export function clusterDeliveries(
+  addresses: Address[],
+  vehicles: Vehicle[],
+  config: ClusteringConfig
+): Cluster[] {
   const valid = addresses.filter(a => a.lat !== null && a.lng !== null);
   if (valid.length === 0) return [];
   
+  const numClusters = vehicles.length;
   const k = Math.min(numClusters, valid.length);
   if (k === 0) return [];
 
@@ -82,16 +87,43 @@ export function clusterDeliveries(addresses: Address[], numClusters: number): Cl
     changed = false;
     const newClusters: Address[][] = Array.from({length: k}, () => []);
     
+    const clusterCapacities = Array(k).fill(Infinity);
+    vehicles.slice(0, k).forEach((v, i) => {
+      const capMatch = config.vehicleCapacities.find(c => c.vehicleId === v.id);
+      if (capMatch && capMatch.maxStops > 0) {
+        clusterCapacities[i] = capMatch.maxStops;
+      }
+    });
+
     for (const addr of valid) {
-      let minDist = Infinity;
-      let closestIdx = 0;
+      let minCost = Infinity;
+      let closestIdx = -1;
+      
       for (let i = 0; i < k; i++) {
+        if (newClusters[i].length >= clusterCapacities[i]) continue;
+        
         const d = getDistance(addr.lat!, addr.lng!, centroids[i].lat, centroids[i].lng);
-        if (d < minDist) {
-          minDist = d;
+        const size = newClusters[i].length;
+        // Ponderar la distancia contra el tamaño actual. Multiplicamos por 2 para que el tamaño compita con km.
+        const cost = (1 - config.balanceWeight) * d + config.balanceWeight * size * 2;
+        
+        if (cost < minCost) {
+          minCost = cost;
           closestIdx = i;
         }
       }
+
+      if (closestIdx === -1) {
+        let minDistFallback = Infinity;
+        for (let i = 0; i < k; i++) {
+          const d = getDistance(addr.lat!, addr.lng!, centroids[i].lat, centroids[i].lng);
+          if (d < minDistFallback) {
+            minDistFallback = d;
+            closestIdx = i;
+          }
+        }
+      }
+      
       newClusters[closestIdx].push(addr);
     }
     

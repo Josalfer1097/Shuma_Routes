@@ -172,6 +172,138 @@ async function fallbackOptimizeRoutes(
  * Toma las direcciones y vehículos, llama a Google Route Optimization API
  * y luego obtiene la geometría de Google Routes API.
  */
+export async function optimizeSingleVehicle(
+  vehicle: Vehicle,
+  addresses: Address[],
+  departureTime: string,
+  color: string,
+  zoneName: string
+): Promise<Route> {
+  const shipments: any[] = [];
+  const validAddresses: Address[] = [];
+  const datePrefix = departureTime.split('T')[0];
+
+  const endDep = vehicle.endDepot ?? vehicle.depot;
+
+  const googleVehicle = {
+    startLocation: { latitude: vehicle.depot.lat, longitude: vehicle.depot.lng },
+    endLocation: { latitude: endDep.lat, longitude: endDep.lng },
+    label: vehicle.driverName,
+    loadLimits: { parcels: { maxLoad: vehicle.capacity.toString() } },
+  };
+
+  const isCentroNorte = zoneName.includes('Centro') || zoneName.includes('Norte');
+  let timeWindows: any[] | undefined = undefined;
+
+  if (isCentroNorte) {
+    timeWindows = [
+      { startTime: `${datePrefix}T00:00:00Z`, endTime: `${datePrefix}T07:00:00Z` },
+      { startTime: `${datePrefix}T09:00:00Z`, endTime: `${datePrefix}T18:00:00Z` },
+      { startTime: `${datePrefix}T20:00:00Z`, endTime: `${datePrefix}T23:59:59Z` }
+    ];
+  }
+
+  addresses.forEach(addr => {
+    validAddresses.push(addr);
+    shipments.push({
+      deliveries: [{
+        arrivalLocation: { latitude: addr.lat!, longitude: addr.lng! },
+        duration: '120s',
+        timeWindows
+      }],
+      label: addr.name,
+      allowedVehicleIndices: [0], // Forzar asignación a este único vehículo (índice 0)
+      loadDemands: { parcels: { amount: '1' } },
+    });
+  });
+
+  const payload = {
+    model: {
+      shipments,
+      vehicles: [googleVehicle],
+      globalStartTime: departureTime,
+    },
+  };
+
+  const googleResult = await callGoogleRouteOptimization(payload);
+  if (!googleResult.routes || googleResult.routes.length === 0) {
+    throw new Error(`Google API falló o rechazó las paradas para ${vehicle.driverName}`);
+  }
+
+  const googleRoute = googleResult.routes[0];
+  const stops: Stop[] = (googleRoute.visits || []).map((visit: any, seqIndex: number) => {
+    const shipmentIndex = visit.shipmentIndex ?? 0;
+    const address = validAddresses[shipmentIndex];
+    const transition = googleRoute.transitions?.[seqIndex];
+    const distance = transition ? transition.travelDistanceMeters || 0 : 0;
+    const durationSecs = transition ? parseInt(transition.travelDuration || '0') : 0;
+
+    return {
+      sequence: seqIndex + 1,
+      address,
+      status: 'pending' as const,
+      eta: durationSecs,
+      distance: distance,
+    };
+  });
+
+  let accumulatedDistance = 0;
+  let accumulatedDuration = 0;
+  stops.forEach((stop) => {
+    accumulatedDistance += stop.distance || 0;
+    accumulatedDuration += stop.eta || 0;
+    stop.distance = accumulatedDistance;
+    stop.eta = accumulatedDuration;
+  });
+
+  const lastTransition = googleRoute.transitions?.[googleRoute.transitions.length - 1];
+  let finalDistance = 0;
+  let finalDuration = 0;
+  if (lastTransition) {
+    finalDistance = lastTransition.travelDistanceMeters || 0;
+    finalDuration = parseInt(lastTransition.travelDuration || '0');
+  }
+
+  const totalDistance = accumulatedDistance + finalDistance;
+  const totalDuration = accumulatedDuration + finalDuration;
+
+  let polyline: [number, number][] = [];
+  let alternatives: [number, number][][] = [];
+  if (stops.length > 0) {
+    const waypoints: [number, number][] = [
+      [vehicle.depot.lat, vehicle.depot.lng],
+      ...stops.map((s) => [s.address.lat!, s.address.lng!] as [number, number]),
+      [endDep.lat, endDep.lng],
+    ];
+
+    try {
+      const routesResult = await getRouteGoogle(waypoints);
+      polyline = routesResult.polyline;
+      alternatives = routesResult.alternatives;
+    } catch (e) {
+      console.warn(`[Google Routes] Falló al trazar polilínea para ${vehicle.driverName}:`, e);
+    }
+  }
+
+  return {
+    vehicleId: vehicle.id,
+    driverName: vehicle.driverName,
+    matricula: vehicle.matricula,
+    color,
+    depot: vehicle.depot,
+    endDepot: endDep,
+    stops,
+    invoices: vehicle.invoices,
+    polyline,
+    alternatives,
+    totalDistance,
+    totalDuration,
+  };
+}
+
+/**
+ * Función principal de optimización para todas las zonas.
+ */
 export async function optimizeRoutes(
   clusters: Cluster[],
   vehicles: Vehicle[],

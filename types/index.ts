@@ -62,6 +62,14 @@ export interface Vehicle {
   invoices: string;
 }
 
+export interface ClusteringConfig {
+  balanceWeight: number; // 0.0 to 1.0
+  vehicleCapacities: {
+    vehicleId: string;
+    maxStops: number;
+  }[];
+}
+
 /** Parada individual en una ruta optimizada */
 export interface Stop {
   sequence: number;
@@ -206,6 +214,7 @@ export interface GlobalConfig {
 export interface AppState {
   step: AppStep;
   globalConfig: GlobalConfig | null;
+  clusteringConfig: ClusteringConfig;
   addresses: Address[];
   clusters: Cluster[];
   vehicles: Vehicle[];

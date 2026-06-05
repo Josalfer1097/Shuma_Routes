@@ -212,7 +212,7 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
           const mainLine = new Polyline({
             path,
             map,
-            strokeColor: '#FF6B00', // Naranja brillante
+            strokeColor: route.color || '#FF6B00',
             strokeOpacity: 1.0,
             strokeWeight: 6, // Grosor 6px
             zIndex: 3,

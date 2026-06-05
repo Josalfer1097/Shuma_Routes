@@ -7,7 +7,7 @@ import type {
 } from '@/types';
 import { getWeatherCDMX, type WeatherData } from '@/lib/weather';
 import { geocodeBatch, geocodeAddress } from '@/lib/nominatim';
-import { optimizeRoutes, assignVehicleColors } from '@/lib/vroom';
+import { optimizeRoutes, assignVehicleColors, optimizeSingleVehicle } from '@/lib/vroom';
 import CSVUploader from '@/components/dispatcher/CSVUploader';
 import VehicleForm from '@/components/dispatcher/VehicleForm';
 import RoutePanel from '@/components/dispatcher/RoutePanel';
@@ -15,7 +15,7 @@ import OptimizeButton from '@/components/dispatcher/OptimizeButton';
 import ReportButton from '@/components/dispatcher/ReportButton';
 import WeatherBanner from '@/components/dispatcher/WeatherBanner';
 import { clusterDeliveries } from '@/lib/clustering';
-import type { Cluster, GlobalConfig } from '@/types';
+import type { Cluster, GlobalConfig, ClusteringConfig, Stop } from '@/types';
 
 // Leaflet NO es compatible con SSR → dynamic import
 const MapView = dynamic(() => import('@/components/dispatcher/MapView'), {
@@ -61,11 +61,13 @@ type Action =
   | { type: 'SET_CLUSTERS'; payload: Cluster[] }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_DEPOT'; payload: { lat: number; lng: number; label: string } | null }
-  | { type: 'SET_GLOBAL_CONFIG'; payload: GlobalConfig };
+  | { type: 'SET_GLOBAL_CONFIG'; payload: GlobalConfig }
+  | { type: 'SET_CLUSTERING_CONFIG'; payload: ClusteringConfig };
 
 const initialState: AppState = {
   step: 'config',
   globalConfig: null,
+  clusteringConfig: { balanceWeight: 0, vehicleCapacities: [] },
   addresses: [],
   clusters: [],
   vehicles: [],
@@ -116,6 +118,8 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, depot: action.payload };
     case 'SET_GLOBAL_CONFIG':
       return { ...state, globalConfig: action.payload };
+    case 'SET_CLUSTERING_CONFIG':
+      return { ...state, clusteringConfig: action.payload };
     default:
       return state;
   }
@@ -182,7 +186,7 @@ export default function DispatcherPage() {
     
     setNumClusters(finalClustersCount);
     
-    const generatedClusters = clusterDeliveries(updatedAddresses, finalClustersCount);
+    const generatedClusters = clusterDeliveries(updatedAddresses, state.vehicles, state.clusteringConfig);
     dispatch({ type: 'SET_CLUSTERS', payload: generatedClusters });
     
     dispatch({ type: 'SET_STEP', payload: 'zones' });
@@ -196,7 +200,7 @@ export default function DispatcherPage() {
         payload: 'No se pudo geocodificar ninguna dirección. Verifica tu API Key de Google (Geocoding API habilitada y sin restricciones de referrer).' 
       });
     }
-  }, [state.vehicles.length]);
+  }, [state.vehicles, state.clusteringConfig]);
 
   // Optimización de rutas
   const handleOptimize = useCallback(async () => {
@@ -305,6 +309,37 @@ export default function DispatcherPage() {
       setIsOptimizing(false);
     }
   }, [state.clusters, state.vehicles, state.globalConfig]);
+
+  const handleReoptimizeSingle = useCallback(async (vehicleId: string, manualStops: Stop[]) => {
+    setIsOptimizing(true);
+    dispatch({ type: 'SET_ERROR', payload: null });
+
+    try {
+      const today = new Date();
+      const timeParts = (state.globalConfig?.departureTime || '08:00').split(':');
+      today.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+      const departureTime = today.toISOString();
+
+      const vehicle = state.vehicles.find(v => v.id === vehicleId);
+      if (!vehicle) throw new Error('Vehículo no encontrado');
+
+      const addresses = manualStops.map(s => s.address);
+      const routeColor = state.routes.find(r => r.vehicleId === vehicleId)?.color || '#FF6B00';
+      const zoneName = vehicle.zoneName || 'Zona';
+
+      const updatedRoute = await optimizeSingleVehicle(vehicle, addresses, departureTime, routeColor, zoneName);
+
+      dispatch({ 
+        type: 'SET_ROUTES', 
+        payload: state.routes.map(r => r.vehicleId === vehicleId ? updatedRoute : r)
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al reoptimizar vehículo individual';
+      dispatch({ type: 'SET_ERROR', payload: msg });
+    } finally {
+      setIsOptimizing(false);
+    }
+  }, [state.vehicles, state.globalConfig, state.routes]);
 
   const tabs = [
     { id: 'config' as const, label: 'Conf.', count: 0 },
@@ -427,7 +462,7 @@ export default function DispatcherPage() {
                       dispatch({ type: 'ADD_VEHICLE', payload: v });
                       setShowInlineVehicleForm(false);
                       // Recalcular zonas con el nuevo número de vehículos
-                      const newClusters = clusterDeliveries(state.addresses, state.vehicles.length + 1);
+                      const newClusters = clusterDeliveries(state.addresses, [...state.vehicles, v], state.clusteringConfig);
                       dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
                       setNumClusters(state.vehicles.length + 1);
                     }}
@@ -435,6 +470,30 @@ export default function DispatcherPage() {
                   />
                 </div>
               )}
+
+              <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-3">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold text-slate-300">Balanceo Automático</label>
+                  <span className="text-xs text-blue-400 font-mono">{(state.clusteringConfig.balanceWeight * 100).toFixed(0)}%</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" max="1" step="0.05"
+                  value={state.clusteringConfig.balanceWeight}
+                  onChange={(e) => {
+                    const weight = parseFloat(e.target.value);
+                    const newConfig = { ...state.clusteringConfig, balanceWeight: weight };
+                    dispatch({ type: 'SET_CLUSTERING_CONFIG', payload: newConfig });
+                    const newClusters = clusterDeliveries(state.addresses, state.vehicles, newConfig);
+                    dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
+                  }}
+                  className="w-full accent-blue-500"
+                />
+                <div className="flex justify-between text-[10px] text-slate-500 font-medium">
+                  <span>Geografía pura</span>
+                  <span>Igualar cargas</span>
+                </div>
+              </div>
 
               <ul className="space-y-2">
                 {state.clusters.map((cluster, idx) => {
@@ -465,6 +524,29 @@ export default function DispatcherPage() {
                           ))}
                         </select>
                       </div>
+                      <div className="flex flex-col gap-1 mt-2">
+                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Capacidad Máxima (Paradas)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="50"
+                          value={state.clusteringConfig.vehicleCapacities.find(c => c.vehicleId === assignedVehicle?.id)?.maxStops || (assignedVehicle?.type === 'Camioneta' ? 4 : 6)}
+                          onChange={(e) => {
+                            if (!assignedVehicle) return;
+                            const val = parseInt(e.target.value) || 0;
+                            const caps = [...state.clusteringConfig.vehicleCapacities];
+                            const idxCap = caps.findIndex(c => c.vehicleId === assignedVehicle.id);
+                            if (idxCap >= 0) caps[idxCap].maxStops = val;
+                            else caps.push({ vehicleId: assignedVehicle.id, maxStops: val });
+                            
+                            const newConfig = { ...state.clusteringConfig, vehicleCapacities: caps };
+                            dispatch({ type: 'SET_CLUSTERING_CONFIG', payload: newConfig });
+                            const newClusters = clusterDeliveries(state.addresses, state.vehicles, newConfig);
+                            dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
+                          }}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-md p-1.5 text-xs text-slate-200 outline-none"
+                        />
+                      </div>
                     </li>
                   );
                 })}
@@ -481,6 +563,7 @@ export default function DispatcherPage() {
                 onReoptimize={handleReoptimize}
                 allVehicles={state.vehicles}
                 hiddenRouteIds={hiddenRouteIds}
+                onReoptimizeSingle={handleReoptimizeSingle}
                 onToggleRouteVisibility={(vehicleId) => {
                   setHiddenRouteIds((prev) => 
                     prev.includes(vehicleId) 
@@ -539,7 +622,7 @@ export default function DispatcherPage() {
               handleOptimize();
             }}
             onRegroup={() => {
-              const regenerated = clusterDeliveries(state.addresses, numClusters);
+              const regenerated = clusterDeliveries(state.addresses, state.vehicles, state.clusteringConfig);
               dispatch({ type: 'SET_CLUSTERS', payload: regenerated });
             }}
           />
