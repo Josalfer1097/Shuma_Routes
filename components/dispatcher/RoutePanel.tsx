@@ -329,9 +329,11 @@ export default function RoutePanel({
               return (
                 <li key={route.vehicleId} className="rounded-xl border border-shuma-border overflow-hidden bg-shuma-surface/20">
                   {/* HEADER DEL CHOFER */}
-                  <button
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setExpandedRoute(isExpanded ? null : route.vehicleId)}
-                    className="w-full flex items-center gap-3 px-3 py-3 hover:bg-shuma-border/40 transition-colors duration-150"
+                    className="w-full flex items-center gap-3 px-3 py-3 hover:bg-shuma-border/40 transition-colors duration-150 cursor-pointer text-left focus:outline-none"
                   >
                     <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: route.color }} />
                     <div className="flex-1 text-left">
@@ -407,7 +409,7 @@ export default function RoutePanel({
                       {onToggleRouteVisibility && (
                         <button 
                           onClick={(e) => { e.stopPropagation(); onToggleRouteVisibility(route.vehicleId); }}
-                          className="p-1 rounded-md hover:bg-shuma-border transition-colors ml-1"
+                          className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#112040] hover:bg-[#0A1628] border border-[#112040] transition-colors ml-1 text-sm"
                           title={hiddenRouteIds.includes(route.vehicleId) ? 'Mostrar ruta' : 'Ocultar ruta'}
                         >
                           {hiddenRouteIds.includes(route.vehicleId) ? '👁️‍🗨️' : '👁️'}
@@ -415,7 +417,7 @@ export default function RoutePanel({
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); setMetricsModalRouteId(route.vehicleId); }}
-                        className="px-2 py-1 ml-1 text-[10px] font-bold bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded transition-colors"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#112040] hover:bg-[#0A1628] border border-[#112040] transition-colors ml-1 text-sm"
                         title="Ver análisis de ruta"
                       >
                         📊
@@ -427,7 +429,7 @@ export default function RoutePanel({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
-                  </button>
+                  </div>
 
                   {/* LISTA DE PARADAS SORTABLE */}
                   {isExpanded && (
