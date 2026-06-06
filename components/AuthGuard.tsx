@@ -1,31 +1,37 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import LoginScreen from './LoginScreen';
+import { useState, useEffect } from "react";
+import LoginScreen from "./LoginScreen";
 
-interface AuthGuardProps {
-  children: React.ReactNode;
-}
-
-export default function AuthGuard({ children }: AuthGuardProps) {
+export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    setIsAuthenticated(localStorage.getItem('shuma_auth') === '1');
+    const val = localStorage.getItem("shuma_auth");
+    setIsAuthenticated(val === "1");
     setChecked(true);
   }, []);
 
-  const handleLogin = (user: string, pass: string) => {
-    if (user === 'root' && pass === '1649') {
-      localStorage.setItem('shuma_auth', '1');
+  const handleLogin = (user: string, pass: string): boolean => {
+    if (user === "root" && pass === "1649") {
+      localStorage.setItem("shuma_auth", "1");
       setIsAuthenticated(true);
       return true;
     }
     return false;
   };
 
-  if (!checked) return null; // evitar flash
-  if (!isAuthenticated) return <LoginScreen onLogin={handleLogin} />;
+  const handleLogout = () => {
+    localStorage.removeItem("shuma_auth");
+    setIsAuthenticated(false);
+  };
+
+  if (!checked) return null;
+
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
   return <>{children}</>;
 }
