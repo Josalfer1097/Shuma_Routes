@@ -536,25 +536,13 @@ export default function DispatcherPage() {
 
               <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold text-slate-300">Balanceo Automático</label>
-                  <span className="text-xs text-blue-400 font-mono">{(state.clusteringConfig.balanceWeight * 100).toFixed(0)}%</span>
+                  <label className="text-xs font-bold text-slate-300">Balanceo de Flota</label>
+                  <span className="text-xs text-blue-400 font-mono">Automático</span>
                 </div>
-                <input 
-                  type="range" 
-                  min="0" max="1" step="0.05"
-                  value={state.clusteringConfig.balanceWeight}
-                  onChange={(e) => {
-                    const weight = parseFloat(e.target.value);
-                    const newConfig = { ...state.clusteringConfig, balanceWeight: weight };
-                    dispatch({ type: 'SET_CLUSTERING_CONFIG', payload: newConfig });
-                    const newClusters = clusterDeliveries(state.addresses, state.vehicles, newConfig);
-                    dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
-                  }}
-                  className="w-full accent-blue-500"
-                />
-                <div className="flex justify-between text-[10px] text-slate-500 font-medium">
-                  <span>Geografía pura</span>
-                  <span>Igualar cargas</span>
+                <div className="text-[11px] text-slate-400 leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-slate-700/50">
+                  <p>
+                    Google Route Optimization API distribuye inteligentemente las paradas basándose en las capacidades de los vehículos minimizando el tiempo y costo total para toda la flota.
+                  </p>
                 </div>
               </div>
 
