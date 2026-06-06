@@ -417,8 +417,18 @@ export default function RoutePanel({
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); setMetricsModalRouteId(route.vehicleId); }}
-                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#112040] hover:bg-[#0A1628] border border-[#112040] transition-colors ml-1 text-sm"
                         title="Ver análisis de ruta"
+                        style={{
+                          width: 32, height: 32,
+                          background: '#0A1628',
+                          border: '1px solid #112040',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 15,
+                          flexShrink: 0,
+                          marginLeft: 4
+                        }}
                       >
                         📊
                       </button>
