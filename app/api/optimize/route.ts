@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
     console.log('=== PASO 5: Construyendo payload ===');
     const projectId = process.env.GOOGLE_PROJECT_ID || 'shuma-rutas';
-    const url = `https://cloudoptimization.googleapis.com/v1/projects/${projectId}:optimizeTours`;
+    const url = `https://routeoptimization.googleapis.com/v1/projects/${projectId}:optimizeTours`;
     console.log('=== PROJECT ID ===', projectId);
     console.log('=== URL COMPLETA ===', url);
 
