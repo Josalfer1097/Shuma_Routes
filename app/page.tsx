@@ -18,8 +18,8 @@ export default function HomePage() {
             <Image 
               src="/shuma_logo.png" 
               alt="Shuma Logo" 
-              width={160} 
-              height={50} 
+              width={180} 
+              height={56} 
               priority 
               style={{ filter: 'drop-shadow(0 0 12px rgba(33,150,243,0.4))' }} 
             />
