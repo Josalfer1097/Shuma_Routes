@@ -53,6 +53,7 @@ export default function RoutePanel({
   const [editedRoutes, setEditedRoutes] = useState<Route[]>([]);
   const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [metricsModalRouteId, setMetricsModalRouteId] = useState<string | null>(null);
 
   // Modal State
   const [modalState, setModalState] = useState<{
@@ -412,6 +413,15 @@ export default function RoutePanel({
                           {hiddenRouteIds.includes(route.vehicleId) ? '👁️‍🗨️' : '👁️'}
                         </button>
                       )}
+                      {route.metrics && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setMetricsModalRouteId(route.vehicleId); }}
+                          className="px-2 py-1 ml-1 text-[10px] font-bold bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded transition-colors"
+                          title="Ver análisis de ruta"
+                        >
+                          📊
+                        </button>
+                      )}
                       <svg
                         className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                         fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -496,6 +506,61 @@ export default function RoutePanel({
         onConfirm={handleModalConfirm}
         onCancel={() => setModalState(null)}
       />
+
+      {metricsModalRouteId && (() => {
+        const route = routes.find(r => r.vehicleId === metricsModalRouteId) || editedRoutes.find(r => r.vehicleId === metricsModalRouteId);
+        if (!route || !route.metrics) return null;
+        
+        let naiveDistance = 0;
+        route.stops.forEach(s => {
+          if (s.address.lat !== null && s.address.lng !== null) {
+            naiveDistance += getHaversineDistance(route.depot, { lat: s.address.lat, lng: s.address.lng }) * 2;
+          }
+        });
+        const efficiency = naiveDistance > 0 ? Math.min(100, Math.round(((naiveDistance / 1000) / route.metrics.totalDistanceKm) * 100)) : 100;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 w-full max-w-sm overflow-hidden">
+              <div className="bg-slate-700/50 p-4 border-b border-slate-700 flex justify-between items-center">
+                <h3 className="font-bold text-white text-sm">Análisis de ruta — {route.driverName}</h3>
+                <button onClick={() => setMetricsModalRouteId(null)} className="text-slate-400 hover:text-white transition-colors">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="p-5 space-y-4 text-sm">
+                <div className="flex flex-col gap-2 font-medium">
+                  <p className="flex items-center gap-2"><span className="text-lg">📍</span> {route.metrics.stopCount} paradas asignadas</p>
+                  <p className="flex items-center gap-2"><span className="text-lg">📏</span> {route.metrics.totalDistanceKm} km de recorrido total</p>
+                  <p className="flex items-center gap-2"><span className="text-lg">⏱</span> {Math.floor(route.metrics.totalDurationMin / 60)}h {route.metrics.totalDurationMin % 60}min estimados</p>
+                </div>
+                
+                <div className="pt-3 border-t border-slate-700">
+                  <h4 className="font-bold text-slate-300 mb-1">¿Por qué esta distribución?</h4>
+                  <p className="text-slate-400 leading-relaxed text-xs">
+                    Google optimizó minimizando el tiempo total de la flota. Esta ruta agrupa las paradas más cercanas geográficamente a este vehículo para reducir distancia total recorrida por todos.
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t border-slate-700">
+                  <h4 className="font-bold text-slate-300 mb-2">Eficiencia de la flota:</h4>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-3 bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, Math.max(0, efficiency))}%` }} />
+                    </div>
+                    <span className="font-bold text-blue-400">{efficiency}% <span className="text-[10px] text-slate-500 font-normal">(vs manual)</span></span>
+                  </div>
+                </div>
+              </div>
+              <div className="p-3 border-t border-slate-700 bg-slate-800/80">
+                <button onClick={() => setMetricsModalRouteId(null)} className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-bold transition-colors">
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

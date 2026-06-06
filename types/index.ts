@@ -104,6 +104,11 @@ export interface Route {
   totalDistance?: number;
   totalDuration?: number;
   zoneName?: string;
+  metrics?: {
+    totalDistanceKm: number;
+    totalDurationMin: number;
+    stopCount: number;
+  };
 }
 
 /** Estado compartido despachador → chofer */

@@ -313,6 +313,11 @@ export async function optimizeSingleVehicle(
     totalDistance,
     totalDuration,
     departureTime: vehicle.departureTime,
+    metrics: {
+      totalDistanceKm: Number((totalDistance / 1000).toFixed(2)),
+      totalDurationMin: Math.round(totalDuration / 60),
+      stopCount: stops.length,
+    },
   };
 }
 
@@ -476,6 +481,11 @@ export async function optimizeRoutes(
         totalDistance,
         totalDuration,
         departureTime: vehicle.departureTime,
+        metrics: {
+          totalDistanceKm: Number((totalDistance / 1000).toFixed(2)),
+          totalDurationMin: Math.round(totalDuration / 60),
+          stopCount: stops.length,
+        },
       });
     }
 
