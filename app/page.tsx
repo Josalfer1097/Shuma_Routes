@@ -18,8 +18,8 @@ export default function HomePage() {
             <Image 
               src="/shuma_logo.png" 
               alt="Shuma Logo" 
-              width={256} 
-              height={80} 
+              width={320} 
+              height={100} 
               priority 
               style={{ filter: 'drop-shadow(0 0 12px rgba(33,150,243,0.4))' }} 
             />
@@ -102,8 +102,8 @@ export default function HomePage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-slate-700 mt-8">
-          Powered by Google Maps
+        <p className="text-center text-[13px] text-slate-700 mt-8" style={{ letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+          Design & Developed by Shuma Sistemas IT
         </p>
       </div>
     </main>

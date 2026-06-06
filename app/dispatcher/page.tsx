@@ -433,8 +433,8 @@ export default function DispatcherPage() {
             <Image 
               src="/shuma_logo.png" 
               alt="Shuma Logo" 
-              width={128} 
-              height={40} 
+              width={142} 
+              height={44} 
               priority 
               style={{ filter: 'drop-shadow(0 0 8px rgba(33,150,243,0.35))' }} 
             />

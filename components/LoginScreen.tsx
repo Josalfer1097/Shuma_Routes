@@ -38,7 +38,8 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           display: flex; align-items: center; justify-content: center;
           font-family: 'DM Sans', sans-serif;
           overflow: hidden;
-          z-index: 9999;
+          z-index: 99999;
+          isolation: isolate;
         }
         .ls-grid {
           position: absolute; inset: 0;
@@ -117,7 +118,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           margin-bottom: 8px;
         }
         .ls-logo-img {
-          height: 56px; width: auto;
+          height: 80px; width: auto;
           filter: drop-shadow(0 0 16px rgba(33,150,243,0.6)) brightness(1.1);
           animation: logoPulse 4s ease-in-out infinite;
           margin-bottom: 12px;
@@ -223,8 +224,8 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         }
         .ls-footer {
           margin-top: 20px; text-align: center;
-          font-family: 'Exo 2', sans-serif; font-size: 10px;
-          letter-spacing: 0.14em; text-transform: uppercase;
+          font-family: 'Exo 2', sans-serif; font-size: 13px;
+          letter-spacing: 0.12em; text-transform: uppercase;
           background: linear-gradient(90deg,
             #ff0000, #ff6600, #ffff00, #00ff00,
             #00ffff, #0066ff, #cc00ff, #ff0000
@@ -242,7 +243,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         }
       `}</style>
 
-      <div className="ls-root">
+      <div className="ls-root" style={{ position:'fixed', inset:0, zIndex:99999 }}>
         <div className="ls-grid" />
         <div className="ls-orb ls-orb1" />
         <div className="ls-orb ls-orb2" />
