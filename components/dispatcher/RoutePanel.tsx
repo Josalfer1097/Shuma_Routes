@@ -396,7 +396,7 @@ export default function RoutePanel({
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2">
+                    <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
                       <div className="w-16 h-1.5 bg-shuma-surface rounded-full overflow-hidden hidden sm:block">
                         <div
                           className="h-full rounded-full transition-all duration-500"
@@ -409,8 +409,17 @@ export default function RoutePanel({
                       {onToggleRouteVisibility && (
                         <button 
                           onClick={(e) => { e.stopPropagation(); onToggleRouteVisibility(route.vehicleId); }}
-                          className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#112040] hover:bg-[#0A1628] border border-[#112040] transition-colors ml-1 text-sm"
                           title={hiddenRouteIds.includes(route.vehicleId) ? 'Mostrar ruta' : 'Ocultar ruta'}
+                          style={{
+                            width: 32, height: 32,
+                            background: '#0A1628',
+                            border: '1px solid #112040',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 15,
+                            flexShrink: 0
+                          }}
                         >
                           {hiddenRouteIds.includes(route.vehicleId) ? '👁️‍🗨️' : '👁️'}
                         </button>
@@ -426,18 +435,12 @@ export default function RoutePanel({
                           cursor: 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 15,
-                          flexShrink: 0,
-                          marginLeft: 4
+                          flexShrink: 0
                         }}
                       >
                         📊
                       </button>
-                      <svg
-                        className={`w-4 h-4 text-shuma-muted transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                      <span style={{ color:'#5B7BA0', fontSize:12, flexShrink:0, transition:'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
                     </div>
                   </div>
 
