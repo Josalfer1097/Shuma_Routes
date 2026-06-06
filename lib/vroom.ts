@@ -202,11 +202,15 @@ export async function optimizeSingleVehicle(
   const vehicleStartDate = new Date(vehicleStartTime);
   const vehicleEndTime = new Date(vehicleStartDate.getTime() + 12 * 60 * 60 * 1000).toISOString();
 
+  let maxLoad = vehicle.capacity;
+  if (vehicle.type === 'Camión grande') maxLoad = 6;
+  if (vehicle.type === 'Camioneta') maxLoad = 4;
+
   const googleVehicle = {
     startLocation: { latitude: vehicle.depot.lat, longitude: vehicle.depot.lng },
     endLocation: { latitude: endDep.lat, longitude: endDep.lng },
     label: vehicle.driverName,
-    loadLimits: { parcels: { maxLoad: vehicle.capacity.toString() } },
+    loadLimits: { parcels: { maxLoad: maxLoad.toString() } },
     startTimeWindows: [{ startTime: vehicleStartTime, endTime: vehicleEndTime }],
   };
 
@@ -219,6 +223,7 @@ export async function optimizeSingleVehicle(
       }],
       label: addr.name,
       loadDemands: { parcels: { amount: '1' } },
+      penaltyCost: 1000000,
     });
   });
 
@@ -342,11 +347,15 @@ export async function optimizeRoutes(
       const vehicleStartDate = new Date(vehicleStartTime);
       const vehicleEndTime = new Date(vehicleStartDate.getTime() + 12 * 60 * 60 * 1000).toISOString();
       
+      let maxLoad = v.capacity;
+      if (v.type === 'Camión grande') maxLoad = 6;
+      if (v.type === 'Camioneta') maxLoad = 4;
+
       googleVehicles.push({
         startLocation: { latitude: v.depot.lat, longitude: v.depot.lng },
         endLocation: { latitude: endDep.lat, longitude: endDep.lng },
         label: v.driverName,
-        loadLimits: { parcels: { maxLoad: v.capacity.toString() } },
+        loadLimits: { parcels: { maxLoad: maxLoad.toString() } },
         startTimeWindows: [{ startTime: vehicleStartTime, endTime: vehicleEndTime }],
       });
 
@@ -360,6 +369,7 @@ export async function optimizeRoutes(
           }],
           label: addr.name,
           loadDemands: { parcels: { amount: '1' } },
+          penaltyCost: 1000000,
         });
       });
     });
