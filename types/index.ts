@@ -91,6 +91,7 @@ export interface Route {
   vehicleId: string;
   driverName: string;
   matricula: string;
+  vehicleType?: string;
   color: string;
   depot: Depot;
   endDepot: Depot;

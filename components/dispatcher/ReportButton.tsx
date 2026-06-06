@@ -153,7 +153,19 @@ export default function ReportButton({ routes, weather }: Props) {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
       doc.setTextColor(30, 41, 59); // slate-800
-      doc.text(`${route.driverName}  ·  Matrícula: ${route.matricula || '—'}`, 190, 25, { align: 'right' });
+      doc.text(`${route.driverName}  ·  Matrícula: ${route.matricula || '—'}`, 190, 20, { align: 'right' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139); // slate-500
+      
+      let depTimeStr = '—';
+      if (route.departureTime) {
+        const dDate = new Date(route.departureTime);
+        depTimeStr = dDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+      }
+      
+      doc.text(`${route.vehicleType || 'Vehículo'}  ·  Salida: ${depTimeStr}`, 190, 25, { align: 'right' });
 
       // Línea divisoria
       doc.setDrawColor(30, 58, 138); // navy #1E3A8A
@@ -162,7 +174,10 @@ export default function ReportButton({ routes, weather }: Props) {
 
       // Calcular hora estimada de regreso
       let etaReturn = '—';
-      if (route.totalDuration) {
+      if (route.totalDuration && route.departureTime) {
+        const returnDate = new Date(new Date(route.departureTime).getTime() + route.totalDuration * 1000);
+        etaReturn = returnDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+      } else if (route.totalDuration) {
         const returnDate = new Date(now.getTime() + route.totalDuration * 1000);
         etaReturn = returnDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
       }
