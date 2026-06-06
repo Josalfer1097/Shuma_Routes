@@ -1,144 +1,360 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from "react";
 import { User, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import Image from 'next/image';
 
 interface LoginScreenProps {
   onLogin: (user: string, pass: string) => boolean;
 }
 
 export default function LoginScreen({ onLogin }: LoginScreenProps) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const [shaking, setShaking] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(false);
-    
-    const success = onLogin(username, password);
-    if (!success) {
+  const handleSubmit = () => {
+    const ok = onLogin(user, pass);
+    if (!ok) {
       setError(true);
-      // Removed error after animation to allow re-triggering shake
-      setTimeout(() => setError(false), 500);
+      setShaking(true);
+      setTimeout(() => setShaking(false), 500);
+    } else {
+      setError(false);
     }
   };
 
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleSubmit();
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div 
-        className={`w-full max-w-[420px] p-10 md:p-12 rounded-[20px] transition-all duration-600 ease-out transform
-          ${isMounted ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'}
-        `}
-        style={{
-          backgroundColor: 'rgba(10,22,40,0.85)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255,255,255,0.06)'
-        }}
-      >
-        <div className="flex flex-col items-center mb-8">
-          <div className="mb-4">
-            <Image 
-              src="/shuma_logo.png" 
-              alt="Shuma Logo" 
-              width={160} 
-              height={50}
-              priority
-              style={{ filter: 'drop-shadow(0 0 12px rgba(33,150,243,0.4))' }}
-            />
-          </div>
-          <h2 className="font-exo text-[13px] tracking-[0.2em] text-shuma-muted uppercase">
-            Acceso al sistema
-          </h2>
-        </div>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700&family=DM+Sans:wght@300;400;500&display=swap');
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-shuma-muted group-focus-within:text-shuma-accent transition-colors">
-              <User size={18} />
-            </div>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-[#07111E] border border-shuma-border text-shuma-text text-sm rounded-lg pl-10 pr-4 py-3.5 focus:outline-none focus:border-shuma-accent focus:ring-1 focus:ring-shuma-accent transition-all placeholder-transparent peer"
-              placeholder="Usuario"
-              required
-            />
-            <label className="absolute left-10 -top-2.5 text-[11px] text-shuma-muted bg-[#07111E] px-1 transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:top-3.5 peer-focus:-top-2.5 peer-focus:text-[11px] peer-focus:text-shuma-accent">
-              Usuario
-            </label>
-          </div>
+        .ls-bg {
+          position: fixed;
+          inset: 0;
+          background: #050C1A;
+          background-image:
+            linear-gradient(rgba(17,32,64,0.4) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(17,32,64,0.4) 1px, transparent 1px);
+          background-size: 40px 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          font-family: 'DM Sans', sans-serif;
+        }
 
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-shuma-muted group-focus-within:text-shuma-accent transition-colors">
-              <Lock size={18} />
-            </div>
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-[#07111E] border border-shuma-border text-shuma-text text-sm rounded-lg pl-10 pr-10 py-3.5 focus:outline-none focus:border-shuma-accent focus:ring-1 focus:ring-shuma-accent transition-all placeholder-transparent peer"
-              placeholder="Contraseña"
-              required
-            />
-            <label className="absolute left-10 -top-2.5 text-[11px] text-shuma-muted bg-[#07111E] px-1 transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:top-3.5 peer-focus:-top-2.5 peer-focus:text-[11px] peer-focus:text-shuma-accent">
-              Contraseña
-            </label>
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-shuma-muted hover:text-shuma-text transition-colors"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
+        .ls-glow {
+          position: absolute;
+          width: 600px;
+          height: 600px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(0,71,171,0.13) 0%, transparent 70%);
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          pointer-events: none;
+        }
 
-          <div className="h-6">
-            {error && (
-              <div 
-                className="flex items-center gap-1.5 text-shuma-danger text-xs font-medium"
-                style={{
-                  animation: 'shake 400ms cubic-bezier(.36,.07,.19,.97) both'
-                }}
-              >
-                <AlertCircle size={14} />
-                <span>Credenciales incorrectas</span>
-              </div>
-            )}
-          </div>
+        .ls-wrap {
+          position: relative;
+          z-index: 1;
+          width: 100%;
+          max-width: 420px;
+          padding: 0 20px;
+          animation: lsFadeUp 0.6s ease-out forwards;
+        }
 
-          <button
-            type="submit"
-            className="w-full bg-shuma-blue hover:bg-shuma-blue-mid text-white font-exo font-bold tracking-wider py-3.5 rounded-lg transition-all duration-300 hover:shadow-[0_0_15px_rgba(33,150,243,0.4)]"
-          >
-            INGRESAR
-          </button>
-        </form>
+        @keyframes lsFadeUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
 
-        <div className="mt-8 text-center">
-          <p className="text-[11px] text-shuma-muted">
-            © 2025 Grupo Shuma — Todos los derechos reservados
-          </p>
-        </div>
-      </div>
+        .ls-card {
+          background: rgba(10,22,40,0.88);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 20px;
+          padding: 44px 40px 36px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
 
-      <style jsx global>{`
-        @keyframes shake {
-          10%, 90% { transform: translate3d(-1px, 0, 0); }
-          20%, 80% { transform: translate3d(2px, 0, 0); }
-          30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-          40%, 60% { transform: translate3d(4px, 0, 0); }
+        .ls-logo {
+          font-family: 'Exo 2', sans-serif;
+          font-size: 38px;
+          font-weight: 700;
+          color: #1a6fd4;
+          letter-spacing: 1px;
+          filter: drop-shadow(0 0 14px rgba(33,150,243,0.5));
+          margin-bottom: 8px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .ls-logo img {
+          height: 42px;
+          filter: drop-shadow(0 0 14px rgba(33,150,243,0.5));
+        }
+
+        .ls-sublabel {
+          font-family: 'Exo 2', sans-serif;
+          font-size: 10px;
+          letter-spacing: 0.22em;
+          color: #5B7BA0;
+          text-transform: uppercase;
+          margin-bottom: 4px;
+          text-align: center;
+        }
+
+        .ls-desc {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 12px;
+          color: #3a5a80;
+          text-align: center;
+          margin-bottom: 28px;
+          letter-spacing: 0.03em;
+        }
+
+        .ls-divider {
+          width: 40px;
+          height: 1px;
+          background: linear-gradient(90deg, transparent, #112040, transparent);
+          margin-bottom: 24px;
+        }
+
+        .ls-field {
+          position: relative;
+          width: 100%;
+          margin-bottom: 14px;
+        }
+
+        .ls-field input {
+          width: 100%;
+          background: #07111E;
+          border: 1px solid #112040;
+          border-radius: 10px;
+          padding: 14px 14px 14px 42px;
+          color: #E8EFF8;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 14px;
+          outline: none;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .ls-field input::placeholder { color: transparent; }
+
+        .ls-field input:focus {
+          border-color: #2196F3;
+          box-shadow: 0 0 0 3px rgba(33,150,243,0.12);
+        }
+
+        .ls-field-icon {
+          position: absolute;
+          left: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #3a5a80;
+          pointer-events: none;
+          transition: color 0.2s;
+          display: flex;
+          align-items: center;
+        }
+
+        .ls-field input:focus ~ .ls-field-icon { color: #2196F3; }
+
+        .ls-field-label {
+          position: absolute;
+          left: 42px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 13px;
+          color: #3a5a80;
+          pointer-events: none;
+          transition: all 0.15s;
+          font-family: 'DM Sans', sans-serif;
+          background: transparent;
+        }
+
+        .ls-field input:focus ~ .ls-field-label,
+        .ls-field input:not(:placeholder-shown) ~ .ls-field-label {
+          top: 2px;
+          font-size: 10px;
+          color: #2196F3;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .ls-eye {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: #3a5a80;
+          padding: 4px;
+          transition: color 0.2s;
+          display: flex;
+          align-items: center;
+        }
+
+        .ls-eye:hover { color: #2196F3; }
+
+        .ls-btn {
+          width: 100%;
+          margin-top: 8px;
+          padding: 14px;
+          background: #0047AB;
+          border: none;
+          border-radius: 10px;
+          color: #fff;
+          font-family: 'Exo 2', sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.2em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .ls-btn::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+          pointer-events: none;
+        }
+
+        .ls-btn:hover {
+          background: #1565C0;
+          box-shadow: 0 0 24px rgba(0,71,171,0.5);
+        }
+
+        .ls-btn:active { transform: scale(0.98); }
+
+        .ls-error {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #EF4444;
+          font-size: 12px;
+          font-family: 'DM Sans', sans-serif;
+          margin-top: 10px;
+          padding: 10px 14px;
+          background: rgba(239,68,68,0.08);
+          border: 1px solid rgba(239,68,68,0.2);
+          border-radius: 8px;
+          width: 100%;
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+
+        .ls-error.visible { opacity: 1; }
+
+        @keyframes lsShake {
+          0%,100% { transform: translateX(0); }
+          20%      { transform: translateX(-8px); }
+          40%      { transform: translateX(8px); }
+          60%      { transform: translateX(-6px); }
+          80%      { transform: translateX(6px); }
+        }
+
+        .ls-shake { animation: lsShake 0.45s ease; }
+
+        .ls-footer {
+          margin-top: 24px;
+          font-family: 'Exo 2', sans-serif;
+          font-size: 10px;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          text-align: center;
+          background: linear-gradient(90deg,
+            #ff0000, #ff7700, #ffff00, #00ff00,
+            #00ffff, #0077ff, #ff00ff, #ff0000
+          );
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: lsRgb 4s linear infinite;
+          opacity: 0.7;
+        }
+
+        @keyframes lsRgb {
+          from { background-position: 0% center; }
+          to   { background-position: 200% center; }
         }
       `}</style>
-    </div>
+
+      <div className="ls-bg">
+        <div className="ls-glow" />
+        <div className="ls-wrap">
+          <div className="ls-card">
+            <div className="ls-logo">
+              <img src="/shuma_logo.png" alt="Shuma" />
+            </div>
+
+            <p className="ls-sublabel">Sistema de Logística</p>
+            <p className="ls-desc">Optimización de rutas de entrega</p>
+            <div className="ls-divider" />
+
+            <div className="ls-field" onKeyDown={handleKey}>
+              <input
+                type="text"
+                placeholder=" "
+                value={user}
+                onChange={(e) => setUser(e.target.value)}
+                autoComplete="off"
+              />
+              <div className="ls-field-icon"><User size={16} /></div>
+              <span className="ls-field-label">Usuario</span>
+            </div>
+
+            <div className="ls-field" onKeyDown={handleKey}>
+              <input
+                type={showPass ? "text" : "password"}
+                placeholder=" "
+                value={pass}
+                onChange={(e) => setPass(e.target.value)}
+                autoComplete="off"
+              />
+              <div className="ls-field-icon"><Lock size={16} /></div>
+              <span className="ls-field-label">Contraseña</span>
+              <button
+                className="ls-eye"
+                onClick={() => setShowPass(!showPass)}
+                aria-label="Mostrar contraseña"
+                type="button"
+              >
+                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+
+            <button className="ls-btn" onClick={handleSubmit}>
+              Ingresar
+            </button>
+
+            <div className={`ls-error ${error ? "visible" : ""} ${shaking ? "ls-shake" : ""}`}>
+              <AlertCircle size={16} style={{ flexShrink: 0 }} />
+              Credenciales incorrectas
+            </div>
+          </div>
+
+          <p className="ls-footer">Design &amp; Developed by Shuma Sistemas IT</p>
+        </div>
+      </div>
+    </>
   );
 }
