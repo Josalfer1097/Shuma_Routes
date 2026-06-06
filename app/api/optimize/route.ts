@@ -12,38 +12,26 @@ import { GoogleAuth } from 'google-auth-library';
 
 export async function POST(req: Request) {
   try {
-    console.log('=== PASO 1: Parseando Service Account ===');
     const serviceAccount = JSON.parse(
       process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}'
     );
-    console.log('=== PASO 2: Service Account OK, email:', serviceAccount.client_email);
 
     const auth = new GoogleAuth({
       credentials: serviceAccount,
       scopes: ['https://www.googleapis.com/auth/cloud-platform']
     });
 
-    console.log('=== PASO 3: Generando token ===');
     const body = await req.json();
     const client = await auth.getClient();
     const token = await client.getAccessToken();
     
     if (!token.token) {
-      console.log('=== PASO 4 ERROR: No se pudo obtener el token ===');
       return Response.json({ error: 'No se pudo obtener el token de acceso' }, { status: 401 });
     }
-    console.log('=== PASO 4: Token generado OK ===');
-    console.log('Token (primeros 20 chars):', token.token.substring(0, 20));
 
-    console.log('=== PASO 5: Construyendo payload ===');
     const projectId = process.env.GOOGLE_PROJECT_ID || 'shuma-rutas';
     const url = `https://routeoptimization.googleapis.com/v1/projects/${projectId}:optimizeTours`;
-    console.log('=== PROJECT ID ===', projectId);
-    console.log('=== URL COMPLETA ===', url);
 
-    console.log('=== PASO 6: Payload construido ===\n', JSON.stringify(body, null, 2));
-
-    console.log('=== PASO 7: Enviando a Google ===');
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -52,8 +40,6 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify(body)
     });
-    
-    console.log('=== PASO 8: Respuesta de Google:', response.status);
     
     const data = await response.json();
     
