@@ -45,7 +45,7 @@ export default function SortableStop({
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-start gap-2 px-3 py-2.5 ${isEditing ? 'bg-slate-800/30' : ''} ${isDragging ? 'shadow-xl bg-slate-800 ring-2 ring-blue-500' : ''} rounded-lg`}
+      className={`flex items-start gap-2 px-3 py-2.5 ${isEditing ? 'bg-shuma-surface/30' : ''} ${isDragging ? 'shadow-xl bg-shuma-surface ring-2 ring-blue-500' : ''} rounded-lg`}
     >
       <div 
         {...attributes} 
@@ -56,7 +56,7 @@ export default function SortableStop({
         {isEditing ? '≡' : stop.sequence}
       </div>
       <div className="flex-1 min-w-0 pointer-events-none">
-        <p className="text-xs font-medium text-slate-300 truncate">
+        <p className="text-xs font-medium text-shuma-text truncate">
           {stop.address.clientName 
             ? stop.address.clientName 
             : stop.address.invoice 
@@ -65,7 +65,7 @@ export default function SortableStop({
                 ? stop.address.name 
                 : stop.address.raw.substring(0, 30) + '...')}
         </p>
-        <p className="text-[11px] text-slate-500 truncate">{stop.address.raw}</p>
+        <p className="text-[11px] text-shuma-muted truncate">{stop.address.raw}</p>
       </div>
 
       {!isEditing && stop.status === 'completed' && (
@@ -79,14 +79,14 @@ export default function SortableStop({
            <button 
              onClick={(e) => { e.stopPropagation(); onMoveUp?.(); }}
              disabled={isFirst}
-             className="text-[10px] text-slate-500 hover:text-white disabled:opacity-30"
+             className="text-[10px] text-shuma-muted hover:text-white disabled:opacity-30"
            >
              ▲
            </button>
            <button 
              onClick={(e) => { e.stopPropagation(); onMoveDown?.(); }}
              disabled={isLast}
-             className="text-[10px] text-slate-500 hover:text-white disabled:opacity-30"
+             className="text-[10px] text-shuma-muted hover:text-white disabled:opacity-30"
            >
              ▼
            </button>

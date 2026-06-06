@@ -51,8 +51,8 @@ function createClusterLabel(cluster: Cluster) {
   
   div.innerHTML = `
     <div style="color: ${cluster.color}">${cluster.name}</div>
-    <div class="text-[10px] font-normal text-slate-300">${cluster.addresses.length} paradas</div>
-    <div class="text-[9px] font-normal text-slate-400">Salida: ${cluster.depot.name}</div>
+    <div class="text-[10px] font-normal text-shuma-text">${cluster.addresses.length} paradas</div>
+    <div class="text-[9px] font-normal text-shuma-muted">Salida: ${cluster.depot.name}</div>
   `;
   return div;
 }
@@ -161,13 +161,13 @@ export default function ZoneMap({ clusters, onConfirm, onRegroup }: Props) {
 
   return (
     <div className="relative w-full h-full">
-      <div ref={containerRef} className="w-full h-full bg-slate-800" />
+      <div ref={containerRef} className="w-full h-full bg-shuma-surface" />
       
       {/* Floating Panel for Actions */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-3 p-3 bg-slate-900/90 backdrop-blur border border-slate-700/50 rounded-2xl shadow-xl">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-3 p-3 bg-shuma-bg/90 backdrop-blur border border-shuma-border rounded-2xl shadow-xl">
         <button
           onClick={onRegroup}
-          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-xl transition-colors"
+          className="px-4 py-2 bg-shuma-surface hover:bg-shuma-border text-white text-sm font-medium rounded-xl transition-colors"
         >
           Reagrupar
         </button>

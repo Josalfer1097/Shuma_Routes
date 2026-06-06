@@ -256,10 +256,10 @@ export default function RoutePanel({
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 rounded-2xl border border-slate-700/50 shadow-2xl overflow-hidden relative">
+    <div className="flex flex-col h-full bg-shuma-bg rounded-2xl border border-shuma-border shadow-2xl overflow-hidden relative">
       
       {/* HEADER */}
-      <div className="px-4 py-3 border-b border-slate-700/50 bg-slate-800/50 shrink-0 flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-shuma-border bg-shuma-surface shrink-0 flex items-center justify-between">
         <h2 className="text-sm font-bold text-white flex items-center gap-2">
           📍 Flota y Rutas Generadas
         </h2>
@@ -279,7 +279,7 @@ export default function RoutePanel({
                   setHasUnsavedEdits(false);
                   setEditedRoutes(JSON.parse(JSON.stringify(routes)));
                 }}
-                className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium border border-slate-600 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-shuma-surface hover:bg-shuma-border text-shuma-text text-xs font-medium border border-shuma-border transition-colors"
               >
                 Cancelar
               </button>
@@ -327,24 +327,24 @@ export default function RoutePanel({
               const stopIds = route.stops.map(s => s.address.id);
 
               return (
-                <li key={route.vehicleId} className="rounded-xl border border-slate-700 overflow-hidden bg-slate-800/20">
+                <li key={route.vehicleId} className="rounded-xl border border-shuma-border overflow-hidden bg-shuma-surface/20">
                   {/* HEADER DEL CHOFER */}
                   <button
                     onClick={() => setExpandedRoute(isExpanded ? null : route.vehicleId)}
-                    className="w-full flex items-center gap-3 px-3 py-3 hover:bg-slate-700/40 transition-colors duration-150"
+                    className="w-full flex items-center gap-3 px-3 py-3 hover:bg-shuma-border/40 transition-colors duration-150"
                   >
                     <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: route.color }} />
                     <div className="flex-1 text-left">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-slate-200">{route.driverName}</p>
+                        <p className="text-sm font-semibold text-shuma-text">{route.driverName}</p>
                         {route.zoneName && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-700/50 text-slate-300 border border-slate-600/50">
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-shuma-surface/50 text-shuma-text border border-shuma-border/50">
                             {route.zoneName}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1">
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-shuma-muted">
                           {route.stops.length} paradas
                           {route.totalDistance !== undefined && ` · ${formatDistance(route.totalDistance)}`}
                           {route.totalDuration !== undefined && ` · ${formatDuration(route.totalDuration)}`}
@@ -364,7 +364,7 @@ export default function RoutePanel({
                               const isPast = targetMins < currentMins;
                               return (
                                 <>
-                                  <svg className={`w-3.5 h-3.5 ${isPast ? 'text-red-400' : route.departureTime ? 'text-blue-400' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg className={`w-3.5 h-3.5 ${isPast ? 'text-red-400' : route.departureTime ? 'text-blue-400' : 'text-shuma-muted'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
                                   <input
@@ -374,7 +374,7 @@ export default function RoutePanel({
                                       if (onVehicleTimeChange) onVehicleTimeChange(route.vehicleId, e.target.value);
                                     }}
                                     className={`bg-transparent ${isPast ? 'border border-red-500 rounded px-1' : 'border-none p-0'} text-xs font-medium focus:ring-0 ${
-                                      isPast ? 'text-red-400' : route.departureTime ? 'text-blue-400' : 'text-slate-400'
+                                      isPast ? 'text-red-400' : route.departureTime ? 'text-blue-400' : 'text-shuma-muted'
                                     }`}
                                   />
                                 </>
@@ -395,7 +395,7 @@ export default function RoutePanel({
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden hidden sm:block">
+                      <div className="w-16 h-1.5 bg-shuma-surface rounded-full overflow-hidden hidden sm:block">
                         <div
                           className="h-full rounded-full transition-all duration-500"
                           style={{
@@ -407,7 +407,7 @@ export default function RoutePanel({
                       {onToggleRouteVisibility && (
                         <button 
                           onClick={(e) => { e.stopPropagation(); onToggleRouteVisibility(route.vehicleId); }}
-                          className="p-1 rounded-md hover:bg-slate-600 transition-colors ml-1"
+                          className="p-1 rounded-md hover:bg-shuma-border transition-colors ml-1"
                           title={hiddenRouteIds.includes(route.vehicleId) ? 'Mostrar ruta' : 'Ocultar ruta'}
                         >
                           {hiddenRouteIds.includes(route.vehicleId) ? '👁️‍🗨️' : '👁️'}
@@ -421,7 +421,7 @@ export default function RoutePanel({
                         📊
                       </button>
                       <svg
-                        className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                        className={`w-4 h-4 text-shuma-muted transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                         fill="none" viewBox="0 0 24 24" stroke="currentColor"
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -431,9 +431,9 @@ export default function RoutePanel({
 
                   {/* LISTA DE PARADAS SORTABLE */}
                   {isExpanded && (
-                    <div className="border-t border-slate-700">
+                    <div className="border-t border-shuma-border">
                       <SortableContext items={stopIds} strategy={verticalListSortingStrategy}>
-                        <ul className={`divide-y divide-slate-700/50 min-h-[40px] ${activeDragId && isEditing ? 'outline-dashed outline-2 outline-slate-600 outline-offset-[-2px] bg-slate-800/10' : ''}`}>
+                        <ul className={`divide-y divide-slate-700/50 min-h-[40px] ${activeDragId && isEditing ? 'outline-dashed outline-2 outline-shuma-border outline-offset-[-2px] bg-shuma-surface/10' : ''}`}>
                           {route.stops.map((stop, idx) => (
                             <SortableStop
                               key={stop.address.id}
@@ -465,13 +465,13 @@ export default function RoutePanel({
 
                       {/* COMPARTIR */}
                       {!isEditing && (
-                        <div className="p-3 border-t border-slate-700 bg-slate-800/50 flex flex-col gap-2">
-                          <p className="text-xs font-bold text-slate-400 mb-1">🔗 Compartir ruta</p>
+                        <div className="p-3 border-t border-shuma-border bg-shuma-surface flex flex-col gap-2">
+                          <p className="text-xs font-bold text-shuma-muted mb-1">🔗 Compartir ruta</p>
                           {generateGoogleMapsLinks(route).map((link, idx, arr) => {
                             const label = arr.length > 1 ? `Ruta parte ${idx + 1}/${arr.length}` : 'Abrir Ruta en Google Maps';
                             return (
                               <div key={idx} className="flex gap-2">
-                                <a href={link} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 transition-all">
+                                <a href={link} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold bg-shuma-surface hover:bg-shuma-border text-white border border-shuma-border transition-all">
                                   📍 {label}
                                 </a>
                                 <a href={`https://wa.me/?text=${encodeURIComponent(`Tu ${label.toLowerCase()} de hoy: ${link}`)}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center px-4 py-2 rounded-lg text-xs font-bold bg-green-600 hover:bg-green-500 text-white transition-all">
@@ -482,7 +482,7 @@ export default function RoutePanel({
                               </div>
                             );
                           })}
-                          <button onClick={() => onShareRoute(route.vehicleId)} className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[10px] font-medium text-slate-400 hover:text-white hover:bg-slate-700 transition-all">
+                          <button onClick={() => onShareRoute(route.vehicleId)} className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[10px] font-medium text-shuma-muted hover:text-white hover:bg-shuma-border transition-all">
                             Compartir portal Web de Chofer
                           </button>
                         </div>
@@ -528,10 +528,10 @@ export default function RoutePanel({
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-slate-700/50 p-4 border-b border-slate-700 flex justify-between items-center">
+            <div className="bg-shuma-surface rounded-xl shadow-2xl border border-shuma-border w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-shuma-surface/50 p-4 border-b border-shuma-border flex justify-between items-center">
                 <h3 className="font-bold text-white text-sm">Análisis de ruta — {route.driverName}</h3>
-                <button onClick={() => setMetricsModalRouteId(null)} className="text-slate-400 hover:text-white transition-colors">
+                <button onClick={() => setMetricsModalRouteId(null)} className="text-shuma-muted hover:text-white transition-colors">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
@@ -542,25 +542,25 @@ export default function RoutePanel({
                   <p className="flex items-center gap-2"><span className="text-lg">⏱</span> {Math.floor(metrics.totalDurationMin / 60)}h {metrics.totalDurationMin % 60}min estimados</p>
                 </div>
                 
-                <div className="pt-3 border-t border-slate-700">
-                  <h4 className="font-bold text-slate-300 mb-1">¿Por qué esta distribución?</h4>
-                  <p className="text-slate-400 leading-relaxed text-xs">
+                <div className="pt-3 border-t border-shuma-border">
+                  <h4 className="font-bold text-shuma-text mb-1">¿Por qué esta distribución?</h4>
+                  <p className="text-shuma-muted leading-relaxed text-xs">
                     Google optimizó minimizando el tiempo total de la flota. Esta ruta agrupa las paradas más cercanas geográficamente a este vehículo para reducir distancia total recorrida por todos.
                   </p>
                 </div>
 
-                <div className="pt-3 border-t border-slate-700">
-                  <h4 className="font-bold text-slate-300 mb-2">Eficiencia de la flota:</h4>
+                <div className="pt-3 border-t border-shuma-border">
+                  <h4 className="font-bold text-shuma-text mb-2">Eficiencia de la flota:</h4>
                   <div className="flex items-center gap-3">
-                    <div className="flex-1 h-3 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="flex-1 h-3 bg-shuma-surface rounded-full overflow-hidden">
                       <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, Math.max(0, efficiency))}%` }} />
                     </div>
-                    <span className="font-bold text-blue-400">{efficiency}% <span className="text-[10px] text-slate-500 font-normal">(vs manual)</span></span>
+                    <span className="font-bold text-blue-400">{efficiency}% <span className="text-[10px] text-shuma-muted font-normal">(vs manual)</span></span>
                   </div>
                 </div>
               </div>
-              <div className="p-3 border-t border-slate-700 bg-slate-800/80">
-                <button onClick={() => setMetricsModalRouteId(null)} className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-bold transition-colors">
+              <div className="p-3 border-t border-shuma-border bg-shuma-surface/80">
+                <button onClick={() => setMetricsModalRouteId(null)} className="w-full py-2 bg-shuma-surface hover:bg-shuma-border text-white rounded-lg text-sm font-bold transition-colors">
                   Cerrar
                 </button>
               </div>

@@ -11,13 +11,12 @@ interface Props {
 }
 
 const DRIVER_COLORS = [
-  '#3B82F6', '#F59E0B', '#10B981', '#EF4444',
-  '#8B5CF6', '#06B6D4', '#F97316', '#EC4899', '#84CC16', '#6366F1',
+  '#2196F3', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899',
 ];
 
-const inputCls = `w-full px-3 py-2 text-sm bg-slate-700 border border-slate-600 rounded-lg
-  text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500
-  focus:ring-1 focus:ring-blue-500 transition-colors`;
+const inputCls = `w-full px-3 py-2 text-sm bg-shuma-bg border border-shuma-border rounded-lg
+  text-shuma-text placeholder-shuma-muted focus:outline-none focus:border-shuma-accent
+  focus:ring-1 focus:ring-shuma-accent transition-colors`;
 
 export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
   const assignedDriverIds = vehicles.map(v => v.driverName);
@@ -67,11 +66,11 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
     <div className="space-y-4">
       {/* Formulario */}
       {firstAvailableDriver ? (
-        <form onSubmit={handleSubmit} className="space-y-3 bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+        <form onSubmit={handleSubmit} className="space-y-3 bg-shuma-surface p-4 rounded-xl border border-shuma-border">
         <div className="space-y-3">
           {/* Chofer */}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">
+            <label className="block text-xs font-medium text-shuma-muted mb-1">
               Chofer *
             </label>
             <select
@@ -93,7 +92,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                     key={d.id} 
                     value={d.id} 
                     disabled={isAssigned}
-                    className={isAssigned ? 'opacity-50 cursor-not-allowed bg-slate-800 text-slate-500' : ''}
+                    className={isAssigned ? 'opacity-50 cursor-not-allowed bg-shuma-surface text-shuma-muted' : ''}
                   >
                     {d.name} — Mat. {d.matricula} {isAssigned ? '(Asignado)' : ''}
                   </option>
@@ -104,7 +103,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
 
           {/* Tipo */}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">
+            <label className="block text-xs font-medium text-shuma-muted mb-1">
               Tipo de vehículo *
             </label>
             <select
@@ -121,7 +120,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
           {/* Capacidad y Facturas */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1">
+              <label className="block text-xs font-medium text-shuma-muted mb-1">
                 Bultos máximos
               </label>
               <input
@@ -134,7 +133,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1">
+              <label className="block text-xs font-medium text-shuma-muted mb-1">
                 Factura(s)
               </label>
               <input
@@ -154,9 +153,9 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
           type="submit"
           disabled={vehicles.length >= 6}
           className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2 rounded-lg
-                     bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-500
+                     bg-shuma-surface hover:bg-shuma-border border border-shuma-border hover:border-shuma-accent
                      disabled:opacity-50 disabled:cursor-not-allowed
-                     text-sm font-medium text-slate-300 transition-all duration-200"
+                     text-sm font-medium text-shuma-text transition-all duration-200"
         >
           <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -165,7 +164,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
         </button>
         </form>
       ) : (
-        <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 text-center text-sm text-slate-400">
+        <div className="bg-shuma-surface p-4 rounded-xl border border-shuma-border text-center text-sm text-shuma-muted">
           Todos los choferes han sido asignados
         </div>
       )}
@@ -173,23 +172,23 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
       {/* Lista de vehículos */}
       {vehicles.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+          <p className="text-xs font-medium text-shuma-muted uppercase tracking-wider">
             {vehicles.length} {vehicles.length === 1 ? 'camión' : 'camiones'} listos
           </p>
           <ul className="space-y-1.5">
             {vehicles.map((v) => (
               <li
                 key={v.id}
-                className="flex items-start gap-3 px-3 py-2.5 rounded-lg bg-slate-700/50
-                           border border-slate-700 group"
+                className="flex items-start gap-3 px-3 py-2.5 rounded-lg bg-shuma-surface/50
+                           border border-shuma-border group"
               >
                 <span className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: v.color }} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-200 truncate">
+                  <p className="text-sm font-medium text-shuma-text truncate">
                     {v.driverName}
-                    <span className="ml-1.5 text-xs text-slate-500 font-normal">Mat. {v.matricula}</span>
+                    <span className="ml-1.5 text-xs text-shuma-muted font-normal">Mat. {v.matricula}</span>
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-shuma-muted">
                     {v.type}
                     {v.capacity < 9999 && ` · Máx ${v.capacity} bultos`}
                   </p>
@@ -200,7 +199,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                 <button
                   onClick={() => onRemove(v.id)}
                   className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-red-500/20
-                             text-slate-500 hover:text-red-400 transition-all duration-150 shrink-0"
+                             text-shuma-muted hover:text-red-400 transition-all duration-150 shrink-0"
                   title="Eliminar chofer"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -216,7 +215,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
 
       {vehicles.length === 0 && (
         <div className="text-center py-4">
-          <p className="text-xs text-slate-600">Agrega al menos un camión para optimizar rutas</p>
+          <p className="text-xs text-shuma-muted">Agrega al menos un camión para optimizar rutas</p>
         </div>
       )}
     </div>

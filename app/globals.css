@@ -4,14 +4,17 @@
 
 @layer base {
   :root {
-    --color-bg: #0F172A;
-    --color-surface: #1E293B;
-    --color-surface-2: #334155;
-    --color-accent: #3B82F6;
-    --color-amber: #F59E0B;
-    --color-emerald: #10B981;
-    --color-text: #F1F5F9;
-    --color-muted: #64748B;
+    --shuma-bg: #050C1A;
+    --shuma-surface: #0A1628;
+    --shuma-border: #112040;
+    --shuma-blue: #0047AB;
+    --shuma-blue-mid: #1565C0;
+    --shuma-accent: #2196F3;
+    --shuma-text: #E8EFF8;
+    --shuma-muted: #5B7BA0;
+    --shuma-danger: #EF4444;
+    --shuma-warning: #F59E0B;
+    --shuma-success: #10B981;
   }
 
   * {
@@ -23,9 +26,13 @@
   }
 
   body {
-    background-color: var(--color-bg);
-    color: var(--color-text);
-    font-family: var(--font-inter), system-ui, sans-serif;
+    background-color: var(--shuma-bg);
+    color: var(--shuma-text);
+    font-family: var(--font-dm-sans), system-ui, sans-serif;
+    background-image: 
+      linear-gradient(to right, rgba(17, 32, 64, 0.3) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(17, 32, 64, 0.3) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
 
   /* Scrollbar personalizado */
@@ -37,28 +44,24 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: var(--shuma-border);
     border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #475569;
+    background: var(--shuma-muted);
   }
 }
 
 @layer utilities {
-  .glass {
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    background: rgba(30, 41, 59, 0.85);
-    border: 1px solid rgba(148, 163, 184, 0.1);
-  }
-
-  .gradient-accent {
-    background: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
+  .shuma-card {
+    background-color: var(--shuma-surface);
+    border: 1px solid var(--shuma-border);
+    border-radius: 12px;
+    box-shadow: 0 0 0 1px var(--shuma-border), 0 4px 24px rgba(0, 71, 171, 0.08);
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, #3B82F6 0%, #F59E0B 100%);
+    background: linear-gradient(135deg, var(--shuma-accent) 0%, var(--shuma-blue) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -90,17 +93,17 @@
 .leaflet-container {
   width: 100%;
   height: 100%;
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
 }
 
 .leaflet-popup-content-wrapper {
-  background: #1E293B;
-  color: #F1F5F9;
+  background: var(--shuma-surface);
+  color: var(--shuma-text);
   border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.1);
+  border: 1px solid var(--shuma-border);
   box-shadow: 0 20px 40px rgba(0,0,0,0.4);
 }
 
 .leaflet-popup-tip {
-  background: #1E293B;
+  background: var(--shuma-surface);
 }

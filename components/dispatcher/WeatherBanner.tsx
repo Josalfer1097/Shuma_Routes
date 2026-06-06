@@ -62,15 +62,15 @@ export default function WeatherBanner({ weather }: Props) {
   const hasAlerts = weather.alerts.length > 0;
 
   return (
-    <div className="px-4 py-3 border-b border-slate-700/50 shrink-0 bg-slate-800/30">
+    <div className="px-4 py-3 border-b border-shuma-border shrink-0 bg-shuma-surface/30">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Clima CDMX</div>
+          <div className="text-[10px] font-bold text-shuma-muted uppercase tracking-wider mb-0.5">Clima CDMX</div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-xl font-bold text-white">{weather.temp}°C</span>
-            <span className="text-xs text-slate-300 capitalize">{weather.description}</span>
+            <span className="text-xs text-shuma-text capitalize">{weather.description}</span>
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
+          <div className="text-[11px] text-shuma-muted mt-0.5">
             Humedad: {weather.humidity}% · Viento: {weather.windSpeed} km/h
           </div>
         </div>
@@ -99,30 +99,30 @@ export default function WeatherBanner({ weather }: Props) {
       )}
 
       {isExpanded && hasAlerts && (
-        <div className="mt-2 p-3 bg-slate-900/50 rounded-lg border border-slate-700 relative">
+        <div className="mt-2 p-3 bg-shuma-bg/50 rounded-lg border border-shuma-border relative">
           {showInfo && (
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg whitespace-nowrap animate-fade-in-up">
               ℹ️ El estado del clima se guarda entre sesiones
             </div>
           )}
           
-          <h4 className="text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2">Detalle de Condiciones</h4>
+          <h4 className="text-[11px] font-bold text-shuma-text uppercase tracking-wider mb-2">Detalle de Condiciones</h4>
           <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-            <div className="bg-slate-800 p-2 rounded">
-              <span className="block text-slate-500 mb-0.5">Visibilidad</span>
-              <span className="font-medium text-slate-200">Reducida</span>
+            <div className="bg-shuma-surface p-2 rounded">
+              <span className="block text-shuma-muted mb-0.5">Visibilidad</span>
+              <span className="font-medium text-shuma-text">Reducida</span>
             </div>
-            <div className="bg-slate-800 p-2 rounded">
-              <span className="block text-slate-500 mb-0.5">Sensación térmica</span>
-              <span className="font-medium text-slate-200">{weather.temp > 0 ? weather.temp - 2 : weather.temp}°C</span>
+            <div className="bg-shuma-surface p-2 rounded">
+              <span className="block text-shuma-muted mb-0.5">Sensación térmica</span>
+              <span className="font-medium text-shuma-text">{weather.temp > 0 ? weather.temp - 2 : weather.temp}°C</span>
             </div>
-            <div className="bg-slate-800 p-2 rounded">
-              <span className="block text-slate-500 mb-0.5">Viento</span>
-              <span className="font-medium text-slate-200">{weather.windSpeed} km/h</span>
+            <div className="bg-shuma-surface p-2 rounded">
+              <span className="block text-shuma-muted mb-0.5">Viento</span>
+              <span className="font-medium text-shuma-text">{weather.windSpeed} km/h</span>
             </div>
-            <div className="bg-slate-800 p-2 rounded">
-              <span className="block text-slate-500 mb-0.5">Humedad</span>
-              <span className="font-medium text-slate-200">{weather.humidity}%</span>
+            <div className="bg-shuma-surface p-2 rounded">
+              <span className="block text-shuma-muted mb-0.5">Humedad</span>
+              <span className="font-medium text-shuma-text">{weather.humidity}%</span>
             </div>
           </div>
           

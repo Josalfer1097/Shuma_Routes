@@ -31,14 +31,14 @@ export default function OptimizeButton({
     <div className="space-y-3">
       {/* Estado de geocodificación */}
       {totalAddresses > 0 && (
-        <div className="rounded-lg bg-slate-700/30 border border-slate-700 p-3 space-y-2">
+        <div className="rounded-lg bg-shuma-surface/30 border border-shuma-border p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">Geocodificación</span>
-            <span className="text-xs font-bold text-slate-300">
+            <span className="text-xs font-medium text-shuma-muted">Geocodificación</span>
+            <span className="text-xs font-bold text-shuma-text">
               {geocodedCount}/{totalAddresses}
             </span>
           </div>
-          <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+          <div className="w-full h-1.5 bg-shuma-surface rounded-full overflow-hidden">
             <div
               className="h-full bg-blue-500 rounded-full transition-all duration-500"
               style={{
@@ -62,8 +62,8 @@ export default function OptimizeButton({
       {reasons.length > 0 && (
         <ul className="space-y-1">
           {reasons.map((r) => (
-            <li key={r} className="flex items-center gap-2 text-xs text-slate-500">
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+            <li key={r} className="flex items-center gap-2 text-xs text-shuma-muted">
+              <span className="w-1.5 h-1.5 rounded-full bg-shuma-border" />
               {r}
             </li>
           ))}
@@ -80,7 +80,7 @@ export default function OptimizeButton({
           font-semibold text-sm transition-all duration-300 overflow-hidden
           ${canOptimize
             ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98]'
-            : 'bg-slate-700/50 text-slate-500 cursor-not-allowed border border-slate-700'
+            : 'bg-shuma-surface/50 text-shuma-muted cursor-not-allowed border border-shuma-border'
           }
         `}
       >
@@ -110,7 +110,7 @@ export default function OptimizeButton({
 
       {/* Info extra */}
       {canOptimize && (
-        <p className="text-xs text-center text-slate-600">
+        <p className="text-xs text-center text-shuma-muted">
           {geocodedCount} entregas · {vehicles.length} {vehicles.length === 1 ? 'vehículo' : 'vehículos'}
         </p>
       )}

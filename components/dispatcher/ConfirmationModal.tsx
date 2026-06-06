@@ -14,20 +14,20 @@ export default function ConfirmationModal({ isOpen, title, haversineExtraKm, isR
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4 relative overflow-hidden">
+      <div className="bg-shuma-surface border border-shuma-border rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4 relative overflow-hidden">
         {/* Decoracin superior */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-amber-500" />
         
-        <h3 className="text-lg font-bold text-slate-100 mb-4">{title}</h3>
+        <h3 className="text-lg font-bold text-shuma-text mb-4">{title}</h3>
         
         <div className="space-y-4 mb-6">
-          <div className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+          <div className="flex items-center gap-3 bg-shuma-bg/50 p-3 rounded-lg border border-shuma-border">
             <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
               <span className="text-blue-400">📍</span>
             </div>
             <div>
-              <p className="text-xs text-slate-400">Impacto estimado</p>
-              <p className="text-sm font-bold text-slate-200">
+              <p className="text-xs text-shuma-muted">Impacto estimado</p>
+              <p className="text-sm font-bold text-shuma-text">
                 {haversineExtraKm > 0 ? '+' : ''}{haversineExtraKm.toFixed(1)} km al recorrido
               </p>
             </div>
@@ -49,7 +49,7 @@ export default function ConfirmationModal({ isOpen, title, haversineExtraKm, isR
         </div>
 
         <div className="space-y-3">
-          <p className="text-xs text-slate-300 font-medium text-center mb-2">
+          <p className="text-xs text-shuma-text font-medium text-center mb-2">
             ¿Re-optimizar ruta automáticamente después de mover?
           </p>
           <div className="flex gap-2">
@@ -61,14 +61,14 @@ export default function ConfirmationModal({ isOpen, title, haversineExtraKm, isR
             </button>
             <button
               onClick={() => onConfirm(false)}
-              className="flex-1 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold py-2.5 rounded-xl transition-all"
+              className="flex-1 bg-shuma-surface hover:bg-shuma-border text-white text-sm font-bold py-2.5 rounded-xl transition-all"
             >
               Solo agregar
             </button>
           </div>
           <button
             onClick={onCancel}
-            className="w-full text-xs text-slate-400 hover:text-slate-200 py-2 mt-1 transition-colors"
+            className="w-full text-xs text-shuma-muted hover:text-shuma-text py-2 mt-1 transition-colors"
           >
             Cancelar
           </button>

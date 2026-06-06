@@ -16,18 +16,22 @@ import ReportButton from '@/components/dispatcher/ReportButton';
 import WeatherBanner from '@/components/dispatcher/WeatherBanner';
 import { clusterDeliveries } from '@/lib/clustering';
 import type { Cluster, GlobalConfig, ClusteringConfig, Stop } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
+import { LogOut } from 'lucide-react';
+import Image from 'next/image';
 
 // Leaflet NO es compatible con SSR → dynamic import
 const MapView = dynamic(() => import('@/components/dispatcher/MapView'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-slate-800/50 rounded-xl">
+    <div className="w-full h-full flex items-center justify-center bg-shuma-surface rounded-xl">
       <div className="flex flex-col items-center gap-3">
         <svg className="w-8 h-8 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
-        <span className="text-sm text-slate-400">Cargando mapa…</span>
+        <span className="text-sm text-shuma-muted">Cargando mapa…</span>
       </div>
     </div>
   ),
@@ -36,13 +40,13 @@ const MapView = dynamic(() => import('@/components/dispatcher/MapView'), {
 const ZoneMap = dynamic(() => import('@/components/dispatcher/ZoneMap'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-slate-800/50 rounded-xl">
+    <div className="w-full h-full flex items-center justify-center bg-shuma-surface rounded-xl">
       <div className="flex flex-col items-center gap-3">
         <svg className="w-8 h-8 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
-        <span className="text-sm text-slate-400">Cargando zonas…</span>
+        <span className="text-sm text-shuma-muted">Cargando zonas…</span>
       </div>
     </div>
   ),
@@ -139,9 +143,17 @@ function appReducer(state: AppState, action: Action): AppState {
 
 export default function DispatcherPage() {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  const [isOptimizing, setIsOptimizing] = useState(false);
   const [activeTab, setActiveTab] = useState<'config' | 'upload' | 'zones' | 'routes'>('config');
+  const [isOptimizing, setIsOptimizing] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
+
+  const { logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  };
   const [numClusters, setNumClusters] = useState<number>(1);
   const [showInlineVehicleForm, setShowInlineVehicleForm] = useState(false);
   const [hiddenRouteIds, setHiddenRouteIds] = useState<string[]>([]);
@@ -412,23 +424,28 @@ export default function DispatcherPage() {
   ];
 
   return (
-    <div className="flex h-screen bg-[#0F172A] overflow-hidden">
+    <div className="flex h-screen bg-shuma-bg overflow-hidden">
       {/* ── SIDEBAR ─────────────────────────────────────────── */}
-      <aside className="w-[380px] shrink-0 flex flex-col border-r border-slate-700/50 overflow-hidden">
+      <aside className="w-[380px] shrink-0 flex flex-col border-r border-shuma-border bg-shuma-surface/50 overflow-hidden">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-700/50 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-              <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-sm font-bold text-white">Shuma Rutas</h1>
-              <p className="text-xs text-slate-500">Vista Despachador</p>
-            </div>
+        <div className="px-5 py-4 border-b border-shuma-border shrink-0 flex items-center justify-between">
+          <div className="flex items-center">
+            <Image 
+              src="/shuma_logo.png" 
+              alt="Shuma Logo" 
+              width={90} 
+              height={28} 
+              priority 
+              style={{ filter: 'drop-shadow(0 0 8px rgba(33,150,243,0.35))' }} 
+            />
           </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-shuma-muted hover:text-shuma-text border border-transparent hover:border-shuma-border hover:bg-shuma-surface rounded-lg transition-all"
+          >
+            <LogOut size={14} />
+            Salir
+          </button>
         </div>
 
         {/* Widget de Clima */}
@@ -436,7 +453,7 @@ export default function DispatcherPage() {
 
         {/* Global Config Chip */}
         {state.globalConfig && (
-          <div className="px-4 py-2 border-b border-slate-700/50 shrink-0 bg-blue-500/5 flex items-center justify-between">
+          <div className="px-4 py-2 border-b border-shuma-border shrink-0 bg-shuma-blue/10 flex items-center justify-between">
             <div className="flex items-center gap-2 text-[11px] text-blue-300">
               <svg className="w-3.5 h-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -454,8 +471,8 @@ export default function DispatcherPage() {
           </div>
         )}
 
-        {/* Tabs */}
-        <div className="flex gap-1 px-3 pt-3 pb-2 shrink-0">
+        {/* Tabs / Stepper */}
+        <div className="flex gap-1 px-3 pt-3 pb-2 shrink-0 border-b border-shuma-border">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -463,14 +480,14 @@ export default function DispatcherPage() {
               className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg
                           text-xs font-medium transition-all duration-200
                           ${activeTab === tab.id
-                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                  : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'
+                  ? 'bg-shuma-blue/20 text-shuma-accent border border-shuma-blue/30'
+                  : 'text-shuma-muted hover:text-shuma-text hover:bg-shuma-surface'
                 }`}
             >
               {tab.label}
               {tab.count > 0 && (
                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold
-                  ${activeTab === tab.id ? 'bg-blue-500/30 text-blue-300' : 'bg-slate-700 text-slate-400'}`}
+                  ${activeTab === tab.id ? 'bg-shuma-blue/30 text-shuma-accent' : 'bg-shuma-surface border border-shuma-border text-shuma-muted'}`}
                 >
                   {tab.count}
                 </span>
@@ -504,10 +521,10 @@ export default function DispatcherPage() {
           {/* Tab: Zonas */}
           {activeTab === 'zones' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between bg-slate-700/50 p-3 rounded-xl border border-slate-700">
+              <div className="flex items-center justify-between bg-slate-700/50 p-3 rounded-xl border border-shuma-border">
                 <div>
                   <h3 className="text-sm font-bold text-white">Zonas ({state.clusters.length})</h3>
-                  <p className="text-xs text-slate-400">1 zona por camión</p>
+                  <p className="text-xs text-shuma-muted">1 zona por camión</p>
                 </div>
                 <button
                   onClick={() => setShowInlineVehicleForm(!showInlineVehicleForm)}
@@ -518,7 +535,7 @@ export default function DispatcherPage() {
               </div>
 
               {showInlineVehicleForm && (
-                <div className="bg-slate-800 rounded-xl p-3 border border-slate-700">
+                <div className="bg-shuma-surface rounded-xl p-3 border border-shuma-border">
                   <VehicleForm
                     vehicles={state.vehicles}
                     onAdd={(v) => {
@@ -534,12 +551,12 @@ export default function DispatcherPage() {
                 </div>
               )}
 
-              <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-3">
+              <div className="bg-shuma-surface p-3 rounded-xl border border-shuma-border space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold text-slate-300">Balanceo de Flota</label>
+                  <label className="text-xs font-bold text-shuma-text">Balanceo de Flota</label>
                   <span className="text-xs text-blue-400 font-mono">Automático</span>
                 </div>
-                <div className="text-[11px] text-slate-400 leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-slate-700/50">
+                <div className="text-[11px] text-shuma-muted leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-shuma-border">
                   <p>
                     Google Route Optimization API distribuye inteligentemente las paradas basándose en las capacidades de los vehículos minimizando el tiempo y costo total para toda la flota.
                   </p>
@@ -550,15 +567,15 @@ export default function DispatcherPage() {
                 {state.clusters.map((cluster, idx) => {
                   const assignedVehicle = state.vehicles[idx];
                   return (
-                    <li key={cluster.id} className="p-3 bg-slate-800 rounded-lg border-l-4" style={{ borderColor: cluster.color }}>
+                    <li key={cluster.id} className="p-3 bg-shuma-surface rounded-lg border-l-4" style={{ borderColor: cluster.color }}>
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h4 className="text-sm font-bold text-slate-200">{cluster.name}</h4>
-                          <p className="text-xs text-slate-400">{cluster.addresses.length} paradas</p>
+                          <p className="text-xs text-shuma-muted">{cluster.addresses.length} paradas</p>
                         </div>
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Chofer Asignado</label>
+                        <label className="text-[10px] text-shuma-muted uppercase font-bold tracking-wider">Chofer Asignado</label>
                         <select
                           value={assignedVehicle?.id || ''}
                           onChange={(e) => {
@@ -568,7 +585,7 @@ export default function DispatcherPage() {
                               dispatch({ type: 'SWAP_VEHICLES', payload: { index1: idx, index2: newIdx } });
                             }
                           }}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-md p-1.5 text-xs text-slate-200 outline-none"
+                          className="w-full bg-slate-900 border border-shuma-border rounded-md p-1.5 text-xs text-slate-200 outline-none"
                         >
                           {state.vehicles.map(v => (
                             <option key={v.id} value={v.id}>{v.driverName} ({v.type})</option>
@@ -576,7 +593,7 @@ export default function DispatcherPage() {
                         </select>
                       </div>
                       <div className="flex flex-col gap-1 mt-2">
-                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Capacidad Máxima (Paradas)</label>
+                        <label className="text-[10px] text-shuma-muted uppercase font-bold tracking-wider">Capacidad Máxima (Paradas)</label>
                         <input
                           type="number"
                           min="1"
@@ -595,7 +612,7 @@ export default function DispatcherPage() {
                             const newClusters = clusterDeliveries(state.addresses, state.vehicles, newConfig);
                             dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
                           }}
-                          className="w-full bg-slate-900 border border-slate-700 rounded-md p-1.5 text-xs text-slate-200 outline-none"
+                          className="w-full bg-slate-900 border border-shuma-border rounded-md p-1.5 text-xs text-slate-200 outline-none"
                         />
                       </div>
                     </li>
@@ -645,7 +662,7 @@ export default function DispatcherPage() {
         </div>
 
         {/* Footer con botón optimizar */}
-        <div className="px-4 py-4 border-t border-slate-700/50 shrink-0 space-y-3">
+        <div className="px-4 py-4 border-t border-shuma-border shrink-0 space-y-3">
           {/* Error */}
           {state.error && (
             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
@@ -733,11 +750,11 @@ export default function DispatcherPage() {
               <div
                 key={r.vehicleId}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full
-                           bg-slate-900/90 backdrop-blur border border-slate-700/50 text-xs"
+                           bg-slate-900/90 backdrop-blur border border-shuma-border text-xs"
               >
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
-                <span className="text-slate-300 font-medium">{r.driverName}</span>
-                <span className="text-slate-500">{r.stops.length} paradas</span>
+                <span className="text-shuma-text font-medium">{r.driverName}</span>
+                <span className="text-shuma-muted">{r.stops.length} paradas</span>
               </div>
             ))}
           </div>
@@ -785,26 +802,26 @@ function ConfigPanel({
   return (
     <div className="space-y-4">
       {/* GLOBAL CONFIGURATION */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-4 space-y-4">
+      <div className="bg-shuma-surface rounded-xl border border-shuma-border p-4 space-y-4">
         <h3 className="text-sm font-bold text-white mb-2">Configuración Global de Ruta</h3>
         
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1">Bodega de salida</label>
+          <label className="block text-xs font-medium text-shuma-muted mb-1">Bodega de salida</label>
           <select 
             value={depotId} 
             onChange={(e) => setDepotId(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
+            className="w-full bg-slate-900 border border-shuma-border rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
           >
             {DEPOTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1">Bodega de regreso</label>
+          <label className="block text-xs font-medium text-shuma-muted mb-1">Bodega de regreso</label>
           <select 
             value={returnDepotId} 
             onChange={(e) => setReturnDepotId(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
+            className="w-full bg-slate-900 border border-shuma-border rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
           >
             <option value="same">Misma que salida</option>
             {DEPOTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -813,7 +830,7 @@ function ConfigPanel({
 
         <div>
           <div className="flex justify-between items-center mb-1">
-            <label className="block text-xs font-medium text-slate-400">Hora estimada de salida</label>
+            <label className="block text-xs font-medium text-shuma-muted">Hora estimada de salida</label>
           </div>
           <input 
             type="time" 
@@ -823,7 +840,7 @@ function ConfigPanel({
               const now = new Date();
               const currentMins = now.getHours() * 60 + now.getMinutes();
               const [h, m] = (time || '08:00').split(':').map(Number);
-              return (h * 60 + m) < currentMins ? 'border-red-500 text-red-400' : 'border-slate-700 text-slate-200';
+              return (h * 60 + m) < currentMins ? 'border-red-500 text-red-400' : 'border-shuma-border text-slate-200';
             })()} rounded-lg p-2 text-sm outline-none focus:border-blue-500`}
           />
           {(() => {
@@ -848,7 +865,7 @@ function ConfigPanel({
           const [h, m] = (time || '08:00').split(':').map(Number);
           return (h * 60 + m) < currentMins;
         })()}
-        className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-md text-sm mt-4"
+        className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-slate-600 disabled:text-shuma-muted disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-md text-sm mt-4"
       >
         Continuar al paso 2
       </button>

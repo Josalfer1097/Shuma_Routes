@@ -19,6 +19,7 @@
     "google-auth-library": "^10.7.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
+    "lucide-react": "^1.17.0",
     "nanoid": "^5.1.11",
     "next": "14.2.35",
     "papaparse": "^5.5.3",

@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Exo_2, DM_Sans } from 'next/font/google';
 import './globals.css';
+import AuthGuard from '@/components/AuthGuard';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const exo2 = Exo_2({ subsets: ['latin'], variable: '--font-exo-2' });
+const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans' });
 
 export const metadata: Metadata = {
   title: 'Shuma Rutas · Optimización de Entregas',
@@ -27,9 +29,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={inter.variable}>
-      <body className="bg-[#0F172A] text-white antialiased font-sans">
-        {children}
+    <html lang="es" className={`${exo2.variable} ${dmSans.variable}`}>
+      <body className="antialiased font-sans">
+        <AuthGuard>
+          {children}
+        </AuthGuard>
       </body>
     </html>
   );

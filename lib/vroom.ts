@@ -11,16 +11,12 @@ import { getRouteGoogle } from './here';
 
 /** Colores predeterminados para los choferes (hasta 10) */
 const DRIVER_COLORS = [
-  '#3B82F6', // azul
-  '#F59E0B', // ámbar
+  '#2196F3', // azul
   '#10B981', // esmeralda
+  '#F59E0B', // ámbar
   '#EF4444', // rojo
   '#8B5CF6', // violeta
-  '#06B6D4', // cian
-  '#F97316', // naranja
   '#EC4899', // rosa
-  '#84CC16', // lima
-  '#6366F1', // índigo
 ];
 
 /**

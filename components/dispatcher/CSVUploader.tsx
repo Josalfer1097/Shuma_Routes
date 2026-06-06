@@ -125,22 +125,22 @@ export default function CSVUploader({ onAddressesLoaded, disabled }: Props) {
           ${isDragging
             ? 'border-blue-400 bg-blue-500/10'
             : disabled
-              ? 'border-slate-700 opacity-50 cursor-not-allowed'
-              : 'border-slate-600 hover:border-blue-500 hover:bg-slate-700/50'
+              ? 'border-shuma-border opacity-50 cursor-not-allowed'
+              : 'border-shuma-border hover:border-blue-500 hover:bg-shuma-border'
           }
         `}
       >
-        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-700 mb-1">
+        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-shuma-surface mb-1">
           <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
         </div>
-        <p className="text-sm font-medium text-slate-300">
+        <p className="text-sm font-medium text-shuma-text">
           {fileName ? fileName : 'Arrastra tu CSV aquí'}
         </p>
-        <p className="text-xs text-slate-500">o haz clic para seleccionar</p>
-        <p className="text-xs text-slate-600 mt-1">Columnas: <code className="text-blue-400">nombre, direccion</code></p>
+        <p className="text-xs text-shuma-muted">o haz clic para seleccionar</p>
+        <p className="text-xs text-shuma-muted mt-1">Columnas: <code className="text-blue-400">nombre, direccion</code></p>
         <input
           ref={inputRef}
           type="file"
@@ -163,25 +163,25 @@ export default function CSVUploader({ onAddressesLoaded, disabled }: Props) {
 
       {/* Preview */}
       {preview.length > 0 && (
-        <div className="rounded-lg border border-slate-700 overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 bg-slate-700/50">
-            <span className="text-xs font-medium text-slate-300">
+        <div className="rounded-lg border border-shuma-border overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 bg-shuma-surface/50">
+            <span className="text-xs font-medium text-shuma-text">
               {preview.length} direcciones cargadas
             </span>
-            <span className="text-xs text-slate-500">Preview</span>
+            <span className="text-xs text-shuma-muted">Preview</span>
           </div>
           <ul className="divide-y divide-slate-700/50 max-h-40 overflow-y-auto">
             {preview.slice(0, 8).map((addr) => (
               <li key={addr.id} className="flex items-center gap-2 px-3 py-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-slate-300 truncate">{addr.name}</p>
-                  <p className="text-xs text-slate-500 truncate">{addr.raw}</p>
+                  <p className="text-xs font-medium text-shuma-text truncate">{addr.name}</p>
+                  <p className="text-xs text-shuma-muted truncate">{addr.raw}</p>
                 </div>
               </li>
             ))}
             {preview.length > 8 && (
-              <li className="px-3 py-2 text-center text-xs text-slate-500">
+              <li className="px-3 py-2 text-center text-xs text-shuma-muted">
                 +{preview.length - 8} más…
               </li>
             )}
