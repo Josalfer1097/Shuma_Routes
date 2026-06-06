@@ -210,24 +210,12 @@ export async function optimizeSingleVehicle(
     startTimeWindows: [{ startTime: vehicleStartTime, endTime: vehicleEndTime }],
   };
 
-  const isCentroNorte = zoneName.includes('Centro') || zoneName.includes('Norte');
-  let timeWindows: any[] | undefined = undefined;
-
-  if (isCentroNorte) {
-    timeWindows = [
-      { startTime: `${datePrefix}T00:00:00Z`, endTime: `${datePrefix}T07:00:00Z` },
-      { startTime: `${datePrefix}T09:00:00Z`, endTime: `${datePrefix}T18:00:00Z` },
-      { startTime: `${datePrefix}T20:00:00Z`, endTime: `${datePrefix}T23:59:59Z` }
-    ];
-  }
-
   addresses.forEach(addr => {
     validAddresses.push(addr);
     shipments.push({
       deliveries: [{
         arrivalLocation: { latitude: addr.lat!, longitude: addr.lng! },
-        duration: '120s',
-        timeWindows
+        duration: '120s'
       }],
       label: addr.name,
       allowedVehicleIndices: [0], // Forzar asignación a este único vehículo (índice 0)
@@ -363,18 +351,6 @@ export async function optimizeRoutes(
         startTimeWindows: [{ startTime: vehicleStartTime, endTime: vehicleEndTime }],
       });
 
-      const isCentroNorte = cluster.name.includes('Centro') || cluster.name.includes('Norte');
-      let timeWindows: any[] | undefined = undefined;
-
-      if (isCentroNorte) {
-        // Valid windows avoiding 7-9 and 18-20
-        timeWindows = [
-          { startTime: `${datePrefix}T00:00:00Z`, endTime: `${datePrefix}T07:00:00Z` },
-          { startTime: `${datePrefix}T09:00:00Z`, endTime: `${datePrefix}T18:00:00Z` },
-          { startTime: `${datePrefix}T20:00:00Z`, endTime: `${datePrefix}T23:59:59Z` }
-        ];
-      }
-
       cluster.addresses.forEach(addr => {
         validAddresses.push(addr);
         
@@ -389,8 +365,7 @@ export async function optimizeRoutes(
         shipments.push({
           deliveries: [{
             arrivalLocation: { latitude: addr.lat!, longitude: addr.lng! },
-            duration: '120s',
-            timeWindows
+            duration: '120s'
           }],
           label: addr.name,
           allowedVehicleIndices: allowedIndices, // Forzar asignación a este vehículo/zona o al editado manualmente
