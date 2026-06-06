@@ -218,7 +218,6 @@ export async function optimizeSingleVehicle(
         duration: '120s'
       }],
       label: addr.name,
-      allowedVehicleIndices: [0], // Forzar asignación a este único vehículo (índice 0)
       loadDemands: { parcels: { amount: '1' } },
     });
   });
@@ -353,14 +352,6 @@ export async function optimizeRoutes(
 
       cluster.addresses.forEach(addr => {
         validAddresses.push(addr);
-        
-        let allowedIndices = [vIdx];
-        if (manualAssignments) {
-          const manualMatch = manualAssignments.find(m => m.addressId === addr.id);
-          if (manualMatch) {
-            allowedIndices = [manualMatch.vehicleIndex];
-          }
-        }
 
         shipments.push({
           deliveries: [{
@@ -368,7 +359,6 @@ export async function optimizeRoutes(
             duration: '120s'
           }],
           label: addr.name,
-          allowedVehicleIndices: allowedIndices, // Forzar asignación a este vehículo/zona o al editado manualmente
           loadDemands: { parcels: { amount: '1' } },
         });
       });
