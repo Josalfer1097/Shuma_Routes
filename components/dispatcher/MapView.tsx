@@ -141,7 +141,17 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
           map,
           content: createDepotPin('SALIDA', '#F97316', 1.4), // Naranja, escala 1.4 y sombra
         });
-        addInfoWindow(marker, `<div style="font-family:sans-serif;padding:4px;"><b>🏭 ${d.name}</b><br/><small>${d.address}</small></div>`);
+        let depTimeStr = '—';
+        const routeForDepot = routes.find(r => r.depot.id === d.id);
+        if (routeForDepot && routeForDepot.departureTime) {
+          const dDate = new Date(routeForDepot.departureTime);
+          depTimeStr = dDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+        }
+        addInfoWindow(marker, `<div style="font-family:sans-serif;padding:6px;color:#333;min-width:200px;">
+          <b style="font-size:14px;">🏭 ${d.name}</b><br/>
+          <small style="color:#666;display:block;margin:4px 0;">${d.address}</small>
+          <small style="color:#1E3A8A;"><b>Salida configurada:</b> ${depTimeStr}</small>
+        </div>`);
         markersRef.current.push(marker);
         bounds.extend({ lat: d.lat, lng: d.lng });
         hasPoints = true;
@@ -159,7 +169,10 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
           map,
           content: createDepotPin('REGRESO', '#FFD700', 1.4), // Amarillo, escala 1.4 y sombra
         });
-        addInfoWindow(marker, `<div style="font-family:sans-serif;padding:4px;"><b>🏁 Regreso: ${d.name}</b><br/><small>${d.address}</small></div>`);
+        addInfoWindow(marker, `<div style="font-family:sans-serif;padding:6px;color:#333;min-width:200px;">
+          <b style="font-size:14px;">🏁 Regreso: ${d.name}</b><br/>
+          <small style="color:#666;display:block;margin:4px 0;">${d.address}</small>
+        </div>`);
         markersRef.current.push(marker);
         bounds.extend({ lat: d.lat, lng: d.lng });
         hasPoints = true;

@@ -413,15 +413,13 @@ export default function RoutePanel({
                           {hiddenRouteIds.includes(route.vehicleId) ? '👁️‍🗨️' : '👁️'}
                         </button>
                       )}
-                      {route.metrics && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setMetricsModalRouteId(route.vehicleId); }}
-                          className="px-2 py-1 ml-1 text-[10px] font-bold bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded transition-colors"
-                          title="Ver análisis de ruta"
-                        >
-                          📊
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setMetricsModalRouteId(route.vehicleId); }}
+                        className="px-2 py-1 ml-1 text-[10px] font-bold bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded transition-colors"
+                        title="Ver análisis de ruta"
+                      >
+                        📊
+                      </button>
                       <svg
                         className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                         fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -509,7 +507,14 @@ export default function RoutePanel({
 
       {metricsModalRouteId && (() => {
         const route = routes.find(r => r.vehicleId === metricsModalRouteId) || editedRoutes.find(r => r.vehicleId === metricsModalRouteId);
-        if (!route || !route.metrics) return null;
+        if (!route) return null;
+        
+        // Fallback metrics si no existen en el objeto route
+        const metrics = route.metrics || {
+          totalDistanceKm: route.totalDistance ? Number((route.totalDistance / 1000).toFixed(2)) : 0,
+          totalDurationMin: route.totalDuration ? Math.round(route.totalDuration / 60) : 0,
+          stopCount: route.stops.length,
+        };
         
         let naiveDistance = 0;
         route.stops.forEach(s => {
@@ -517,11 +522,13 @@ export default function RoutePanel({
             naiveDistance += getHaversineDistance(route.depot, { lat: s.address.lat, lng: s.address.lng }) * 2;
           }
         });
-        const efficiency = naiveDistance > 0 ? Math.min(100, Math.round(((naiveDistance / 1000) / route.metrics.totalDistanceKm) * 100)) : 100;
+        const efficiency = (naiveDistance > 0 && metrics.totalDistanceKm > 0) 
+          ? Math.min(100, Math.round(((naiveDistance / 1000) / metrics.totalDistanceKm) * 100)) 
+          : 100;
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 w-full max-w-sm overflow-hidden">
+            <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="bg-slate-700/50 p-4 border-b border-slate-700 flex justify-between items-center">
                 <h3 className="font-bold text-white text-sm">Análisis de ruta — {route.driverName}</h3>
                 <button onClick={() => setMetricsModalRouteId(null)} className="text-slate-400 hover:text-white transition-colors">
@@ -530,9 +537,9 @@ export default function RoutePanel({
               </div>
               <div className="p-5 space-y-4 text-sm">
                 <div className="flex flex-col gap-2 font-medium">
-                  <p className="flex items-center gap-2"><span className="text-lg">📍</span> {route.metrics.stopCount} paradas asignadas</p>
-                  <p className="flex items-center gap-2"><span className="text-lg">📏</span> {route.metrics.totalDistanceKm} km de recorrido total</p>
-                  <p className="flex items-center gap-2"><span className="text-lg">⏱</span> {Math.floor(route.metrics.totalDurationMin / 60)}h {route.metrics.totalDurationMin % 60}min estimados</p>
+                  <p className="flex items-center gap-2"><span className="text-lg">📍</span> {metrics.stopCount} paradas asignadas</p>
+                  <p className="flex items-center gap-2"><span className="text-lg">📏</span> {metrics.totalDistanceKm} km de recorrido total</p>
+                  <p className="flex items-center gap-2"><span className="text-lg">⏱</span> {Math.floor(metrics.totalDurationMin / 60)}h {metrics.totalDurationMin % 60}min estimados</p>
                 </div>
                 
                 <div className="pt-3 border-t border-slate-700">
