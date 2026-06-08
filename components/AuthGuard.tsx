@@ -27,7 +27,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(false);
   };
 
-  if (!checked) return null;
+  if (!checked) return (
+    <div style={{
+      position: 'fixed', inset: 0,
+      background: '#050C1A',
+      zIndex: 99999
+    }} />
+  );
 
   if (!isAuthenticated) {
     return <LoginScreen onLogin={handleLogin} />;
