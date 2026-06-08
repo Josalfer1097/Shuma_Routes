@@ -109,3 +109,9 @@
 .leaflet-popup-tip {
   background: var(--shuma-surface);
 }
+
+/* RGB footer animation */
+@keyframes rgbRoll {
+  from { background-position: 0% center; }
+  to   { background-position: 400% center; }
+}

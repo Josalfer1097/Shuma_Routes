@@ -151,8 +151,9 @@ export default function DispatcherPage() {
   const router = useRouter();
 
   const handleLogout = () => {
-    logout();
-    router.push('/');
+    document.cookie = 'shuma_auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    localStorage.removeItem('shuma_auth');
+    window.location.href = '/';
   };
   const [numClusters, setNumClusters] = useState<number>(1);
   const [showInlineVehicleForm, setShowInlineVehicleForm] = useState(false);
@@ -692,6 +693,22 @@ export default function DispatcherPage() {
             />
           )}
         </div>
+        <p style={{
+          textAlign: 'center',
+          fontSize: 11,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase' as const,
+          padding: '8px 0',
+          background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
+          backgroundSize: '400% auto',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          animation: 'rgbRoll 5s linear infinite',
+          opacity: 0.6
+        }}>
+          Design &amp; Developed by Shuma Sistemas IT
+        </p>
       </aside>
 
       {/* ── MAPA ─────────────────────────────────────────────── */}
