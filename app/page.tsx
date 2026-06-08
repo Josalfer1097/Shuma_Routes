@@ -1,27 +1,37 @@
+"use client";
 import Link from 'next/link';
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
 
 export default function HomePage() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setReady(true);
+  }, []);
+
+  if (!ready) return (
+    <div style={{ position: 'fixed', inset: 0, background: '#050C1A', zIndex: 99998 }} />
+  );
+
   return (
     <main className="min-h-screen flex items-center justify-center bg-shuma-bg px-4">
       {/* Fondo decorativo */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl" />
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMyMjMzNDQiIGZpbGwtb3BhY2l0eT0iMC4zIj48cGF0aCBkPSJNMzYgMzRoLTJ2LTJoMnYyem0wLTZoLTJ2Mmgydi0yem0tNiA2aC0ydi0yaDJ2MnptNi02aC0ydjJoMnYtMnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-40" />
       </div>
-
       <div className="relative z-10 w-full max-w-md">
-        {/* Logo / Título */}
+        {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center mb-5">
-            <Image 
-              src="/shuma_logo.png" 
-              alt="Shuma Logo" 
-              width={320} 
-              height={100} 
-              priority 
-              style={{ filter: 'drop-shadow(0 0 12px rgba(33,150,243,0.4))' }} 
+            <Image
+              src="/shuma_logo.png"
+              alt="Shuma Logo"
+              width={320}
+              height={100}
+              priority
+              style={{ filter: 'drop-shadow(0 0 12px rgba(33,150,243,0.4))' }}
             />
           </div>
           <h1 className="text-3xl font-exo font-bold text-shuma-text mb-2">
@@ -31,17 +41,13 @@ export default function HomePage() {
             Sistema de optimización de rutas de entrega
           </p>
         </div>
-
         {/* Selector de rol */}
         <div className="space-y-3">
           <p className="text-center text-xs font-medium text-slate-500 uppercase tracking-widest mb-5">
             Selecciona tu rol
           </p>
-
-          {/* Despachador */}
           <Link
             href="/dispatcher"
-            id="btn-role-dispatcher"
             className="group flex items-center gap-4 w-full p-5 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-accent transition-all duration-300 hover:shadow-lg
@@ -68,11 +74,8 @@ export default function HomePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
-
-          {/* Chofer */}
           <Link
             href="/driver"
-            id="btn-role-driver"
             className="group flex items-center gap-4 w-full p-5 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-warning transition-all duration-300 hover:shadow-lg
@@ -100,11 +103,29 @@ export default function HomePage() {
             </svg>
           </Link>
         </div>
-
-        {/* Footer */}
-        <p className="text-center text-[13px] text-slate-700 mt-8" style={{ letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-          Design & Developed by Shuma Sistemas IT
+        {/* Footer RGB */}
+        <p style={{
+          textAlign: 'center',
+          fontSize: 13,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          marginTop: 32,
+          background: 'linear-gradient(90deg, #ff0000, #ff6600, #ffff00, #00ff00, #00ffff, #0066ff, #cc00ff, #ff0000)',
+          backgroundSize: '400% auto',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          animation: 'rgbRoll 5s linear infinite',
+          opacity: 0.75
+        }}>
+          Design &amp; Developed by Shuma Sistemas IT
         </p>
+        <style>{`
+          @keyframes rgbRoll {
+            from { background-position: 0% center; }
+            to   { background-position: 400% center; }
+          }
+        `}</style>
       </div>
     </main>
   );

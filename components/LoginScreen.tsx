@@ -230,7 +230,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             #ff0000, #ff6600, #ffff00, #00ff00,
             #00ffff, #0066ff, #cc00ff, #ff0000
           );
-          background-size: 250% auto;
+          background-size: 400% auto;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -239,7 +239,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         }
         @keyframes rgbRoll {
           from{ background-position: 0% center; }
-          to{ background-position: 250% center; }
+          to{ background-position: 400% center; }
         }
       `}</style>
 
