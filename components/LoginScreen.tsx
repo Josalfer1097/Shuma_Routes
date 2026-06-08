@@ -15,15 +15,45 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [focusU, setFocusU] = useState(false);
   const [focusP, setFocusP] = useState(false);
 
+  const [attempts, setAttempts] = useState(0);
+  const [glitching, setGlitching] = useState(false);
+  const [accessGranted, setAccessGranted] = useState(false);
+  const [scanningEye, setScanningEye] = useState(false);
+  const [eyeRevealed, setEyeRevealed] = useState(false);
+
   const handleSubmit = () => {
     const ok = onLogin(user, pass);
     if (ok) {
-      setSuccess(true);
+      setAccessGranted(true);
       setError(false);
     } else {
-      setError(true);
-      setShaking(true);
-      setTimeout(() => setShaking(false), 500);
+      const newAttempts = Math.min(attempts + 1, 5);
+      setAttempts(newAttempts);
+      setGlitching(true);
+      setTimeout(() => {
+        setGlitching(false);
+        setError(true);
+        setShaking(true);
+        setTimeout(() => setShaking(false), 500);
+      }, 680);
+    }
+  };
+
+  const toggleEye = () => {
+    if (scanningEye) return;
+    if (!eyeRevealed) {
+      setScanningEye(true);
+      setShowPass(false);
+      setTimeout(() => {
+        setShowPass(true);
+        setTimeout(() => {
+          setScanningEye(false);
+          setEyeRevealed(true);
+        }, 500);
+      }, 50);
+    } else {
+      setShowPass(false);
+      setEyeRevealed(false);
     }
   };
 
@@ -241,9 +271,182 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           from{ background-position: 0% center; }
           to{ background-position: 400% center; }
         }
+
+        /* GLITCH FULL PAGE */
+        .ls-root.glitching .ls-panel {
+          animation: lsPageGlitch 0.65s steps(1) forwards;
+        }
+        .ls-root.glitching .ls-grid { opacity: 0.15; }
+        .ls-root.glitching .ls-logo {
+          animation: lsLogoGlitch 0.65s steps(1) forwards;
+        }
+        .ls-glitch-r {
+          position: absolute; inset: 0; pointer-events: none;
+          background: rgba(255,0,60,0.07); mix-blend-mode: screen;
+          opacity: 0; transition: opacity 0.05s;
+        }
+        .ls-glitch-c {
+          position: absolute; inset: 0; pointer-events: none;
+          background: rgba(0,255,255,0.06); mix-blend-mode: screen;
+          transform: translate(3px,-2px);
+          opacity: 0; transition: opacity 0.05s;
+        }
+        .ls-glitch-lines {
+          position: absolute; inset: 0; pointer-events: none; opacity: 0;
+          background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 4px);
+        }
+        .ls-root.glitching .ls-glitch-r,
+        .ls-root.glitching .ls-glitch-c,
+        .ls-root.glitching .ls-glitch-lines { opacity: 1; }
+
+        @keyframes lsPageGlitch {
+          0%  { transform: translate(0,0); filter: none; }
+          8%  { transform: translate(-4px,0); filter: hue-rotate(90deg) saturate(2); }
+          16% { transform: translate(4px,1px); filter: hue-rotate(-90deg); }
+          24% { transform: translate(-2px,-1px); filter: none; }
+          32% { transform: translate(3px,0) skewX(-2deg); filter: brightness(1.3); }
+          40% { transform: translate(0,2px) skewX(1deg); filter: none; }
+          50% { transform: translate(-3px,0); filter: hue-rotate(180deg); }
+          60% { transform: translate(2px,-1px); filter: none; }
+          70% { transform: translate(4px,0); filter: brightness(1.4) hue-rotate(270deg); }
+          80% { transform: translate(-2px,1px); filter: none; }
+          90% { transform: translate(1px,-1px); filter: hue-rotate(45deg); }
+          100%{ transform: translate(0,0); filter: none; }
+        }
+        @keyframes lsLogoGlitch {
+          0%  { color: #1a6fd4; text-shadow: none; }
+          15% { color: #ff003c; text-shadow: -3px 0 #00ffff, 3px 0 #ff00ff; }
+          30% { color: #1a6fd4; text-shadow: 3px 0 #ff003c, -3px 0 #00ffff; }
+          50% { color: #ffffff; text-shadow: none; }
+          65% { color: #ff003c; text-shadow: -2px 0 #00ffff; }
+          100%{ color: #1a6fd4; text-shadow: none; }
+        }
+
+        /* THERMAL SCAN DEL OJO */
+        .ls-scan-line {
+          position: absolute; top: 0; width: 3px; height: 100%;
+          background: linear-gradient(180deg, transparent, rgba(33,150,243,0.9), transparent);
+          border-radius: 2px; opacity: 0; pointer-events: none; left: 42px;
+        }
+        .ls-frow.ls-scanning .ls-scan-line {
+          animation: lsThermalScan 0.5s ease-in-out forwards;
+        }
+        .ls-frow.ls-scanning input {
+          animation: lsThermalReveal 0.5s ease-in-out forwards;
+        }
+        @keyframes lsThermalScan {
+          0%  { left: 42px; opacity: 0; }
+          15% { opacity: 1; }
+          85% { opacity: 1; }
+          100%{ left: calc(100% - 42px); opacity: 0; }
+        }
+        @keyframes lsThermalReveal {
+          0%, 30% { color: transparent; text-shadow: 0 0 10px rgba(33,150,243,0.9); }
+          100%    { color: #E8EFF8; text-shadow: none; }
+        }
+
+        /* SUCCESS STATE */
+        .ls-root.ls-granted .ls-panel {
+          border-color: rgba(16,185,129,0.5);
+          box-shadow: 0 0 50px rgba(16,185,129,0.2), inset 0 0 40px rgba(16,185,129,0.04);
+          animation: lsSuccessPulse 0.6s ease forwards;
+        }
+        @keyframes lsSuccessPulse {
+          0%  { transform: scale(1); }
+          40% { transform: scale(1.018); }
+          100%{ transform: scale(1); }
+        }
+        .ls-root.ls-granted .ls-c-tl,
+        .ls-root.ls-granted .ls-c-tr,
+        .ls-root.ls-granted .ls-c-bl,
+        .ls-root.ls-granted .ls-c-br {
+          border-color: rgba(16,185,129,0.8);
+        }
+        .ls-root.ls-granted .ls-grid {
+          background-image:
+            linear-gradient(rgba(16,185,129,0.08) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(16,185,129,0.08) 1px, transparent 1px);
+        }
+        .ls-root.ls-granted .ls-logo {
+          color: #10B981;
+          filter: drop-shadow(0 0 20px rgba(16,185,129,0.8));
+          animation: none;
+        }
+        .ls-root.ls-granted .ls-badge {
+          background: rgba(16,185,129,0.1);
+          border-color: rgba(16,185,129,0.35);
+        }
+        .ls-root.ls-granted .ls-badge-dot { background: #10B981; }
+        .ls-root.ls-granted .ls-badge-text { color: #10B981; }
+        .ls-success-scan {
+          position: absolute; top: 0; left: 0; right: 0; height: 2px;
+          background: linear-gradient(90deg, transparent, rgba(16,185,129,0.9), transparent);
+          transform: translateY(-2px); opacity: 0;
+        }
+        .ls-root.ls-granted .ls-success-scan {
+          animation: lsSuccessScan 0.7s ease-in-out 0.15s forwards;
+        }
+        @keyframes lsSuccessScan {
+          0%  { transform: translateY(-2px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100%{ transform: translateY(600px); opacity: 0; }
+        }
+        .ls-success-overlay {
+          position: absolute; inset: 0; z-index: 20;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          pointer-events: none; opacity: 0; transition: opacity 0.4s ease 0.3s;
+        }
+        .ls-root.ls-granted .ls-success-overlay { opacity: 1; }
+        .ls-success-ring {
+          width: 72px; height: 72px; border-radius: 50%;
+          border: 1.5px solid rgba(16,185,129,0.4);
+          display: flex; align-items: center; justify-content: center;
+          position: relative; margin-bottom: 14px;
+        }
+        .ls-success-ring::before {
+          content: ''; position: absolute; inset: -10px; border-radius: 50%;
+          border: 1px solid rgba(16,185,129,0.18);
+        }
+        .ls-success-ring::after {
+          content: ''; position: absolute; inset: -20px; border-radius: 50%;
+          border: 1px solid rgba(16,185,129,0.08);
+        }
+        .ls-check-path {
+          stroke-dasharray: 40;
+          stroke-dashoffset: 40;
+          transition: stroke-dashoffset 0.45s ease 0.5s;
+        }
+        .ls-root.ls-granted .ls-check-path { stroke-dashoffset: 0; }
+        .ls-success-label {
+          font-family: 'Exo 2', sans-serif; font-size: 10px;
+          letter-spacing: 0.2em; color: #10B981; text-transform: uppercase;
+          opacity: 0; transform: translateY(8px);
+          transition: all 0.4s ease 0.7s;
+        }
+        .ls-root.ls-granted .ls-success-label { opacity: 1; transform: translateY(0); }
+        .ls-root.ls-granted .ls-fields-fade {
+          opacity: 0.08; transition: opacity 0.4s ease 0.2s; pointer-events: none;
+        }
+
+        /* ATTEMPT DOTS */
+        .ls-attempt-bar {
+          display: flex; gap: 4px; margin-top: 8px; justify-content: center;
+        }
+        .ls-a-dot {
+          width: 7px; height: 7px; border-radius: 50%;
+          background: #1a3a5a; border: 1px solid #0d1f3a; transition: all 0.3s;
+        }
+        .ls-a-dot.used {
+          background: #EF4444;
+          box-shadow: 0 0 6px rgba(239,68,68,0.5);
+        }
       `}</style>
 
-      <div className="ls-root" style={{ position:'fixed', inset:0, zIndex:99999 }}>
+      <div className={`ls-root${glitching ? ' glitching' : ''}${accessGranted ? ' ls-granted' : ''}`} style={{ position:'fixed', inset:0, zIndex:99999 }}>
+        <div className="ls-glitch-r" />
+        <div className="ls-glitch-c" />
+        <div className="ls-glitch-lines" />
         <div className="ls-grid" />
         <div className="ls-orb ls-orb1" />
         <div className="ls-orb ls-orb2" />
@@ -251,6 +454,17 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
         <div className="ls-card">
           <div className="ls-panel">
+            <div className="ls-success-scan" />
+            <div className="ls-success-overlay">
+              <div className="ls-success-ring">
+                <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+                  <path className="ls-check-path" d="M6 16 L13 23 L26 10"
+                    stroke="#10B981" strokeWidth="2.5"
+                    strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="ls-success-label">Acceso concedido</div>
+            </div>
             <div className="ls-corner ls-c-tl" />
             <div className="ls-corner ls-c-tr" />
             <div className="ls-corner ls-c-bl" />
@@ -269,7 +483,8 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               </div>
             </div>
 
-            <div className="ls-field">
+            <div className="ls-fields-fade">
+              <div className="ls-field">
               <div className="ls-field-label">Usuario</div>
               <div className={`ls-field-row ${focusU ? "focused" : ""} ${error ? "err" : ""}`}>
                 <div className="ls-icon-box">
@@ -290,10 +505,11 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
             <div className="ls-field">
               <div className="ls-field-label">Contraseña</div>
-              <div className={`ls-field-row ${focusP ? "focused" : ""} ${error ? "err" : ""}`}>
+              <div className={`ls-field-row ls-frow ${focusP ? "focused" : ""} ${error ? "err" : ""} ${scanningEye ? "ls-scanning" : ""}`}>
                 <div className="ls-icon-box">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 </div>
+                <div className="ls-scan-line" />
                 <input
                   type={showPass ? "text" : "password"}
                   placeholder="••••••••"
@@ -304,7 +520,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                   onKeyDown={e => e.key === "Enter" && handleSubmit()}
                   autoComplete="off"
                 />
-                <button className="ls-eye-btn" onClick={() => setShowPass(!showPass)} type="button" aria-label="Mostrar contraseña">
+                <button className="ls-eye-btn" onClick={toggleEye} type="button" aria-label="Mostrar contraseña">
                   {showPass
                     ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                     : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -314,15 +530,25 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             </div>
 
             <button
-              className={`ls-btn${success ? " success" : ""}`}
+              className={`ls-btn${accessGranted ? " success" : ""}`}
               onClick={handleSubmit}
             >
-              {success ? "Acceso concedido ✓" : "Ingresar"}
+              {accessGranted ? "Acceso concedido ✓" : "Ingresar"}
             </button>
 
             <div className={`ls-error ${error ? "show" : ""} ${shaking ? "shake" : ""}`}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               Credenciales incorrectas — acceso denegado
+            </div>
+            
+            {attempts > 0 && (
+              <div className="ls-attempt-bar">
+                {[0,1,2,3,4].map(i => (
+                  <div key={i} className={`ls-a-dot${i < attempts ? ' used' : ''}`} />
+                ))}
+              </div>
+            )}
+            
             </div>
           </div>
 
