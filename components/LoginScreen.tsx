@@ -22,10 +22,12 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [eyeRevealed, setEyeRevealed] = useState(false);
 
   const handleSubmit = () => {
-    const ok = onLogin(user, pass);
-    if (ok) {
+    if (user === 'root' && pass === '1649') {
       setAccessGranted(true);
       setError(false);
+      setTimeout(() => {
+        onLogin(user, pass);
+      }, 1400);
     } else {
       const newAttempts = Math.min(attempts + 1, 5);
       setAttempts(newAttempts);
