@@ -151,9 +151,10 @@ export default function DispatcherPage() {
   const router = useRouter();
 
   const handleLogout = () => {
-    document.cookie = 'shuma_auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    localStorage.removeItem('shuma_auth');
-    window.location.href = '/';
+    sessionStorage.removeItem("shuma_auth");
+    localStorage.removeItem("shuma_auth");
+    document.cookie = "shuma_auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    window.location.href = "/";
   };
   const [numClusters, setNumClusters] = useState<number>(1);
   const [showInlineVehicleForm, setShowInlineVehicleForm] = useState(false);
