@@ -35,7 +35,7 @@ export default function HomePage() {
             />
           </div>
           <h1 className="text-3xl font-exo font-bold text-shuma-text mb-2">
-            Rutas y <span className="text-gradient">Despachos</span>
+            Rutas <span className="text-gradient">Logística</span>
           </h1>
           <p className="text-shuma-muted text-sm">
             Sistema de optimización de rutas de entrega
@@ -47,7 +47,7 @@ export default function HomePage() {
             Selecciona tu rol
           </p>
           <Link
-            href="/dispatcher"
+            href="/admin-login"
             className="group flex items-center gap-4 w-full p-5 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-accent transition-all duration-300 hover:shadow-lg
@@ -62,10 +62,10 @@ export default function HomePage() {
             </div>
             <div className="flex-1 text-left">
               <h2 className="font-semibold text-shuma-text group-hover:text-shuma-accent transition-colors">
-                Soy Despachador
+                Soy Administrador
               </h2>
               <p className="text-sm text-shuma-muted mt-0.5">
-                Carga CSV, asigna choferes y optimiza rutas
+                Gestión de rutas, choferes y operaciones
               </p>
             </div>
             <svg className="w-5 h-5 text-slate-600 group-hover:text-blue-400 group-hover:translate-x-1
@@ -75,7 +75,7 @@ export default function HomePage() {
             </svg>
           </Link>
           <Link
-            href="/driver"
+            href="/driver-login"
             className="group flex items-center gap-4 w-full p-5 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-warning transition-all duration-300 hover:shadow-lg

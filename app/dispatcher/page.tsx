@@ -151,10 +151,14 @@ export default function DispatcherPage() {
   const router = useRouter();
 
   const handleLogout = () => {
-    sessionStorage.removeItem("shuma_auth");
-    localStorage.removeItem("shuma_auth");
+    sessionStorage.removeItem('shuma_auth');
+    sessionStorage.removeItem('shuma_role');
+    sessionStorage.removeItem('shuma_user');
+    sessionStorage.removeItem('shuma_name');
+    sessionStorage.removeItem('shuma_driver_id');
+    localStorage.removeItem('shuma_auth');
     document.cookie = "shuma_auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = "/";
+    window.location.href = '/';
   };
   const [numClusters, setNumClusters] = useState<number>(1);
   const [showInlineVehicleForm, setShowInlineVehicleForm] = useState(false);
@@ -441,13 +445,19 @@ export default function DispatcherPage() {
               style={{ filter: 'drop-shadow(0 0 8px rgba(33,150,243,0.35))' }} 
             />
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-shuma-muted hover:text-shuma-text border border-transparent hover:border-shuma-border hover:bg-shuma-surface rounded-lg transition-all"
-          >
-            <LogOut size={14} />
-            Salir
-          </button>
+          <div className="flex items-center gap-3">
+            <span style={{ fontSize: 11, color: '#5B7BA0', letterSpacing: '0.08em' }}>
+              {typeof window !== 'undefined' ? sessionStorage.getItem('shuma_name') || '' : ''}
+              {typeof window !== 'undefined' && sessionStorage.getItem('shuma_role') ? ` · ${{admin:'Administrador',logistics:'Logística',viewer:'Supervisor',driver:'Chofer'}[sessionStorage.getItem('shuma_role')!] || sessionStorage.getItem('shuma_role')}` : ''}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-shuma-muted hover:text-shuma-text border border-transparent hover:border-shuma-border hover:bg-shuma-surface rounded-lg transition-all"
+            >
+              <LogOut size={14} />
+              Salir
+            </button>
+          </div>
         </div>
 
         {/* Widget de Clima */}

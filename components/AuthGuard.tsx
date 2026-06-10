@@ -1,30 +1,42 @@
 "use client";
 import { useState, useEffect } from "react";
-import LoginScreen from "./LoginScreen";
+import { useRouter, usePathname } from "next/navigation";
+
+const PUBLIC_PATHS = ['/', '/admin-login', '/driver-login'];
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checked, setChecked] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    const val = sessionStorage.getItem("shuma_auth");
-    setIsAuthenticated(val === "1");
-    setChecked(true);
-  }, []);
-
-  const handleLogin = (user: string, pass: string): boolean => {
-    if (user === "root" && pass === "1649") {
-      sessionStorage.setItem("shuma_auth", "1");
-      setIsAuthenticated(true);
-      return true;
+    const isPublic = PUBLIC_PATHS.includes(pathname);
+    if (isPublic) {
+      setChecked(true);
+      return;
     }
-    return false;
-  };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("shuma_auth");
-    setIsAuthenticated(false);
-  };
+    const auth = sessionStorage.getItem('shuma_auth');
+    const role = sessionStorage.getItem('shuma_role');
+
+    if (auth !== '1') {
+      router.replace('/');
+      return;
+    }
+
+    // Verificar que el rol tenga acceso a la ruta
+    if (pathname.startsWith('/dispatcher') && role === 'driver') {
+      router.replace('/driver');
+      return;
+    }
+
+    if (pathname.startsWith('/driver') && role !== 'driver') {
+      router.replace('/dispatcher');
+      return;
+    }
+
+    setChecked(true);
+  }, [pathname, router]);
 
   if (!checked) return (
     <div style={{
@@ -33,10 +45,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       zIndex: 99999
     }} />
   );
-
-  if (!isAuthenticated) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
 
   return <>{children}</>;
 }
