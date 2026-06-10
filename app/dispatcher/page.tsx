@@ -18,7 +18,7 @@ import { clusterDeliveries } from '@/lib/clustering';
 import type { Cluster, GlobalConfig, ClusteringConfig, Stop } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { LogOut } from 'lucide-react';
+import { FileText, Map, Plus, Save, Settings, Trash2, Truck, Upload, X, LogOut, Download, Navigation, Play, User as UserIcon, CheckCircle, BarChart2, ClipboardList } from 'lucide-react';
 import Image from 'next/image';
 
 // Leaflet NO es compatible con SSR → dynamic import
@@ -516,8 +516,28 @@ export default function DispatcherPage() {
               style={{ filter: 'drop-shadow(0 0 8px rgba(33,150,243,0.35))' }} 
             />
           </div>
-          <div className="flex items-center gap-3">
-            <span style={{ fontSize: 13, color: '#E8EFF8', fontWeight: 500 }}>
+          <div className="flex items-center gap-2">
+            {typeof window !== 'undefined' && sessionStorage.getItem('shuma_role') !== 'viewer' && sessionStorage.getItem('shuma_role') !== 'driver' && (
+              <button
+                onClick={() => window.location.href = '/dashboard'}
+                title="Dashboard"
+                className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-xs font-medium text-shuma-muted hover:text-shuma-text border border-transparent hover:border-shuma-border hover:bg-shuma-surface rounded-lg transition-all"
+              >
+                <BarChart2 size={14} />
+                <span className="hidden md:inline">Dashboard</span>
+              </button>
+            )}
+            {typeof window !== 'undefined' && sessionStorage.getItem('shuma_role') !== 'driver' && (
+              <button
+                onClick={() => window.location.href = '/history'}
+                title="Histórico"
+                className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-xs font-medium text-shuma-muted hover:text-shuma-text border border-transparent hover:border-shuma-border hover:bg-shuma-surface rounded-lg transition-all"
+              >
+                <ClipboardList size={14} />
+                <span className="hidden md:inline">Histórico</span>
+              </button>
+            )}
+            <span style={{ fontSize: 13, color: '#E8EFF8', fontWeight: 500, marginLeft: '4px' }}>
               {typeof window !== 'undefined' ? sessionStorage.getItem('shuma_name') || '' : ''}
             </span>
             {typeof window !== 'undefined' && sessionStorage.getItem('shuma_role') && sessionStorage.getItem('shuma_role') !== 'driver' && (
@@ -539,7 +559,7 @@ export default function DispatcherPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-shuma-muted hover:text-shuma-text border border-transparent hover:border-shuma-border hover:bg-shuma-surface rounded-lg transition-all"
             >
               <LogOut size={14} />
-              Salir
+              <span className="hidden md:inline">Salir</span>
             </button>
           </div>
         </div>
