@@ -18,6 +18,8 @@ interface Props {
   onReoptimizeSingle?: (vehicleId: string, stops: Stop[]) => void; // Para CAMBIO 4
   globalDepartureTime?: string;
   onVehicleTimeChange?: (vehicleId: string, timeStr: string) => void;
+  deadlineTime?: string;
+  unloadConfig?: import('@/types').UnloadConfig;
 }
 
 function getHaversineDistance(
@@ -46,7 +48,9 @@ export default function RoutePanel({
   onToggleRouteVisibility,
   onReoptimizeSingle,
   globalDepartureTime = '08:00',
-  onVehicleTimeChange
+  onVehicleTimeChange,
+  deadlineTime = '17:45',
+  unloadConfig
 }: Props) {
   const [expandedRoute, setExpandedRoute] = useState<string | null>(routes[0]?.vehicleId ?? null);
   const [isEditing, setIsEditing] = useState(false);
@@ -344,6 +348,34 @@ export default function RoutePanel({
                             {route.zoneName}
                           </span>
                         )}
+                        {(() => {
+                          const routeDepTimeStr = route.departureTime || globalDepartureTime || '08:00';
+                          const [h, m] = routeDepTimeStr.split(':').map(Number);
+                          const routeDuration = route.totalDuration || 0; // en segundos
+                          const returnTotalMins = (h * 60 + m) + Math.round(routeDuration / 60);
+                          
+                          const [dHour, dMin] = deadlineTime.split(':').map(Number);
+                          const deadlineMins = dHour * 60 + dMin;
+
+                          let status: 'ok' | 'warning' | 'critical' = 'ok';
+                          if (returnTotalMins > deadlineMins) status = 'critical';
+                          else if (returnTotalMins > deadlineMins - 30) status = 'warning';
+
+                          const retH = Math.floor(returnTotalMins / 60) % 24;
+                          const retM = returnTotalMins % 60;
+                          const estimatedReturn = `${retH.toString().padStart(2, '0')}:${retM.toString().padStart(2, '0')}`;
+                          
+                          let semaforo = '🟢';
+                          let textClass = 'text-emerald-400';
+                          if (status === 'warning') { semaforo = '🟡'; textClass = 'text-amber-400'; }
+                          else if (status === 'critical') { semaforo = '🔴'; textClass = 'text-red-400'; }
+
+                          return (
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium bg-shuma-surface/50 border border-shuma-border/50 ${textClass}`}>
+                              {semaforo} Regreso est: {estimatedReturn}
+                            </span>
+                          );
+                        })()}
                       </div>
                       <div className="flex items-center gap-3 mt-1">
                         <p className="text-xs text-shuma-muted">

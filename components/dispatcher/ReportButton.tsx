@@ -1,15 +1,16 @@
 'use client';
 
-import type { Route } from '@/types';
+import type { Route, GlobalConfig } from '@/types';
 import { formatDuration, formatDistance } from '@/lib/osrm';
 import type { WeatherData } from '@/lib/weather';
 
 interface Props {
   routes: Route[];
   weather?: WeatherData | null;
+  globalConfig?: GlobalConfig | null;
 }
 
-export default function ReportButton({ routes, weather }: Props) {
+export default function ReportButton({ routes, weather, globalConfig }: Props) {
   if (routes.length === 0) return null;
 
   const handleGeneratePDF = async () => {
@@ -100,19 +101,36 @@ export default function ReportButton({ routes, weather }: Props) {
     doc.text('Resumen de Rutas por Chofer', 20, currentY + 12);
 
     // TABLA RESUMEN POR CHOFER
-    const driverRows = routes.map((route) => [
-      route.driverName,
-      route.matricula || '—',
-      route.depot.name,
-      route.endDepot?.name || route.depot.name,
-      route.stops.length.toString(),
-      route.totalDistance ? formatDistance(route.totalDistance) : '—',
-      route.totalDuration ? formatDuration(route.totalDuration) : '—',
-    ]);
+    // TABLA RESUMEN POR CHOFER
+    const [dHour, dMin] = (globalConfig?.deadlineTime || '17:45').split(':').map(Number);
+    const deadlineMins = dHour * 60 + dMin;
+
+    const driverRows = routes.map((route) => {
+      let depTimeStr = route.departureTime || globalConfig?.departureTime || '08:00';
+      const [h, m] = depTimeStr.split(':').map(Number);
+      const totalMins = Math.round((route.totalDuration || 0) / 60);
+      const returnMins = (h * 60 + m) + totalMins;
+      
+      let status = '✓ En tiempo';
+      if (returnMins > deadlineMins) status = '✗ Fuera de tiempo';
+      else if (returnMins > deadlineMins - 30) status = '⚠ Riesgo';
+
+      const retH = Math.floor(returnMins / 60) % 24;
+      const retM = returnMins % 60;
+      const etaReturn = `${retH.toString().padStart(2, '0')}:${retM.toString().padStart(2, '0')}`;
+
+      return [
+        route.driverName,
+        route.stops.length.toString(),
+        depTimeStr,
+        etaReturn,
+        status
+      ];
+    });
 
     autoTable(doc, {
       startY: currentY + 16,
-      head: [['Chofer', 'Matrícula', 'Bodega Salida', 'Bodega Regreso', 'Paradas', 'Distancia', 'Tiempo Estimado']],
+      head: [['Chofer', 'Entregas', 'Salida', 'Regreso est.', 'Estado']],
       body: driverRows,
       margin: { left: 20, right: 20 },
       theme: 'striped',
@@ -134,10 +152,19 @@ export default function ReportButton({ routes, weather }: Props) {
         textColor: [51, 65, 85], // slate-700
       },
       columnStyles: {
+        1: { halign: 'center' },
+        2: { halign: 'center' },
+        3: { halign: 'center' },
         4: { halign: 'center' },
-        5: { halign: 'right' },
-        6: { halign: 'right' },
       },
+      didParseCell: function(data: any) {
+        if (data.section === 'body' && data.column.index === 4) {
+          const val = data.cell.raw;
+          if (val.includes('Fuera')) data.cell.styles.textColor = [220, 38, 38]; // red-600
+          else if (val.includes('Riesgo')) data.cell.styles.textColor = [217, 119, 6]; // amber-600
+          else if (val.includes('En tiempo')) data.cell.styles.textColor = [16, 185, 129]; // emerald-500
+        }
+      }
     });
 
     // ─── PÁGINAS SIGUIENTES: UNA POR CHOFER ───
@@ -185,28 +212,48 @@ export default function ReportButton({ routes, weather }: Props) {
       // Datos del viaje: caja slate-50
       doc.setFillColor(248, 250, 252); // slate-50
       doc.setDrawColor(226, 232, 240); // slate-200
-      doc.rect(20, 34, 170, 24, 'FD');
+      doc.rect(20, 34, 170, 30, 'FD');
+
+      let unloadPerStop = 15;
+      if (route.vehicleType === 'Camión grande') unloadPerStop = globalConfig?.unloadConfig?.truckLarge ?? 20;
+      else if (route.vehicleType === 'Camión chico') unloadPerStop = globalConfig?.unloadConfig?.truckSmall ?? 18;
+      else if (route.vehicleType === 'Camioneta') unloadPerStop = globalConfig?.unloadConfig?.van ?? 15;
+      
+      const stopsCount = route.stops.length;
+      const unloadMins = stopsCount * unloadPerStop;
+      const totalMins = Math.round((route.totalDuration || 0) / 60);
+      const transitMins = totalMins - unloadMins;
 
       // Etiquetas
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8.5);
       doc.setTextColor(30, 58, 138); // navy #1E3A8A
       doc.text('Bodega Salida:', 24, 40);
-      doc.text('Bodega Regreso:', 24, 45);
-      doc.text('Distancia Total:', 24, 50);
+      doc.text('Distancia Total:', 24, 46);
+      doc.text('Tiempo Tránsito:', 24, 52);
+      doc.text('Tiempo Descarga:', 24, 58);
 
-      doc.text('Tiempo Estimado:', 110, 40);
-      doc.text('Hora Est. Regreso:', 110, 45);
+      doc.text('Bodega Regreso:', 100, 40);
+      doc.text('Hora Est. Salida:', 100, 46);
+      doc.text('Hora Est. Regreso:', 100, 52);
+      doc.text('Límite Regreso:', 100, 58);
 
       // Valores
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(51, 65, 85); // slate-700
-      doc.text(route.depot.name, 49, 40);
-      doc.text(route.endDepot?.name || route.depot.name, 51, 45);
-      doc.text(route.totalDistance ? formatDistance(route.totalDistance) : '—', 49, 50);
+      doc.setTextColor(71, 85, 105); // slate-600
+      doc.text(route.depot.name, 48, 40);
+      doc.text(route.totalDistance ? formatDistance(route.totalDistance) : '—', 48, 46);
+      doc.text(`~${Math.floor(transitMins/60)}h ${transitMins%60}m`, 48, 52);
+      doc.text(`~${Math.floor(unloadMins/60)}h ${unloadMins%60}m (${unloadPerStop}m x parada)`, 48, 58);
 
-      doc.text(route.totalDuration ? formatDuration(route.totalDuration) : '—', 138, 40);
-      doc.text(etaReturn, 139, 45);
+      doc.text(route.endDepot?.name || route.depot.name, 126, 40);
+      doc.text(depTimeStr, 126, 46);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text(etaReturn, 126, 52);
+      doc.setTextColor(220, 38, 38); // red-600
+      doc.text(globalConfig?.deadlineTime || '17:45', 126, 58);
 
       // TABLA DE PARADAS
       let accumulated = 0;

@@ -139,6 +139,54 @@ function appReducer(state: AppState, action: Action): AppState {
   }
 }
 
+function calcularViabilidad(vehicles: Vehicle[], clusters: Cluster[], globalConfig: GlobalConfig | null) {
+  if (!globalConfig) return [];
+  const { deadlineTime, unloadConfig, departureTime: globalDepTime } = globalConfig;
+  
+  const [dHour, dMin] = (deadlineTime || '17:45').split(':').map(Number);
+  const deadlineMins = dHour * 60 + dMin;
+
+  return vehicles.map((v, i) => {
+    const cluster = clusters[i];
+    const stops = cluster?.addresses.length || 0;
+    
+    const depTimeStr = v.departureTime || globalDepTime || '08:00';
+    const [h, m] = depTimeStr.split(':').map(Number);
+    
+    const transitMinutes = stops * 15;
+    
+    let unloadPerStop = 15;
+    if (v.type === 'Camión grande') unloadPerStop = unloadConfig?.truckLarge ?? 20;
+    else if (v.type === 'Camión chico') unloadPerStop = unloadConfig?.truckSmall ?? 18;
+    else if (v.type === 'Camioneta') unloadPerStop = unloadConfig?.van ?? 15;
+    
+    const unloadMinutes = stops * unloadPerStop;
+    const totalMinutes = transitMinutes + unloadMinutes;
+    
+    const returnTotalMins = (h * 60 + m) + totalMinutes;
+    const retH = Math.floor(returnTotalMins / 60) % 24;
+    const retM = returnTotalMins % 60;
+    const estimatedReturn = `${retH.toString().padStart(2, '0')}:${retM.toString().padStart(2, '0')}`;
+    
+    let status: 'ok' | 'warning' | 'critical' = 'ok';
+    if (returnTotalMins > deadlineMins) status = 'critical';
+    else if (returnTotalMins > deadlineMins - 30) status = 'warning';
+
+    return {
+      vehicleId: v.id,
+      driverName: v.driverName,
+      departureTime: depTimeStr,
+      transitMinutes,
+      unloadMinutes,
+      totalMinutes,
+      estimatedReturn,
+      deadlineTime: deadlineTime || '17:45',
+      status,
+      stops
+    };
+  });
+}
+
 // ─── Componente principal ──────────────────────────────────
 
 export default function DispatcherPage() {
@@ -240,6 +288,26 @@ export default function DispatcherPage() {
     }
   }, [state.vehicles, state.clusteringConfig]);
 
+  // Helper para persistencia
+  const saveRoutesData = (newRoutes: Route[]) => {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem('shuma_routes', JSON.stringify(newRoutes));
+    if (state.globalConfig) {
+      sessionStorage.setItem('shuma_global_config', JSON.stringify(state.globalConfig));
+    }
+    
+    fetch('/api/routes/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        routes: newRoutes,
+        globalConfig: state.globalConfig,
+        date: state.globalConfig?.departureTime || new Date().toISOString(),
+        user: sessionStorage.getItem('shuma_name') || 'Dispatcher'
+      })
+    }).catch(e => console.error('Error guardando en BD:', e));
+  };
+
   // Optimización de rutas
   const handleOptimize = useCallback(async () => {
     if (state.clusters.length === 0) {
@@ -292,8 +360,9 @@ export default function DispatcherPage() {
       today.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
       const departureTime = today.toISOString(); // Para tráfico real
 
-      const routes = await optimizeRoutes(state.clusters, assignedVehicles, departureTime);
+      const routes = await optimizeRoutes(state.clusters, assignedVehicles, departureTime, undefined, state.globalConfig?.unloadConfig);
       dispatch({ type: 'SET_ROUTES', payload: routes });
+      saveRoutesData(routes);
       setActiveTab('routes');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
@@ -366,8 +435,9 @@ export default function DispatcherPage() {
         return { ...v, depot: startDepot, endDepot: endDepot };
       });
 
-      const routes = await optimizeRoutes(state.clusters, assignedVehicles, departureTime, manualAssignments);
+      const routes = await optimizeRoutes(state.clusters, assignedVehicles, departureTime, manualAssignments, state.globalConfig?.unloadConfig);
       dispatch({ type: 'SET_ROUTES', payload: routes });
+      saveRoutesData(routes);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al reoptimizar';
       dispatch({ type: 'SET_ERROR', payload: msg });
@@ -408,12 +478,13 @@ export default function DispatcherPage() {
       const routeColor = state.routes.find(r => r.vehicleId === vehicleId)?.color || '#FF6B00';
       const zoneName = vehicle.zoneName || 'Zona';
 
-      const updatedRoute = await optimizeSingleVehicle(vehicle, addresses, departureTime, routeColor, zoneName);
+      const updatedRoute = await optimizeSingleVehicle(vehicle, addresses, departureTime, routeColor, zoneName, state.globalConfig?.unloadConfig);
 
       dispatch({ 
         type: 'SET_ROUTES', 
         payload: state.routes.map(r => r.vehicleId === vehicleId ? updatedRoute : r)
       });
+      saveRoutesData(state.routes.map(r => r.vehicleId === vehicleId ? updatedRoute : r));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al reoptimizar vehículo individual';
       dispatch({ type: 'SET_ERROR', payload: msg });
@@ -644,6 +715,44 @@ export default function DispatcherPage() {
                   );
                 })}
               </ul>
+
+              {/* PANEL DE VIABILIDAD ANTES DE OPTIMIZAR */}
+              <div className="bg-shuma-surface p-3 rounded-xl border border-shuma-border space-y-3 mt-4">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-bold text-shuma-text">Viabilidad Estimada</label>
+                  <span className="text-[10px] text-shuma-muted">Pre-optimización Google</span>
+                </div>
+                <div className="space-y-2">
+                  {calcularViabilidad(state.vehicles, state.clusters, state.globalConfig).map(viab => {
+                    let semaforo = '🟢';
+                    let bgClass = 'bg-emerald-500/5';
+                    let borderClass = 'border-l-emerald-500';
+                    if (viab.status === 'warning') {
+                      semaforo = '🟡'; bgClass = 'bg-amber-500/5'; borderClass = 'border-l-amber-500';
+                    } else if (viab.status === 'critical') {
+                      semaforo = '🔴'; bgClass = 'bg-red-500/5'; borderClass = 'border-l-red-500';
+                    }
+
+                    return (
+                      <div key={viab.vehicleId} className={`p-2 border-l-[3px] ${borderClass} ${bgClass} rounded-r-lg border-y border-r border-shuma-border/50`}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-bold text-slate-200">{semaforo} {viab.driverName}</span>
+                          <span className="text-[10px] font-medium text-shuma-muted">Límite: {viab.deadlineTime}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] text-slate-400 mb-1">
+                          <span>Salida: {viab.departureTime}</span>
+                          <span>Entregas: {viab.stops}</span>
+                          <span className={`font-bold ${viab.status === 'critical' ? 'text-red-400' : viab.status === 'warning' ? 'text-amber-400' : 'text-emerald-400'}`}>Regreso est: {viab.estimatedReturn}</span>
+                        </div>
+                        <div className="text-[9px] text-shuma-muted">
+                          Tránsito: ~{Math.floor(viab.transitMinutes/60)}h {viab.transitMinutes%60}m + Descarga: ~{Math.floor(viab.unloadMinutes/60)}h {viab.unloadMinutes%60}m = Total: ~{Math.floor(viab.totalMinutes/60)}h {viab.totalMinutes%60}m
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
             </div>
           )}
 
@@ -658,6 +767,8 @@ export default function DispatcherPage() {
                 hiddenRouteIds={hiddenRouteIds}
                 onReoptimizeSingle={handleReoptimizeSingle}
                 globalDepartureTime={state.globalConfig?.departureTime}
+                deadlineTime={state.globalConfig?.deadlineTime}
+                unloadConfig={state.globalConfig?.unloadConfig}
                 onVehicleTimeChange={(vehicleId, timeStr) => {
                   dispatch({ 
                     type: 'UPDATE_VEHICLE', 
@@ -680,7 +791,7 @@ export default function DispatcherPage() {
                 }}
               />
               {state.routes.length > 0 && (
-                <ReportButton routes={state.routes} weather={weather} />
+                <ReportButton routes={state.routes} weather={weather} globalConfig={state.globalConfig} />
               )}
             </div>
           )}
@@ -827,6 +938,8 @@ function ConfigPanel({
 
   const [depotId, setDepotId] = useState(currentConfig?.departureDepot?.id || 'san_pablo');
   const [returnDepotId, setReturnDepotId] = useState(currentConfig?.returnDepot === 'same' ? 'same' : (currentConfig?.returnDepot?.id || 'same'));
+  const [deadlineTime, setDeadlineTime] = useState(currentConfig?.deadlineTime || '17:45');
+  const [unloadConfig, setUnloadConfig] = useState(currentConfig?.unloadConfig || { truckLarge: 20, truckSmall: 18, van: 15 });
   const [time, setTime] = useState(() => {
     if (currentConfig?.departureTime) return currentConfig.departureTime;
     const now = new Date();
@@ -837,7 +950,7 @@ function ConfigPanel({
   const handleSave = () => {
     const dep = DEPOTS.find(d => d.id === depotId)!;
     const ret = returnDepotId === 'same' ? 'same' : DEPOTS.find(d => d.id === returnDepotId)!;
-    onSave({ departureDepot: dep, returnDepot: ret, departureTime: time });
+    onSave({ departureDepot: dep, returnDepot: ret, departureTime: time, deadlineTime, unloadConfig });
   };
 
   return (
@@ -892,6 +1005,35 @@ function ConfigPanel({
               <p className="text-red-500 text-[10px] mt-1">⚠️ Esta hora ya pasó</p>
             ) : null;
           })()}
+        </div>
+        <div>
+          <div className="flex justify-between items-center mb-1">
+            <label className="block text-xs font-medium text-shuma-muted">Hora límite de regreso</label>
+          </div>
+          <input 
+            type="time" 
+            value={deadlineTime} 
+            onChange={(e) => setDeadlineTime(e.target.value)}
+            className="w-full bg-slate-900 border border-shuma-border text-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-shuma-muted mb-2">Tiempo de descarga por entrega (min)</label>
+          <div className="flex gap-2">
+            <div className="flex-1 flex flex-col gap-1">
+              <span className="text-[10px] text-shuma-muted">Camión grande</span>
+              <input type="number" min="1" value={unloadConfig.truckLarge} onChange={e => setUnloadConfig({...unloadConfig, truckLarge: parseInt(e.target.value) || 0})} className="w-full bg-slate-900 border border-shuma-border text-slate-200 rounded-lg p-1.5 text-xs text-center outline-none" />
+            </div>
+            <div className="flex-1 flex flex-col gap-1">
+              <span className="text-[10px] text-shuma-muted">Camión chico</span>
+              <input type="number" min="1" value={unloadConfig.truckSmall} onChange={e => setUnloadConfig({...unloadConfig, truckSmall: parseInt(e.target.value) || 0})} className="w-full bg-slate-900 border border-shuma-border text-slate-200 rounded-lg p-1.5 text-xs text-center outline-none" />
+            </div>
+            <div className="flex-1 flex flex-col gap-1">
+              <span className="text-[10px] text-shuma-muted">Camioneta</span>
+              <input type="number" min="1" value={unloadConfig.van} onChange={e => setUnloadConfig({...unloadConfig, van: parseInt(e.target.value) || 0})} className="w-full bg-slate-900 border border-shuma-border text-slate-200 rounded-lg p-1.5 text-xs text-center outline-none" />
+            </div>
+          </div>
         </div>
       </div>
 

@@ -21,12 +21,33 @@ export async function POST(req: Request) {
       scopes: ['https://www.googleapis.com/auth/cloud-platform']
     });
 
-    const body = await req.json();
+    const { model, unloadConfig, vehicleTypes } = await req.json();
     const client = await auth.getClient();
     const token = await client.getAccessToken();
     
     if (!token.token) {
       return Response.json({ error: 'No se pudo obtener el token de acceso' }, { status: 401 });
+    }
+
+    // Agregar duration a cada shipment si existe unloadConfig y model
+    if (model?.shipments) {
+      model.shipments = model.shipments.map((shipment: any) => {
+        const type = vehicleTypes?.[shipment.vehicleId];
+        let unloadMins = 15; // default camioneta
+        if (type === 'Camión grande') unloadMins = unloadConfig?.truckLarge ?? 20;
+        else if (type === 'Camión chico') unloadMins = unloadConfig?.truckSmall ?? 18;
+        else if (type === 'Camioneta') unloadMins = unloadConfig?.van ?? 15;
+        
+        const durationSeconds = unloadMins * 60;
+        
+        return {
+          ...shipment,
+          deliveries: shipment.deliveries?.map((d: any) => ({
+            ...d,
+            duration: `${durationSeconds}s`
+          }))
+        };
+      });
     }
 
     const projectId = process.env.GOOGLE_PROJECT_ID || 'shuma-rutas';
@@ -38,7 +59,7 @@ export async function POST(req: Request) {
         'Authorization': `Bearer ${token.token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ model })
     });
     
     const data = await response.json();

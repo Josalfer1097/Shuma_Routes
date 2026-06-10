@@ -187,7 +187,8 @@ export async function optimizeSingleVehicle(
   addresses: Address[],
   departureTime: string,
   color: string,
-  zoneName: string
+  zoneName: string,
+  unloadConfig?: any
 ): Promise<Route> {
   const shipments: any[] = [];
   const validAddresses: Address[] = [];
@@ -231,8 +232,9 @@ export async function optimizeSingleVehicle(
       shipments,
       vehicles: [googleVehicle],
       globalStartTime: departureTime, // Fallback base
-      globalEndTime: globalEndTime,
     },
+    unloadConfig,
+    vehicleTypes: { [googleVehicle.label]: vehicle.type }
   };
 
   const googleResult = await callGoogleRouteOptimization(payload);
@@ -325,7 +327,8 @@ export async function optimizeRoutes(
   clusters: Cluster[],
   vehicles: Vehicle[],
   departureTime: string,
-  manualAssignments?: { addressId: string; vehicleIndex: number }[]
+  manualAssignments?: { addressId: string; vehicleIndex: number }[],
+  unloadConfig?: any
 ): Promise<Route[]> {
   if (clusters.length === 0) {
     throw new Error('No hay zonas generadas.');
@@ -379,6 +382,8 @@ export async function optimizeRoutes(
     const globalStartDate = new Date(departureTime);
     const globalEndTime = new Date(globalStartDate.getTime() + 12 * 60 * 60 * 1000).toISOString();
 
+    const vehicleTypes = vehicles.reduce((acc, v) => ({ ...acc, [v.driverName]: v.type }), {});
+
     const payload = {
       model: {
         shipments,
@@ -386,6 +391,8 @@ export async function optimizeRoutes(
         globalStartTime: departureTime, // Fallback base
         globalEndTime: globalEndTime,
       },
+      unloadConfig,
+      vehicleTypes
     };
 
     const googleResult = await callGoogleRouteOptimization(payload);

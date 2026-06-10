@@ -218,10 +218,61 @@ export type AppStep =
   | 'optimizing'   // Paso 3 (transición): calculando rutas
   | 'results';     // Paso 4 y 5: mostrando rutas y compartir
 
+export interface UnloadConfig {
+  /** Tiempo de descarga en minutos por entrega según tipo de vehículo */
+  truckLarge: number;   // default 20
+  truckSmall: number;   // default 18
+  van: number;          // default 15
+}
+
+export interface RouteViability {
+  vehicleId: string;
+  driverName: string;
+  departureTime: string;       // HH:MM
+  transitMinutes: number;      // solo tránsito Google
+  unloadMinutes: number;       // paradas × tiempo descarga
+  totalMinutes: number;        // tránsito + descarga
+  estimatedReturn: string;     // HH:MM hora estimada de regreso
+  deadlineTime: string;        // HH:MM hora límite configurada
+  status: 'ok' | 'warning' | 'critical';
+  // ok = antes 17:15, warning = 17:15-17:45, critical = después 17:45
+}
+
 export interface GlobalConfig {
   departureDepot: Depot;
   returnDepot: Depot | 'same';
-  departureTime: string; // HH:MM
+  departureTime: string;       // HH:MM
+  deadlineTime: string;        // HH:MM — nuevo campo, default '17:45'
+  unloadConfig: UnloadConfig;  // nuevo campo
+}
+
+// ─────────────────────────────────────────────
+//  KPIs y Dashboard
+// ─────────────────────────────────────────────
+
+export interface DailyKPIs {
+  date: string;
+  totalRoutes: number;
+  totalDrivers: number;
+  totalDeliveries: number;
+  completedDeliveries: number;
+  failedDeliveries: number;
+  pendingDeliveries: number;
+  totalKm: number;
+  avgDeliveryTimeMin: number;
+  onTimeRoutes: number;      // rutas que regresaron antes del deadline
+  lateRoutes: number;
+}
+
+export interface DriverKPI {
+  driverName: string;
+  deliveries: number;
+  completed: number;
+  failed: number;
+  totalKm: number;
+  totalTimeMin: number;
+  estimatedReturn: string;
+  status: 'ok' | 'warning' | 'critical';
 }
 
 export interface AppState {
