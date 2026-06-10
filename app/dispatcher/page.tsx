@@ -446,10 +446,23 @@ export default function DispatcherPage() {
             />
           </div>
           <div className="flex items-center gap-3">
-            <span style={{ fontSize: 11, color: '#5B7BA0', letterSpacing: '0.08em' }}>
+            <span style={{ fontSize: 13, color: '#E8EFF8', fontWeight: 500 }}>
               {typeof window !== 'undefined' ? sessionStorage.getItem('shuma_name') || '' : ''}
-              {typeof window !== 'undefined' && sessionStorage.getItem('shuma_role') ? ` · ${{admin:'Administrador',logistics:'Logística',viewer:'Supervisor',driver:'Chofer'}[sessionStorage.getItem('shuma_role')!] || sessionStorage.getItem('shuma_role')}` : ''}
             </span>
+            {typeof window !== 'undefined' && sessionStorage.getItem('shuma_role') && sessionStorage.getItem('shuma_role') !== 'driver' && (
+              <span style={{
+                background: 'rgba(33,150,243,0.12)',
+                border: '1px solid rgba(33,150,243,0.25)',
+                borderRadius: '20px',
+                padding: '2px 8px',
+                fontSize: '10px',
+                color: '#4a90d9',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase'
+              }}>
+                {{admin:'Admin',logistics:'Logística',viewer:'Supervisor'}[sessionStorage.getItem('shuma_role')!] || sessionStorage.getItem('shuma_role')}
+              </span>
+            )}
             <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-shuma-muted hover:text-shuma-text border border-transparent hover:border-shuma-border hover:bg-shuma-surface rounded-lg transition-all"
