@@ -663,7 +663,9 @@ export default function DispatcherPage() {
             )}
           </div>
 
-          <span className="hidden-mobile" style={{
+          <span style={{
+            flex: 1,
+            textAlign: 'center',
             fontFamily: "'Exo 2', sans-serif",
             fontSize: 10,
             letterSpacing: '0.14em',
@@ -675,8 +677,8 @@ export default function DispatcherPage() {
             backgroundClip: 'text',
             animation: 'rgbRoll 5s linear infinite',
             opacity: 0.8,
-            flex: 1,
-            textAlign: 'center'
+            pointerEvents: 'none',
+            userSelect: 'none',
           }}>
             Design &amp; Developed by Shuma Sistemas IT
           </span>
