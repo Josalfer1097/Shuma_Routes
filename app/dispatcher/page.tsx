@@ -661,8 +661,8 @@ export default function DispatcherPage() {
             flex: 1,
             textAlign: 'center',
             fontFamily: "'Exo 2', sans-serif",
-            fontSize: 10,
-            letterSpacing: '0.14em',
+            fontSize: 13,
+            letterSpacing: '0.12em',
             textTransform: 'uppercase',
             background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
             backgroundSize: '400% auto',
@@ -903,7 +903,7 @@ export default function DispatcherPage() {
         isOpen={isSlideOverOpen}
         onClose={() => setIsSlideOverOpen(false)}
         title={SLIDE_TITLES[activeTab] || 'Configuración'}
-        width={['config','zones'].includes(activeTab) ? 780 : 820}
+        width={['config','zones'].includes(activeTab) ? 920 : 960}
         footer={
           activeTab === 'config' ? (
             <>

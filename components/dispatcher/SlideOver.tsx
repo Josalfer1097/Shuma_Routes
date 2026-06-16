@@ -18,7 +18,7 @@ export default function SlideOver({
   title,
   children,
   footer,
-  width = 600,
+  width = 880,
 }: SlideOverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -67,7 +67,7 @@ export default function SlideOver({
           top: 0,
           right: 0,
           bottom: 0,
-          width: typeof window !== 'undefined' && window.innerWidth < 768 ? '100vw' : `${width}px`,
+          width: typeof window !== 'undefined' && window.innerWidth < 768 ? '100vw' : typeof window !== 'undefined' && window.innerWidth <= 1200 ? `min(90vw, ${width}px)` : `${width}px`,
           maxWidth: '100vw',
           background: 'rgba(10,22,40,0.55)',
           backdropFilter: 'blur(28px) saturate(1.6)',
@@ -156,7 +156,9 @@ export default function SlideOver({
         <div
           style={{
             flex: 1,
-            overflowY: 'auto',
+            overflowY: 'scroll',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(33,150,243,0.35) rgba(255,255,255,0.03)',
             padding: 20,
           }}
           className="so-body"
@@ -186,14 +188,19 @@ export default function SlideOver({
       {/* ── Scoped styles ── */}
       <style jsx global>{`
         .so-body::-webkit-scrollbar {
-          width: 3px;
+          width: 6px;
         }
         .so-body::-webkit-scrollbar-track {
-          background: transparent;
+          background: rgba(255,255,255,0.03);
+          border-radius: 999px;
         }
         .so-body::-webkit-scrollbar-thumb {
-          background: rgba(33,150,243,0.2);
+          background: rgba(33,150,243,0.35);
           border-radius: 999px;
+          border: 1px solid rgba(33,150,243,0.1);
+        }
+        .so-body::-webkit-scrollbar-thumb:hover {
+          background: rgba(33,150,243,0.55);
         }
 
         /* ── Section titles inside slide-over ── */

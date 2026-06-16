@@ -288,7 +288,7 @@ export default function AdminLoginPage() {
         .ls-footer {
           margin-top: 20px; text-align: center;
           font-family: 'Exo 2', sans-serif; font-size: 13px;
-          letter-spacing: 0.12em; text-transform: uppercase;
+          letter-spacing: 0.10em; text-transform: uppercase;
           background: linear-gradient(90deg,
             #ff0000, #ff6600, #ffff00, #00ff00,
             #00ffff, #0066ff, #cc00ff, #ff0000

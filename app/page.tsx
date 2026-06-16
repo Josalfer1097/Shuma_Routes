@@ -106,7 +106,7 @@ export default function HomePage() {
         {/* Footer RGB */}
         <p style={{
           textAlign: 'center',
-          fontSize: 13,
+          fontSize: 14,
           letterSpacing: '0.12em',
           textTransform: 'uppercase',
           marginTop: 32,
@@ -116,7 +116,7 @@ export default function HomePage() {
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
           animation: 'rgbRoll 5s linear infinite',
-          opacity: 0.75
+          opacity: 0.8
         }}>
           Design &amp; Developed by Shuma Sistemas IT
         </p>
