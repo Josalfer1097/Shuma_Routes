@@ -535,13 +535,7 @@ export default function DispatcherPage() {
     }
   }, [state.vehicles, state.globalConfig, state.routes]);
 
-  // ── Stepper tab definitions ──
-  const tabs = [
-    { id: 'config' as const, label: 'Conf.', count: 0 },
-    { id: 'upload' as const, label: 'Dir.', count: state.addresses.length },
-    { id: 'zones' as const, label: 'Zonas', count: state.clusters.length },
-    { id: 'routes' as const, label: 'Rutas', count: state.routes.length },
-  ];
+
 
   // ── Determine completed tabs ──
   const isTabCompleted = (tabId: string): boolean => {
@@ -560,7 +554,7 @@ export default function DispatcherPage() {
   };
 
   // ── Map height calculation ──
-  const mapHeight = isMapFullscreen ? '100vh' : 'calc(100vh - 22px - 48px - 40px)';
+  const mapHeight = isMapFullscreen ? '100vh' : 'calc(100vh - 48px)';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#050C1A', overflow: 'hidden' }}>
@@ -743,54 +737,6 @@ export default function DispatcherPage() {
       )}
 
       {/* ═══════════════════════════════════════════════ */}
-      {/* STEPPER — 40px                                 */}
-      {/* ═══════════════════════════════════════════════ */}
-      {!isMapFullscreen && (
-        <nav
-          style={{
-            display: 'flex', alignItems: 'center',
-            height: 40, padding: '0 16px',
-            background: '#0A1628',
-            borderBottom: '1px solid #112040',
-            flexShrink: 0,
-            overflowX: 'auto',
-          }}
-        >
-          {(['config','upload','zones','routes'] as const).map((s, i) => {
-            const labels = ['Conf.','Dir.','Zonas','Rutas'];
-            const isActive = activeTab === s;
-            const stepsOrder = ['config','upload','zones','routes'];
-            const isDone = stepsOrder.indexOf(activeTab) > stepsOrder.indexOf(s) || isTabCompleted(s);
-            
-            return (
-              <button key={s}
-                onClick={() => {
-                  setActiveTab(s);
-                  if (s === 'config') dispatch({ type: 'SET_STEP', payload: 'config' });
-                  if (s === 'upload') dispatch({ type: 'SET_STEP', payload: 'upload' });
-                  if (s === 'zones') dispatch({ type: 'SET_STEP', payload: 'zones' });
-                  if (s === 'routes') dispatch({ type: 'SET_STEP', payload: 'results' });
-                  if (s !== 'config') setIsSlideOverOpen(true);
-                }}
-                style={{
-                  padding: '0 16px', height: '100%',
-                  background: 'transparent', border: 'none',
-                  borderBottom: isActive ? '2px solid #2196F3' : '2px solid transparent',
-                  color: isActive ? '#2196F3' : isDone ? '#10B981' : '#5B7BA0',
-                  fontSize: 12, cursor: 'pointer',
-                  fontFamily: "'Exo 2', sans-serif",
-                  letterSpacing: '0.06em',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {labels[i]}
-              </button>
-            );
-          })}
-        </nav>
-      )}
-
-      {/* ═══════════════════════════════════════════════ */}
       {/* MAP AREA — full width                          */}
       {/* ═══════════════════════════════════════════════ */}
       <main style={{ flex: 1, position: 'relative', overflow: 'hidden', height: mapHeight }}>
@@ -890,7 +836,13 @@ export default function DispatcherPage() {
         {/* ── FAB (bottom-right) — always visible including fullscreen ── */}
         {FAB_CONFIG[activeTab] && (
           <button
-            onClick={() => setIsSlideOverOpen(true)}
+            onClick={() => {
+              if (activeTab === 'routes' && state.routes.length === 0) {
+                setActiveTab('config');
+                dispatch({ type: 'SET_STEP', payload: 'config' });
+              }
+              setIsSlideOverOpen(true);
+            }}
             style={{
               position: 'absolute',
               bottom: 20,
@@ -921,8 +873,8 @@ export default function DispatcherPage() {
               e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
-            <span>{FAB_CONFIG[activeTab].icon}</span>
-            {FAB_CONFIG[activeTab].label}
+            <span>⚙</span>
+            Configuración
           </button>
         )}
 
@@ -945,299 +897,318 @@ export default function DispatcherPage() {
       </main>
 
       {/* ═══════════════════════════════════════════════ */}
-      {/* SLIDE-OVER — per active tab                    */}
+      {/* SLIDE-OVER CON PESTAÑAS INTERNAS                */}
       {/* ═══════════════════════════════════════════════ */}
-
-      {/* ── PASO 1: Configuración ── */}
       <SlideOver
-        isOpen={isSlideOverOpen && activeTab === 'config'}
+        isOpen={isSlideOverOpen}
         onClose={() => setIsSlideOverOpen(false)}
-        title={SLIDE_TITLES.config}
-        width={SLIDE_WIDTHS.config}
+        title={SLIDE_TITLES[activeTab] || 'Configuración'}
+        width={['config','zones'].includes(activeTab) ? 780 : 820}
         footer={
-          <>
-            <button className="so-btn-ghost" onClick={() => setIsSlideOverOpen(false)}>
-              Cancelar
-            </button>
-            <button
-              className="so-btn-primary"
-              id="config-submit-btn"
-              onClick={() => {
-                // The ConfigPanel handles save via the onSave prop
-                // We trigger it by dispatching a custom event
-                const btn = document.getElementById('config-save-trigger');
-                if (btn) btn.click();
-              }}
-            >
-              Guardar y continuar →
-            </button>
-          </>
-        }
-      >
-        <ConfigPanel
-          currentConfig={state.globalConfig}
-          vehicles={state.vehicles}
-          onAddVehicle={(v) => dispatch({ type: 'ADD_VEHICLE', payload: v })}
-          onRemoveVehicle={(id) => dispatch({ type: 'REMOVE_VEHICLE', payload: id })}
-          onSave={(conf) => {
-            dispatch({ type: 'SET_GLOBAL_CONFIG', payload: conf });
-            dispatch({ type: 'SET_STEP', payload: 'upload' });
-            setActiveTab('upload');
-            setIsSlideOverOpen(false);
-          }}
-        />
-      </SlideOver>
-
-      {/* ── PASO 2: Direcciones ── */}
-      <SlideOver
-        isOpen={isSlideOverOpen && activeTab === 'upload'}
-        onClose={() => setIsSlideOverOpen(false)}
-        title={SLIDE_TITLES.upload}
-        width={SLIDE_WIDTHS.upload}
-        footer={
-          <>
-            <button className="so-btn-ghost" onClick={() => { setActiveTab('config'); }}>
-              ← Volver
-            </button>
-            <button
-              className="so-btn-primary"
-              disabled={state.addresses.length === 0}
-              onClick={() => {
-                if (state.addresses.length > 0) {
-                  setActiveTab('zones');
-                  setIsSlideOverOpen(false);
-                }
-              }}
-            >
-              Continuar a Zonas →
-            </button>
-          </>
-        }
-      >
-        <CSVUploader onAddressesLoaded={handleAddressesLoaded} disabled={!state.globalConfig} />
-      </SlideOver>
-
-      {/* ── PASO 3: Zonas y viabilidad ── */}
-      <SlideOver
-        isOpen={isSlideOverOpen && activeTab === 'zones'}
-        onClose={() => setIsSlideOverOpen(false)}
-        title={SLIDE_TITLES.zones}
-        width={SLIDE_WIDTHS.zones}
-        footer={
-          <>
-            <button className="so-btn-ghost" onClick={() => { setActiveTab('upload'); }}>
-              ← Volver
-            </button>
-            <button
-              className="so-btn-primary"
-              onClick={() => {
-                dispatch({ type: 'SET_STEP', payload: 'optimizing' });
-                handleOptimize();
-              }}
-            >
-              ⚡ Optimizar Rutas
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="w-full h-[400px] rounded-xl overflow-hidden border border-shuma-border">
-            <ZoneMap
-              clusters={state.clusters}
-              onConfirm={() => {
-                dispatch({ type: 'SET_STEP', payload: 'optimizing' });
-                handleOptimize();
-              }}
-              onRegroup={() => {
-                const regenerated = clusterDeliveries(state.addresses, state.vehicles, state.clusteringConfig);
-                dispatch({ type: 'SET_CLUSTERS', payload: regenerated });
-              }}
-            />
-          </div>
-          <div className="flex items-center justify-between bg-slate-700/50 p-3 rounded-xl border border-shuma-border">
-            <div>
-              <h3 className="text-sm font-bold text-white">Zonas ({state.clusters.length})</h3>
-              <p className="text-xs text-shuma-muted">1 zona por camión</p>
-            </div>
-            <button
-              onClick={() => setShowInlineVehicleForm(!showInlineVehicleForm)}
-              className="px-3 py-1.5 text-xs font-bold bg-slate-600 hover:bg-slate-500 rounded-lg text-white"
-            >
-              {showInlineVehicleForm ? 'Cancelar' : '+ Agregar camión'}
-            </button>
-          </div>
-
-          {showInlineVehicleForm && (
-            <div className="bg-shuma-surface rounded-xl p-3 border border-shuma-border">
-              <VehicleForm
-                vehicles={state.vehicles}
-                onAdd={(v) => {
-                  dispatch({ type: 'ADD_VEHICLE', payload: v });
-                  setShowInlineVehicleForm(false);
-                  const newClusters = clusterDeliveries(state.addresses, [...state.vehicles, v], state.clusteringConfig);
-                  dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
-                  setNumClusters(state.vehicles.length + 1);
+          activeTab === 'config' ? (
+            <>
+              <button className="so-btn-ghost" onClick={() => setIsSlideOverOpen(false)}>
+                Cancelar
+              </button>
+              <button
+                className="so-btn-primary"
+                id="config-submit-btn"
+                onClick={() => {
+                  const btn = document.getElementById('config-save-trigger');
+                  if (btn) btn.click();
                 }}
-                onRemove={(id) => dispatch({ type: 'REMOVE_VEHICLE', payload: id })}
-              />
-            </div>
-          )}
-
-          <div className="bg-shuma-surface p-3 rounded-xl border border-shuma-border space-y-3">
-            <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-shuma-text">Balanceo de Flota</label>
-              <span className="text-xs text-blue-400 font-mono">Automático</span>
-            </div>
-            <div className="text-[11px] text-shuma-muted leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-shuma-border">
-              <p>
-                Google Route Optimization API distribuye inteligentemente las paradas basándose en las capacidades de los vehículos minimizando el tiempo y costo total para toda la flota.
-              </p>
-            </div>
-          </div>
-
-          <ul className="space-y-2">
-            {state.clusters.map((cluster, idx) => {
-              const assignedVehicle = state.vehicles[idx];
-              return (
-                <li key={cluster.id} className="p-3 bg-shuma-surface rounded-lg border-l-4" style={{ borderColor: cluster.color }}>
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-200">{cluster.name}</h4>
-                      <p className="text-xs text-shuma-muted">{cluster.addresses.length} paradas</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-shuma-muted uppercase font-bold tracking-wider">Chofer Asignado</label>
-                    <select
-                      value={assignedVehicle?.id || ''}
-                      onChange={(e) => {
-                        const newVehicleId = e.target.value;
-                        const newIdx = state.vehicles.findIndex(v => v.id === newVehicleId);
-                        if (newIdx !== -1 && newIdx !== idx) {
-                          dispatch({ type: 'SWAP_VEHICLES', payload: { index1: idx, index2: newIdx } });
-                        }
-                      }}
-                      className="w-full bg-slate-900 border border-shuma-border rounded-md p-1.5 text-xs text-slate-200 outline-none"
-                    >
-                      {state.vehicles.map(v => (
-                        <option key={v.id} value={v.id}>{v.driverName} ({v.type})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1 mt-2">
-                    <label className="text-[10px] text-shuma-muted uppercase font-bold tracking-wider">Capacidad Máxima (Paradas)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="50"
-                      value={state.clusteringConfig.vehicleCapacities.find(c => c.vehicleId === assignedVehicle?.id)?.maxStops || (assignedVehicle?.type === 'Camioneta' ? 4 : 6)}
-                      onChange={(e) => {
-                        if (!assignedVehicle) return;
-                        const val = parseInt(e.target.value) || 0;
-                        const caps = [...state.clusteringConfig.vehicleCapacities];
-                        const idxCap = caps.findIndex(c => c.vehicleId === assignedVehicle.id);
-                        if (idxCap >= 0) caps[idxCap].maxStops = val;
-                        else caps.push({ vehicleId: assignedVehicle.id, maxStops: val });
-                        
-                        const newConfig = { ...state.clusteringConfig, vehicleCapacities: caps };
-                        dispatch({ type: 'SET_CLUSTERING_CONFIG', payload: newConfig });
-                        const newClusters = clusterDeliveries(state.addresses, state.vehicles, newConfig);
-                        dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
-                      }}
-                      className="w-full bg-slate-900 border border-shuma-border rounded-md p-1.5 text-xs text-slate-200 outline-none"
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-
-          {/* PANEL DE VIABILIDAD ANTES DE OPTIMIZAR */}
-          <div className="bg-shuma-surface p-3 rounded-xl border border-shuma-border space-y-3 mt-4">
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-xs font-bold text-shuma-text">Viabilidad Estimada</label>
-              <span className="text-[10px] text-shuma-muted">Pre-optimización Google</span>
-            </div>
-            <div className="space-y-2">
-              {calcularViabilidad(state.vehicles, state.clusters, state.globalConfig).map(viab => {
-                let semaforo = '🟢';
-                let bgClass = 'bg-emerald-500/5';
-                let borderClass = 'border-l-emerald-500';
-                if (viab.status === 'warning') {
-                  semaforo = '🟡'; bgClass = 'bg-amber-500/5'; borderClass = 'border-l-amber-500';
-                } else if (viab.status === 'critical') {
-                  semaforo = '🔴'; bgClass = 'bg-red-500/5'; borderClass = 'border-l-red-500';
-                }
-
-                return (
-                  <div key={viab.vehicleId} className={`p-2 border-l-[3px] ${borderClass} ${bgClass} rounded-r-lg border-y border-r border-shuma-border/50`}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-bold text-slate-200">{semaforo} {viab.driverName}</span>
-                      <span className="text-[10px] font-medium text-shuma-muted">Límite: {viab.deadlineTime}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[10px] text-slate-400 mb-1">
-                      <span>Salida: {viab.departureTime}</span>
-                      <span>Entregas: {viab.stops}</span>
-                      <span className={`font-bold ${viab.status === 'critical' ? 'text-red-400' : viab.status === 'warning' ? 'text-amber-400' : 'text-emerald-400'}`}>Regreso est: {viab.estimatedReturn}</span>
-                    </div>
-                    <div className="text-[9px] text-shuma-muted">
-                      Tránsito: ~{Math.floor(viab.transitMinutes/60)}h {viab.transitMinutes%60}m + Descarga: ~{Math.floor(viab.unloadMinutes/60)}h {viab.unloadMinutes%60}m = Total: ~{Math.floor(viab.totalMinutes/60)}h {viab.totalMinutes%60}m
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </SlideOver>
-
-      {/* ── PASO 4: Rutas ── */}
-      <SlideOver
-        isOpen={isSlideOverOpen && activeTab === 'routes'}
-        onClose={() => setIsSlideOverOpen(false)}
-        title={SLIDE_TITLES.routes}
-        width={SLIDE_WIDTHS.routes}
-        footer={
-          state.routes.length > 0 ? (
+              >
+                Guardar y continuar →
+              </button>
+            </>
+          ) : activeTab === 'upload' ? (
+            <>
+              <button className="so-btn-ghost" onClick={() => { setActiveTab('config'); }}>
+                ← Volver
+              </button>
+              <button
+                className="so-btn-primary"
+                disabled={state.addresses.length === 0}
+                onClick={() => {
+                  if (state.addresses.length > 0) {
+                    setActiveTab('zones');
+                  }
+                }}
+              >
+                Continuar a Zonas →
+              </button>
+            </>
+          ) : activeTab === 'zones' ? (
+            <>
+              <button className="so-btn-ghost" onClick={() => { setActiveTab('upload'); }}>
+                ← Volver
+              </button>
+              <button
+                className="so-btn-primary"
+                onClick={() => {
+                  dispatch({ type: 'SET_STEP', payload: 'optimizing' });
+                  handleOptimize();
+                  setIsSlideOverOpen(false);
+                }}
+              >
+                ⚡ Optimizar Rutas
+              </button>
+            </>
+          ) : activeTab === 'routes' && state.routes.length > 0 ? (
             <>
               <ReportButton routes={state.routes} weather={weather} globalConfig={state.globalConfig} />
             </>
           ) : undefined
         }
       >
-        <div className="space-y-3">
-          <RoutePanel
-            routes={state.routes}
-            onShareRoute={handleShareRoute}
-            onReoptimize={handleReoptimize}
-            allVehicles={state.vehicles}
-            hiddenRouteIds={hiddenRouteIds}
-            onReoptimizeSingle={handleReoptimizeSingle}
-            globalDepartureTime={state.globalConfig?.departureTime}
-            deadlineTime={state.globalConfig?.deadlineTime}
-            unloadConfig={state.globalConfig?.unloadConfig}
-            onVehicleTimeChange={(vehicleId, timeStr) => {
-              dispatch({ 
-                type: 'UPDATE_VEHICLE', 
-                payload: { id: vehicleId, changes: { departureTime: timeStr } } 
-              });
-              dispatch({
-                type: 'SET_ROUTES',
-                payload: state.routes.map(r => 
-                  r.vehicleId === vehicleId ? { ...r, departureTime: timeStr } : r
-                )
-              });
-            }}
-            onToggleRouteVisibility={(vehicleId) => {
-              setHiddenRouteIds((prev) => 
-                prev.includes(vehicleId) 
-                  ? prev.filter((id) => id !== vehicleId) 
-                  : [...prev, vehicleId]
-              );
+        <div style={{
+          display: 'flex',
+          gap: 4,
+          padding: '0 0 16px 0',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          marginBottom: 20
+        }}>
+          {(['config','upload','zones','routes'] as const).map((s, i) => {
+            const labels = ['Conf.','Dir.','Zonas','Rutas'];
+            const isActive = activeTab === s;
+            const stepsOrder = ['config','upload','zones','routes'];
+            const isDone = stepsOrder.indexOf(activeTab) > stepsOrder.indexOf(s) || isTabCompleted(s);
+            return (
+              <button key={s}
+                onClick={() => {
+                  setActiveTab(s);
+                  if (s === 'config') dispatch({ type: 'SET_STEP', payload: 'config' });
+                  if (s === 'upload') dispatch({ type: 'SET_STEP', payload: 'upload' });
+                  if (s === 'zones') dispatch({ type: 'SET_STEP', payload: 'zones' });
+                  if (s === 'routes') dispatch({ type: 'SET_STEP', payload: 'results' });
+                }}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  background: isActive ? 'rgba(33,150,243,0.12)' : 'transparent',
+                  border: isActive ? '1px solid rgba(33,150,243,0.3)' : '1px solid transparent',
+                  borderRadius: 8,
+                  color: isActive ? '#2196F3' : isDone ? '#10B981' : '#5B7BA0',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  fontFamily: "'Exo 2', sans-serif",
+                  letterSpacing: '0.06em',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {labels[i]}
+              </button>
+            );
+          })}
+        </div>
+
+        {activeTab === 'config' && (
+          <ConfigPanel
+            currentConfig={state.globalConfig}
+            vehicles={state.vehicles}
+            onAddVehicle={(v) => dispatch({ type: 'ADD_VEHICLE', payload: v })}
+            onRemoveVehicle={(id) => dispatch({ type: 'REMOVE_VEHICLE', payload: id })}
+            onSave={(conf) => {
+              dispatch({ type: 'SET_GLOBAL_CONFIG', payload: conf });
+              dispatch({ type: 'SET_STEP', payload: 'upload' });
+              setActiveTab('upload');
             }}
           />
-        </div>
+        )}
+
+        {activeTab === 'upload' && (
+          <CSVUploader onAddressesLoaded={handleAddressesLoaded} disabled={!state.globalConfig} />
+        )}
+
+        {activeTab === 'zones' && (
+          <div className="space-y-4">
+            <div className="w-full h-[400px] rounded-xl overflow-hidden border border-shuma-border">
+              <ZoneMap
+                clusters={state.clusters}
+                onConfirm={() => {
+                  dispatch({ type: 'SET_STEP', payload: 'optimizing' });
+                  handleOptimize();
+                  setIsSlideOverOpen(false);
+                }}
+                onRegroup={() => {
+                  const regenerated = clusterDeliveries(state.addresses, state.vehicles, state.clusteringConfig);
+                  dispatch({ type: 'SET_CLUSTERS', payload: regenerated });
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between bg-slate-700/50 p-3 rounded-xl border border-shuma-border">
+              <div>
+                <h3 className="text-sm font-bold text-white">Zonas ({state.clusters.length})</h3>
+                <p className="text-xs text-shuma-muted">1 zona por camión</p>
+              </div>
+              <button
+                onClick={() => setShowInlineVehicleForm(!showInlineVehicleForm)}
+                className="px-3 py-1.5 text-xs font-bold bg-slate-600 hover:bg-slate-500 rounded-lg text-white"
+              >
+                {showInlineVehicleForm ? 'Cancelar' : '+ Agregar camión'}
+              </button>
+            </div>
+
+            {showInlineVehicleForm && (
+              <div className="bg-shuma-surface rounded-xl p-3 border border-shuma-border">
+                <VehicleForm
+                  vehicles={state.vehicles}
+                  onAdd={(v) => {
+                    dispatch({ type: 'ADD_VEHICLE', payload: v });
+                    setShowInlineVehicleForm(false);
+                    const newClusters = clusterDeliveries(state.addresses, [...state.vehicles, v], state.clusteringConfig);
+                    dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
+                    setNumClusters(state.vehicles.length + 1);
+                  }}
+                  onRemove={(id) => dispatch({ type: 'REMOVE_VEHICLE', payload: id })}
+                />
+              </div>
+            )}
+
+            <div className="bg-shuma-surface p-3 rounded-xl border border-shuma-border space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-shuma-text">Balanceo de Flota</label>
+                <span className="text-xs text-blue-400 font-mono">Automático</span>
+              </div>
+              <div className="text-[11px] text-shuma-muted leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-shuma-border">
+                <p>
+                  Google Route Optimization API distribuye inteligentemente las paradas basándose en las capacidades de los vehículos minimizando el tiempo y costo total para toda la flota.
+                </p>
+              </div>
+            </div>
+
+            <ul className="space-y-2">
+              {state.clusters.map((cluster, idx) => {
+                const assignedVehicle = state.vehicles[idx];
+                return (
+                  <li key={cluster.id} className="p-3 bg-shuma-surface rounded-lg border-l-4" style={{ borderColor: cluster.color }}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-200">{cluster.name}</h4>
+                        <p className="text-xs text-shuma-muted">{cluster.addresses.length} paradas</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] text-shuma-muted uppercase font-bold tracking-wider">Chofer Asignado</label>
+                      <select
+                        value={assignedVehicle?.id || ''}
+                        onChange={(e) => {
+                          const newVehicleId = e.target.value;
+                          const newIdx = state.vehicles.findIndex(v => v.id === newVehicleId);
+                          if (newIdx !== -1 && newIdx !== idx) {
+                            dispatch({ type: 'SWAP_VEHICLES', payload: { index1: idx, index2: newIdx } });
+                          }
+                        }}
+                        className="w-full bg-slate-900 border border-shuma-border rounded-md p-1.5 text-xs text-slate-200 outline-none"
+                      >
+                        {state.vehicles.map(v => (
+                          <option key={v.id} value={v.id}>{v.driverName} ({v.type})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1 mt-2">
+                      <label className="text-[10px] text-shuma-muted uppercase font-bold tracking-wider">Capacidad Máxima (Paradas)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={state.clusteringConfig.vehicleCapacities.find(c => c.vehicleId === assignedVehicle?.id)?.maxStops || (assignedVehicle?.type === 'Camioneta' ? 4 : 6)}
+                        onChange={(e) => {
+                          if (!assignedVehicle) return;
+                          const val = parseInt(e.target.value) || 0;
+                          const caps = [...state.clusteringConfig.vehicleCapacities];
+                          const idxCap = caps.findIndex(c => c.vehicleId === assignedVehicle.id);
+                          if (idxCap >= 0) caps[idxCap].maxStops = val;
+                          else caps.push({ vehicleId: assignedVehicle.id, maxStops: val });
+                          
+                          const newConfig = { ...state.clusteringConfig, vehicleCapacities: caps };
+                          dispatch({ type: 'SET_CLUSTERING_CONFIG', payload: newConfig });
+                          const newClusters = clusterDeliveries(state.addresses, state.vehicles, newConfig);
+                          dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
+                        }}
+                        className="w-full bg-slate-900 border border-shuma-border rounded-md p-1.5 text-xs text-slate-200 outline-none"
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* PANEL DE VIABILIDAD ANTES DE OPTIMIZAR */}
+            <div className="bg-shuma-surface p-3 rounded-xl border border-shuma-border space-y-3 mt-4">
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-xs font-bold text-shuma-text">Viabilidad Estimada</label>
+                <span className="text-[10px] text-shuma-muted">Pre-optimización Google</span>
+              </div>
+              <div className="space-y-2">
+                {calcularViabilidad(state.vehicles, state.clusters, state.globalConfig).map(viab => {
+                  let semaforo = '🟢';
+                  let bgClass = 'bg-emerald-500/5';
+                  let borderClass = 'border-l-emerald-500';
+                  if (viab.status === 'warning') {
+                    semaforo = '🟡'; bgClass = 'bg-amber-500/5'; borderClass = 'border-l-amber-500';
+                  } else if (viab.status === 'critical') {
+                    semaforo = '🔴'; bgClass = 'bg-red-500/5'; borderClass = 'border-l-red-500';
+                  }
+
+                  return (
+                    <div key={viab.vehicleId} className={`p-2 border-l-[3px] ${borderClass} ${bgClass} rounded-r-lg border-y border-r border-shuma-border/50`}>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-slate-200">{semaforo} {viab.driverName}</span>
+                        <span className="text-[10px] font-medium text-shuma-muted">Límite: {viab.deadlineTime}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] text-slate-400 mb-1">
+                        <span>Salida: {viab.departureTime}</span>
+                        <span>Entregas: {viab.stops}</span>
+                        <span className={`font-bold ${viab.status === 'critical' ? 'text-red-400' : viab.status === 'warning' ? 'text-amber-400' : 'text-emerald-400'}`}>Regreso est: {viab.estimatedReturn}</span>
+                      </div>
+                      <div className="text-[9px] text-shuma-muted">
+                        Tránsito: ~{Math.floor(viab.transitMinutes/60)}h {viab.transitMinutes%60}m + Descarga: ~{Math.floor(viab.unloadMinutes/60)}h {viab.unloadMinutes%60}m = Total: ~{Math.floor(viab.totalMinutes/60)}h {viab.totalMinutes%60}m
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'routes' && (
+          <div className="space-y-3">
+            <RoutePanel
+              routes={state.routes}
+              onShareRoute={handleShareRoute}
+              onReoptimize={handleReoptimize}
+              allVehicles={state.vehicles}
+              hiddenRouteIds={hiddenRouteIds}
+              onReoptimizeSingle={handleReoptimizeSingle}
+              globalDepartureTime={state.globalConfig?.departureTime}
+              deadlineTime={state.globalConfig?.deadlineTime}
+              unloadConfig={state.globalConfig?.unloadConfig}
+              onVehicleTimeChange={(vehicleId, timeStr) => {
+                dispatch({ 
+                  type: 'UPDATE_VEHICLE', 
+                  payload: { id: vehicleId, changes: { departureTime: timeStr } } 
+                });
+                dispatch({
+                  type: 'SET_ROUTES',
+                  payload: state.routes.map(r => 
+                    r.vehicleId === vehicleId ? { ...r, departureTime: timeStr } : r
+                  )
+                });
+              }}
+              onToggleRouteVisibility={(vehicleId) => {
+                setHiddenRouteIds((prev) => 
+                  prev.includes(vehicleId) 
+                    ? prev.filter((id) => id !== vehicleId) 
+                    : [...prev, vehicleId]
+                );
+              }}
+            />
+          </div>
+        )}
       </SlideOver>
+
 
       {/* ── Responsive CSS ── */}
       <style jsx global>{`

@@ -72,7 +72,7 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
         center: { lat: 19.4326, lng: -99.1332 }, // CDMX
         zoom: 12,
         mapId: 'shuma-rutas-map', // Requerido para AdvancedMarkerElement
-        mapTypeControl: false,     // Alternar roadmap y satellite
+        mapTypeControl: true,     // Alternar roadmap y satellite
         streetViewControl: false,
         fullscreenControl: false,
       });
