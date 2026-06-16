@@ -773,7 +773,14 @@ export default function DispatcherPage() {
             
             return (
               <button key={s}
-                onClick={() => setActiveTab(s)}
+                onClick={() => {
+                  setActiveTab(s);
+                  if (s === 'config') dispatch({ type: 'SET_STEP', payload: 'config' });
+                  if (s === 'upload') dispatch({ type: 'SET_STEP', payload: 'upload' });
+                  if (s === 'zones') dispatch({ type: 'SET_STEP', payload: 'zones' });
+                  if (s === 'routes') dispatch({ type: 'SET_STEP', payload: 'results' });
+                  if (s !== 'config') setIsSlideOverOpen(true);
+                }}
                 style={{
                   padding: '0 16px', height: '100%',
                   background: 'transparent', border: 'none',
@@ -797,26 +804,12 @@ export default function DispatcherPage() {
       {/* ═══════════════════════════════════════════════ */}
       <main style={{ flex: 1, position: 'relative', overflow: 'hidden', height: mapHeight }}>
         {/* Map */}
-        {state.step === 'zones' ? (
-          <ZoneMap
-            clusters={state.clusters}
-            onConfirm={() => {
-              dispatch({ type: 'SET_STEP', payload: 'optimizing' });
-              handleOptimize();
-            }}
-            onRegroup={() => {
-              const regenerated = clusterDeliveries(state.addresses, state.vehicles, state.clusteringConfig);
-              dispatch({ type: 'SET_CLUSTERS', payload: regenerated });
-            }}
-          />
-        ) : (
-          <MapView
-            addresses={state.addresses}
-            routes={state.routes}
-            depot={state.depot}
-            hiddenRouteIds={hiddenRouteIds}
-          />
-        )}
+        <MapView
+          addresses={state.addresses}
+          routes={state.routes}
+          depot={state.depot}
+          hiddenRouteIds={hiddenRouteIds}
+        />
 
         {/* ── Weather widget (bottom-left) ── */}
         {weather && (
@@ -1057,6 +1050,19 @@ export default function DispatcherPage() {
         }
       >
         <div className="space-y-4">
+          <div className="w-full h-[400px] rounded-xl overflow-hidden border border-shuma-border">
+            <ZoneMap
+              clusters={state.clusters}
+              onConfirm={() => {
+                dispatch({ type: 'SET_STEP', payload: 'optimizing' });
+                handleOptimize();
+              }}
+              onRegroup={() => {
+                const regenerated = clusterDeliveries(state.addresses, state.vehicles, state.clusteringConfig);
+                dispatch({ type: 'SET_CLUSTERS', payload: regenerated });
+              }}
+            />
+          </div>
           <div className="flex items-center justify-between bg-slate-700/50 p-3 rounded-xl border border-shuma-border">
             <div>
               <h3 className="text-sm font-bold text-white">Zonas ({state.clusters.length})</h3>
