@@ -569,35 +569,6 @@ export default function DispatcherPage() {
       {/* ═══════════════════════════════════════════════ */}
       {!isMapFullscreen && (
         <>
-          <div style={{
-            width: '100%',
-            height: 22,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(5,12,26,0.95)',
-            borderBottom: '1px solid rgba(17,32,64,0.8)',
-            flexShrink: 0,
-            zIndex: 50,
-            position: 'relative'
-          }}>
-            <span style={{
-              fontFamily: "'Exo 2', sans-serif",
-              fontSize: 9,
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
-              backgroundSize: '400% auto',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              animation: 'rgbRoll 5s linear infinite',
-              opacity: 0.75
-            }}>
-              Design &amp; Developed by Shuma Sistemas IT
-            </span>
-          </div>
-
           <header
             style={{
               height: 48,
@@ -691,6 +662,24 @@ export default function DispatcherPage() {
               </>
             )}
           </div>
+
+          <span className="hidden-mobile" style={{
+            fontFamily: "'Exo 2', sans-serif",
+            fontSize: 10,
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
+            backgroundSize: '400% auto',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            animation: 'rgbRoll 5s linear infinite',
+            opacity: 0.8,
+            flex: 1,
+            textAlign: 'center'
+          }}>
+            Design &amp; Developed by Shuma Sistemas IT
+          </span>
 
           {/* ── Right: User info + Logout ── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
