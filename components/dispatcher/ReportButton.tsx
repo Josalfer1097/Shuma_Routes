@@ -110,7 +110,7 @@ export default function ReportButton({ routes, weather, globalConfig }: Props) {
       const [h, m] = depTimeStr.split(':').map(Number);
       const totalMins = Math.round((route.totalDuration || 0) / 60);
       const returnMins = (h * 60 + m) + totalMins;
-      
+
       let status = '✓ En tiempo';
       if (returnMins > deadlineMins) status = '✗ Fuera de tiempo';
       else if (returnMins > deadlineMins - 30) status = '⚠ Riesgo';
@@ -157,7 +157,7 @@ export default function ReportButton({ routes, weather, globalConfig }: Props) {
         3: { halign: 'center' },
         4: { halign: 'center' },
       },
-      didParseCell: function(data: any) {
+      didParseCell: function (data: any) {
         if (data.section === 'body' && data.column.index === 4) {
           const val = data.cell.raw;
           if (val.includes('Fuera')) data.cell.styles.textColor = [220, 38, 38]; // red-600
@@ -185,13 +185,13 @@ export default function ReportButton({ routes, weather, globalConfig }: Props) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(100, 116, 139); // slate-500
-      
+
       let depTimeStr = '—';
       if (route.departureTime) {
         const dDate = new Date(route.departureTime);
         depTimeStr = dDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
       }
-      
+
       doc.text(`${route.vehicleType || 'Vehículo'}  ·  Salida: ${depTimeStr}`, 190, 25, { align: 'right' });
 
       // Línea divisoria
@@ -218,7 +218,7 @@ export default function ReportButton({ routes, weather, globalConfig }: Props) {
       if (route.vehicleType === 'Camión grande') unloadPerStop = globalConfig?.unloadConfig?.truckLarge ?? 20;
       else if (route.vehicleType === 'Camión chico') unloadPerStop = globalConfig?.unloadConfig?.truckSmall ?? 18;
       else if (route.vehicleType === 'Camioneta') unloadPerStop = globalConfig?.unloadConfig?.van ?? 15;
-      
+
       const stopsCount = route.stops.length;
       const unloadMins = stopsCount * unloadPerStop;
       const totalMins = Math.round((route.totalDuration || 0) / 60);
@@ -243,12 +243,12 @@ export default function ReportButton({ routes, weather, globalConfig }: Props) {
       doc.setTextColor(71, 85, 105); // slate-600
       doc.text(route.depot.name, 48, 40);
       doc.text(route.totalDistance ? formatDistance(route.totalDistance) : '—', 48, 46);
-      doc.text(`~${Math.floor(transitMins/60)}h ${transitMins%60}m`, 48, 52);
-      doc.text(`~${Math.floor(unloadMins/60)}h ${unloadMins%60}m (${unloadPerStop}m x parada)`, 48, 58);
+      doc.text(`~${Math.floor(transitMins / 60)}h ${transitMins % 60}m`, 48, 52);
+      doc.text(`~${Math.floor(unloadMins / 60)}h ${unloadMins % 60}m (${unloadPerStop}m x parada)`, 48, 58);
 
       doc.text(route.endDepot?.name || route.depot.name, 126, 40);
       doc.text(depTimeStr, 126, 46);
-      
+
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 23, 42); // slate-900
       doc.text(etaReturn, 126, 52);

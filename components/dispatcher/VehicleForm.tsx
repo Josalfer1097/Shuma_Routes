@@ -20,14 +20,14 @@ const inputCls = `w-full px-3 py-2 text-sm bg-shuma-bg border border-shuma-borde
 
 export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
   const assignedDriverIds = vehicles.map(v => v.driverName);
-  
+
   // Encontrar el primer chofer no asignado para seleccionarlo por defecto
   const firstAvailableDriver = DRIVERS.find(d => !assignedDriverIds.includes(d.name));
-  
-  const [driverId, setDriverId]   = useState(firstAvailableDriver?.id || DRIVERS[0].id);
+
+  const [driverId, setDriverId] = useState(firstAvailableDriver?.id || DRIVERS[0].id);
   const [vehicleType, setVehicleType] = useState<'Camión grande' | 'Camión chico' | 'Camioneta'>('Camión grande');
-  const [capacity, setCapacity]   = useState('');
-  const [invoices, setInvoices]   = useState('');
+  const [capacity, setCapacity] = useState('');
+  const [invoices, setInvoices] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -52,7 +52,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
     };
 
     onAdd(newVehicle);
-    
+
     // Al agregar, recalcular el próximo disponible excluyendo el que se acaba de agregar
     const nextAssigned = [...assignedDriverIds, selectedDriver.name];
     const nextAvailable = DRIVERS.find(d => !nextAssigned.includes(d.name));
@@ -67,101 +67,101 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
       {/* Formulario */}
       {firstAvailableDriver ? (
         <form onSubmit={handleSubmit} className="space-y-3 bg-shuma-surface p-4 rounded-xl border border-shuma-border">
-        <div className="space-y-3">
-          {/* Chofer */}
-          <div>
-            <label className="block text-xs font-medium text-shuma-muted mb-1">
-              Chofer *
-            </label>
-            <select
-              value={driverId}
-              onChange={(e) => {
-                const newId = e.target.value;
-                setDriverId(newId);
-                const driver = DRIVERS.find(d => d.id === newId);
-                if (driver?.defaultType) {
-                  setVehicleType(driver.defaultType);
-                }
-              }}
-              className={inputCls}
-            >
-              {DRIVERS.map((d) => {
-                const isAssigned = assignedDriverIds.includes(d.name);
-                return (
-                  <option 
-                    key={d.id} 
-                    value={d.id} 
-                    disabled={isAssigned}
-                    className={isAssigned ? 'opacity-50 cursor-not-allowed bg-shuma-surface text-shuma-muted' : ''}
-                  >
-                    {d.name} — Mat. {d.matricula} {isAssigned ? '(Asignado)' : ''}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          {/* Tipo */}
-          <div>
-            <label className="block text-xs font-medium text-shuma-muted mb-1">
-              Tipo de vehículo *
-            </label>
-            <select
-              value={vehicleType}
-              onChange={(e) => setVehicleType(e.target.value as any)}
-              className={inputCls}
-            >
-              <option value="Camión grande">Camión grande</option>
-              <option value="Camión chico">Camión chico</option>
-              <option value="Camioneta">Camioneta</option>
-            </select>
-          </div>
-
-          {/* Capacidad y Facturas */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-3">
+            {/* Chofer */}
             <div>
               <label className="block text-xs font-medium text-shuma-muted mb-1">
-                Bultos máximos
+                Chofer *
               </label>
-              <input
-                type="number"
-                value={capacity}
-                onChange={(e) => setCapacity(e.target.value)}
-                placeholder="Sin límite"
-                min="1"
+              <select
+                value={driverId}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setDriverId(newId);
+                  const driver = DRIVERS.find(d => d.id === newId);
+                  if (driver?.defaultType) {
+                    setVehicleType(driver.defaultType);
+                  }
+                }}
                 className={inputCls}
-              />
+              >
+                {DRIVERS.map((d) => {
+                  const isAssigned = assignedDriverIds.includes(d.name);
+                  return (
+                    <option
+                      key={d.id}
+                      value={d.id}
+                      disabled={isAssigned}
+                      className={isAssigned ? 'opacity-50 cursor-not-allowed bg-shuma-surface text-shuma-muted' : ''}
+                    >
+                      {d.name} — Mat. {d.matricula} {isAssigned ? '(Asignado)' : ''}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
+
+            {/* Tipo */}
             <div>
               <label className="block text-xs font-medium text-shuma-muted mb-1">
-                Factura(s)
+                Tipo de vehículo *
               </label>
-              <input
-                type="text"
-                value={invoices}
-                onChange={(e) => setInvoices(e.target.value)}
-                placeholder="Ej: F-001, F-002"
+              <select
+                value={vehicleType}
+                onChange={(e) => setVehicleType(e.target.value as any)}
                 className={inputCls}
-              />
+              >
+                <option value="Camión grande">Camión grande</option>
+                <option value="Camión chico">Camión chico</option>
+                <option value="Camioneta">Camioneta</option>
+              </select>
+            </div>
+
+            {/* Capacidad y Facturas */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-medium text-shuma-muted mb-1">
+                  Bultos máximos
+                </label>
+                <input
+                  type="number"
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                  placeholder="Sin límite"
+                  min="1"
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-shuma-muted mb-1">
+                  Factura(s)
+                </label>
+                <input
+                  type="text"
+                  value={invoices}
+                  onChange={(e) => setInvoices(e.target.value)}
+                  placeholder="Ej: F-001, F-002"
+                  className={inputCls}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {formError && <p className="text-xs text-red-400 mt-2">{formError}</p>}
+          {formError && <p className="text-xs text-red-400 mt-2">{formError}</p>}
 
-        <button
-          type="submit"
-          disabled={vehicles.length >= 6}
-          className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2 rounded-lg
+          <button
+            type="submit"
+            disabled={vehicles.length >= 6}
+            className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2 rounded-lg
                      bg-shuma-surface hover:bg-shuma-border border border-shuma-border hover:border-shuma-accent
                      disabled:opacity-50 disabled:cursor-not-allowed
                      text-sm font-medium text-shuma-text transition-all duration-200"
-        >
-          <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          {vehicles.length >= 6 ? 'Máximo 6 camiones' : 'Agregar camión'}
-        </button>
+          >
+            <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            {vehicles.length >= 6 ? 'Máximo 6 camiones' : 'Agregar camión'}
+          </button>
         </form>
       ) : (
         <div className="bg-shuma-surface p-4 rounded-xl border border-shuma-border text-center text-sm text-shuma-muted">
