@@ -14,11 +14,12 @@ import RoutePanel from '@/components/dispatcher/RoutePanel';
 import OptimizeButton from '@/components/dispatcher/OptimizeButton';
 import ReportButton from '@/components/dispatcher/ReportButton';
 import WeatherBanner from '@/components/dispatcher/WeatherBanner';
+import SlideOver from '@/components/dispatcher/SlideOver';
 import { clusterDeliveries } from '@/lib/clustering';
 import type { Cluster, GlobalConfig, ClusteringConfig, Stop } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { FileText, Map, Plus, Save, Settings, Trash2, Truck, Upload, X, LogOut, Download, Navigation, Play, User as UserIcon, CheckCircle, BarChart2, ClipboardList } from 'lucide-react';
+import { BarChart2, History, LogOut, Maximize2, Minimize2 } from 'lucide-react';
 import Image from 'next/image';
 
 // Leaflet NO es compatible con SSR → dynamic import
@@ -187,6 +188,30 @@ function calcularViabilidad(vehicles: Vehicle[], clusters: Cluster[], globalConf
   });
 }
 
+// ─── Helper: rol badge text ────────────────────────────────
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'ADMIN',
+  logistics: 'LOGÍSTICA',
+  viewer: 'SUPERVISOR',
+  driver: 'CHOFER',
+};
+
+// ─── Helper: FAB config per tab ────────────────────────────
+const FAB_CONFIG: Record<string, { icon: string; label: string }> = {
+  config: { icon: '⚙', label: 'Configurar ruta' },
+  upload: { icon: '📂', label: 'Cargar CSV' },
+  zones:  { icon: '🗺', label: 'Ver zonas' },
+  routes: { icon: '🚗', label: 'Ver rutas' },
+};
+
+// ─── Slide-over widths per tab ─────────────────────────────
+const SLIDE_WIDTHS: Record<string, number> = {
+  config: 440,
+  upload: 560,
+  zones: 440,
+  routes: 480,
+};
+
 // ─── Componente principal ──────────────────────────────────
 
 export default function DispatcherPage() {
@@ -197,6 +222,21 @@ export default function DispatcherPage() {
 
   const { logout } = useAuth();
   const router = useRouter();
+
+  // ── New layout states ──
+  const [isSlideOverOpen, setIsSlideOverOpen] = useState(false);
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+
+  // ── Session data (client-only) ──
+  const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setUserName(sessionStorage.getItem('shuma_name') || '');
+      setUserRole(sessionStorage.getItem('shuma_role') || '');
+    }
+  }, []);
 
   const handleLogout = () => {
     sessionStorage.removeItem('shuma_auth');
@@ -277,6 +317,7 @@ export default function DispatcherPage() {
     
     dispatch({ type: 'SET_STEP', payload: 'zones' });
     setActiveTab('zones');
+    setIsSlideOverOpen(false);
 
     // Si todas las direcciones fallaron, mostramos un error global
     const successCount = updatedAddresses.filter(a => a.lat !== null).length;
@@ -322,6 +363,7 @@ export default function DispatcherPage() {
     setIsOptimizing(true);
     dispatch({ type: 'SET_ERROR', payload: null });
     dispatch({ type: 'SET_STEP', payload: 'optimizing' });
+    setIsSlideOverOpen(false);
 
     // Transferir depósitos de cluster a vehículo según configuración global
     const assignedVehicles = state.vehicles.map((v, i) => {
@@ -493,6 +535,7 @@ export default function DispatcherPage() {
     }
   }, [state.vehicles, state.globalConfig, state.routes]);
 
+  // ── Stepper tab definitions ──
   const tabs = [
     { id: 'config' as const, label: 'Conf.', count: 0 },
     { id: 'upload' as const, label: 'Dir.', count: state.addresses.length },
@@ -500,374 +543,251 @@ export default function DispatcherPage() {
     { id: 'routes' as const, label: 'Rutas', count: state.routes.length },
   ];
 
+  // ── Determine completed tabs ──
+  const isTabCompleted = (tabId: string): boolean => {
+    if (tabId === 'config' && state.globalConfig) return true;
+    if (tabId === 'upload' && state.addresses.length > 0) return true;
+    if (tabId === 'zones' && state.clusters.length > 0 && state.routes.length > 0) return true;
+    return false;
+  };
+
+  // ── Slide-over title per tab ──
+  const SLIDE_TITLES: Record<string, string> = {
+    config: 'Configuración de Ruta',
+    upload: 'Cargar Direcciones',
+    zones: 'Zonas y Viabilidad',
+    routes: 'Rutas Generadas',
+  };
+
+  // ── Map height calculation ──
+  const mapHeight = isMapFullscreen ? '100vh' : 'calc(100vh - 48px - 40px - 28px)';
+
   return (
-    <div className="flex h-screen bg-shuma-bg overflow-hidden">
-      {/* ── SIDEBAR ─────────────────────────────────────────── */}
-      <aside className="w-[380px] shrink-0 flex flex-col border-r border-shuma-border bg-shuma-surface/50 overflow-hidden">
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-shuma-border shrink-0 flex items-center justify-between">
-          <div className="flex items-center">
-            <Image 
-              src="/shuma_logo.png" 
-              alt="Shuma Logo" 
-              width={142} 
-              height={44} 
-              priority 
-              style={{ filter: 'drop-shadow(0 0 8px rgba(33,150,243,0.35))' }} 
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#050C1A', overflow: 'hidden' }}>
+      {/* ═══════════════════════════════════════════════ */}
+      {/* HEADER — 48px                                  */}
+      {/* ═══════════════════════════════════════════════ */}
+      {!isMapFullscreen && (
+        <header
+          style={{
+            height: 48,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 16px',
+            background: '#0A1628',
+            borderBottom: '1px solid #112040',
+          }}
+        >
+          {/* ── Left: Logo + Nav ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Image
+              src="/shuma_logo.png"
+              alt="Shuma Logo"
+              width={100}
+              height={28}
+              priority
+              style={{ height: 28, width: 'auto', filter: 'drop-shadow(0 0 8px rgba(33,150,243,0.35))' }}
             />
+
+            {userRole !== 'driver' && (
+              <>
+                <button
+                  onClick={() => window.location.href = '/dashboard'}
+                  title="Dashboard"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '5px 10px',
+                    background: 'transparent',
+                    border: '1px solid #112040',
+                    borderRadius: 6,
+                    color: '#5B7BA0',
+                    fontSize: 11,
+                    fontFamily: "'Exo 2', sans-serif",
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#2196F3';
+                    e.currentTarget.style.color = '#2196F3';
+                    e.currentTarget.style.background = 'rgba(33,150,243,0.06)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#112040';
+                    e.currentTarget.style.color = '#5B7BA0';
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <BarChart2 size={14} />
+                  <span className="hidden-mobile">Dashboard</span>
+                </button>
+
+                <button
+                  onClick={() => window.location.href = '/history'}
+                  title="Histórico"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '5px 10px',
+                    background: 'transparent',
+                    border: '1px solid #112040',
+                    borderRadius: 6,
+                    color: '#5B7BA0',
+                    fontSize: 11,
+                    fontFamily: "'Exo 2', sans-serif",
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#2196F3';
+                    e.currentTarget.style.color = '#2196F3';
+                    e.currentTarget.style.background = 'rgba(33,150,243,0.06)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#112040';
+                    e.currentTarget.style.color = '#5B7BA0';
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <History size={14} />
+                  <span className="hidden-mobile">Histórico</span>
+                </button>
+              </>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            {typeof window !== 'undefined' && sessionStorage.getItem('shuma_role') !== 'viewer' && sessionStorage.getItem('shuma_role') !== 'driver' && (
-              <button
-                onClick={() => window.location.href = '/dashboard'}
-                title="Dashboard"
-                className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-xs font-medium text-shuma-muted hover:text-shuma-text border border-transparent hover:border-shuma-border hover:bg-shuma-surface rounded-lg transition-all"
-              >
-                <BarChart2 size={14} />
-                <span className="hidden md:inline">Dashboard</span>
-              </button>
-            )}
-            {typeof window !== 'undefined' && sessionStorage.getItem('shuma_role') !== 'driver' && (
-              <button
-                onClick={() => window.location.href = '/history'}
-                title="Histórico"
-                className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-xs font-medium text-shuma-muted hover:text-shuma-text border border-transparent hover:border-shuma-border hover:bg-shuma-surface rounded-lg transition-all"
-              >
-                <ClipboardList size={14} />
-                <span className="hidden md:inline">Histórico</span>
-              </button>
-            )}
-            <span style={{ fontSize: 13, color: '#E8EFF8', fontWeight: 500, marginLeft: '4px' }}>
-              {typeof window !== 'undefined' ? sessionStorage.getItem('shuma_name') || '' : ''}
-            </span>
-            {typeof window !== 'undefined' && sessionStorage.getItem('shuma_role') && sessionStorage.getItem('shuma_role') !== 'driver' && (
-              <span style={{
-                background: 'rgba(33,150,243,0.12)',
-                border: '1px solid rgba(33,150,243,0.25)',
-                borderRadius: '20px',
-                padding: '2px 8px',
-                fontSize: '10px',
-                color: '#4a90d9',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase'
-              }}>
-                {{admin:'Admin',logistics:'Logística',viewer:'Supervisor'}[sessionStorage.getItem('shuma_role')!] || sessionStorage.getItem('shuma_role')}
+
+          {/* ── Right: User info + Logout ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {userName && (
+              <span className="hidden-mobile" style={{ fontSize: 12, color: '#E8EFF8', fontWeight: 500 }}>
+                {userName}
               </span>
             )}
+
+            {userRole && (
+              <span
+                style={{
+                  background: 'rgba(33,150,243,0.12)',
+                  border: '1px solid rgba(33,150,243,0.25)',
+                  borderRadius: 20,
+                  padding: '2px 8px',
+                  fontSize: 9,
+                  color: '#4a90d9',
+                  fontFamily: "'Exo 2', sans-serif",
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {ROLE_LABELS[userRole] || userRole}
+              </span>
+            )}
+
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-shuma-muted hover:text-shuma-text border border-transparent hover:border-shuma-border hover:bg-shuma-surface rounded-lg transition-all"
+              title="Salir"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '5px 10px',
+                background: 'transparent',
+                border: '1px solid #112040',
+                borderRadius: 6,
+                color: '#5B7BA0',
+                fontSize: 11,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#EF4444';
+                e.currentTarget.style.color = '#EF4444';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#112040';
+                e.currentTarget.style.color = '#5B7BA0';
+              }}
             >
               <LogOut size={14} />
-              <span className="hidden md:inline">Salir</span>
+              <span className="hidden-mobile">Salir</span>
             </button>
           </div>
-        </div>
+        </header>
+      )}
 
-        {/* Widget de Clima */}
-        {weather && <WeatherBanner weather={weather} />}
+      {/* ═══════════════════════════════════════════════ */}
+      {/* STEPPER — 40px                                 */}
+      {/* ═══════════════════════════════════════════════ */}
+      {!isMapFullscreen && (
+        <nav
+          style={{
+            height: 40,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'stretch',
+            background: '#0A1628',
+            borderBottom: '1px solid #112040',
+            overflowX: 'auto',
+          }}
+        >
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            const isCompleted = isTabCompleted(tab.id);
+            let tabColor = '#5B7BA0'; // inactive
+            if (isActive) tabColor = '#2196F3';
+            else if (isCompleted) tabColor = '#10B981';
 
-        {/* Global Config Chip */}
-        {state.globalConfig && (
-          <div className="px-4 py-2 border-b border-shuma-border shrink-0 bg-shuma-blue/10 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[11px] text-blue-300">
-              <svg className="w-3.5 h-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <span>
-                {state.globalConfig.departureDepot.name.split(' ')[0]} → {state.globalConfig.returnDepot === 'same' ? 'Misma' : (state.globalConfig.returnDepot as any).name?.split(' ')[0]} | {state.globalConfig.departureTime}
-              </span>
-            </div>
-            <button 
-              onClick={() => setActiveTab('config')}
-              className="text-[10px] text-blue-400 hover:text-white transition-colors underline"
-            >
-              Cambiar
-            </button>
-          </div>
-        )}
-
-        {/* Tabs / Stepper */}
-        <div className="flex gap-1 px-3 pt-3 pb-2 shrink-0 border-b border-shuma-border">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg
-                          text-xs font-medium transition-all duration-200
-                          ${activeTab === tab.id
-                  ? 'bg-shuma-blue/20 text-shuma-accent border border-shuma-blue/30'
-                  : 'text-shuma-muted hover:text-shuma-text hover:bg-shuma-surface'
-                }`}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold
-                  ${activeTab === tab.id ? 'bg-shuma-blue/30 text-shuma-accent' : 'bg-shuma-surface border border-shuma-border text-shuma-muted'}`}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Contenido del tab */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-          {/* Tab: Configuración */}
-          {activeTab === 'config' && (
-            <ConfigPanel 
-              currentConfig={state.globalConfig}
-              vehicles={state.vehicles}
-              onAddVehicle={(v) => dispatch({ type: 'ADD_VEHICLE', payload: v })}
-              onRemoveVehicle={(id) => dispatch({ type: 'REMOVE_VEHICLE', payload: id })}
-              onSave={(conf) => {
-                dispatch({ type: 'SET_GLOBAL_CONFIG', payload: conf });
-                dispatch({ type: 'SET_STEP', payload: 'upload' });
-                setActiveTab('upload');
-              }}
-            />
-          )}
-
-          {/* Tab: Direcciones */}
-          {activeTab === 'upload' && (
-            <CSVUploader onAddressesLoaded={handleAddressesLoaded} disabled={!state.globalConfig} />
-          )}
-
-          {/* Tab: Zonas */}
-          {activeTab === 'zones' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between bg-slate-700/50 p-3 rounded-xl border border-shuma-border">
-                <div>
-                  <h3 className="text-sm font-bold text-white">Zonas ({state.clusters.length})</h3>
-                  <p className="text-xs text-shuma-muted">1 zona por camión</p>
-                </div>
-                <button
-                  onClick={() => setShowInlineVehicleForm(!showInlineVehicleForm)}
-                  className="px-3 py-1.5 text-xs font-bold bg-slate-600 hover:bg-slate-500 rounded-lg text-white"
-                >
-                  {showInlineVehicleForm ? 'Cancelar' : '+ Agregar camión'}
-                </button>
-              </div>
-
-              {showInlineVehicleForm && (
-                <div className="bg-shuma-surface rounded-xl p-3 border border-shuma-border">
-                  <VehicleForm
-                    vehicles={state.vehicles}
-                    onAdd={(v) => {
-                      dispatch({ type: 'ADD_VEHICLE', payload: v });
-                      setShowInlineVehicleForm(false);
-                      // Recalcular zonas con el nuevo número de vehículos
-                      const newClusters = clusterDeliveries(state.addresses, [...state.vehicles, v], state.clusteringConfig);
-                      dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
-                      setNumClusters(state.vehicles.length + 1);
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  flex: 'none',
+                  padding: '0 16px',
+                  fontSize: 12,
+                  fontFamily: "'Exo 2', sans-serif",
+                  letterSpacing: '0.06em',
+                  color: tabColor,
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: `2px solid ${isActive ? '#2196F3' : 'transparent'}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {tab.label}
+                {tab.count > 0 && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      background: isActive ? 'rgba(33,150,243,0.2)' : 'rgba(91,123,160,0.15)',
+                      borderRadius: 10,
+                      padding: '1px 6px',
+                      color: tabColor,
                     }}
-                    onRemove={(id) => dispatch({ type: 'REMOVE_VEHICLE', payload: id })}
-                  />
-                </div>
-              )}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      )}
 
-              <div className="bg-shuma-surface p-3 rounded-xl border border-shuma-border space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold text-shuma-text">Balanceo de Flota</label>
-                  <span className="text-xs text-blue-400 font-mono">Automático</span>
-                </div>
-                <div className="text-[11px] text-shuma-muted leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-shuma-border">
-                  <p>
-                    Google Route Optimization API distribuye inteligentemente las paradas basándose en las capacidades de los vehículos minimizando el tiempo y costo total para toda la flota.
-                  </p>
-                </div>
-              </div>
-
-              <ul className="space-y-2">
-                {state.clusters.map((cluster, idx) => {
-                  const assignedVehicle = state.vehicles[idx];
-                  return (
-                    <li key={cluster.id} className="p-3 bg-shuma-surface rounded-lg border-l-4" style={{ borderColor: cluster.color }}>
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="text-sm font-bold text-slate-200">{cluster.name}</h4>
-                          <p className="text-xs text-shuma-muted">{cluster.addresses.length} paradas</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[10px] text-shuma-muted uppercase font-bold tracking-wider">Chofer Asignado</label>
-                        <select
-                          value={assignedVehicle?.id || ''}
-                          onChange={(e) => {
-                            const newVehicleId = e.target.value;
-                            const newIdx = state.vehicles.findIndex(v => v.id === newVehicleId);
-                            if (newIdx !== -1 && newIdx !== idx) {
-                              dispatch({ type: 'SWAP_VEHICLES', payload: { index1: idx, index2: newIdx } });
-                            }
-                          }}
-                          className="w-full bg-slate-900 border border-shuma-border rounded-md p-1.5 text-xs text-slate-200 outline-none"
-                        >
-                          {state.vehicles.map(v => (
-                            <option key={v.id} value={v.id}>{v.driverName} ({v.type})</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex flex-col gap-1 mt-2">
-                        <label className="text-[10px] text-shuma-muted uppercase font-bold tracking-wider">Capacidad Máxima (Paradas)</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="50"
-                          value={state.clusteringConfig.vehicleCapacities.find(c => c.vehicleId === assignedVehicle?.id)?.maxStops || (assignedVehicle?.type === 'Camioneta' ? 4 : 6)}
-                          onChange={(e) => {
-                            if (!assignedVehicle) return;
-                            const val = parseInt(e.target.value) || 0;
-                            const caps = [...state.clusteringConfig.vehicleCapacities];
-                            const idxCap = caps.findIndex(c => c.vehicleId === assignedVehicle.id);
-                            if (idxCap >= 0) caps[idxCap].maxStops = val;
-                            else caps.push({ vehicleId: assignedVehicle.id, maxStops: val });
-                            
-                            const newConfig = { ...state.clusteringConfig, vehicleCapacities: caps };
-                            dispatch({ type: 'SET_CLUSTERING_CONFIG', payload: newConfig });
-                            const newClusters = clusterDeliveries(state.addresses, state.vehicles, newConfig);
-                            dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
-                          }}
-                          className="w-full bg-slate-900 border border-shuma-border rounded-md p-1.5 text-xs text-slate-200 outline-none"
-                        />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-
-              {/* PANEL DE VIABILIDAD ANTES DE OPTIMIZAR */}
-              <div className="bg-shuma-surface p-3 rounded-xl border border-shuma-border space-y-3 mt-4">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-xs font-bold text-shuma-text">Viabilidad Estimada</label>
-                  <span className="text-[10px] text-shuma-muted">Pre-optimización Google</span>
-                </div>
-                <div className="space-y-2">
-                  {calcularViabilidad(state.vehicles, state.clusters, state.globalConfig).map(viab => {
-                    let semaforo = '🟢';
-                    let bgClass = 'bg-emerald-500/5';
-                    let borderClass = 'border-l-emerald-500';
-                    if (viab.status === 'warning') {
-                      semaforo = '🟡'; bgClass = 'bg-amber-500/5'; borderClass = 'border-l-amber-500';
-                    } else if (viab.status === 'critical') {
-                      semaforo = '🔴'; bgClass = 'bg-red-500/5'; borderClass = 'border-l-red-500';
-                    }
-
-                    return (
-                      <div key={viab.vehicleId} className={`p-2 border-l-[3px] ${borderClass} ${bgClass} rounded-r-lg border-y border-r border-shuma-border/50`}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-bold text-slate-200">{semaforo} {viab.driverName}</span>
-                          <span className="text-[10px] font-medium text-shuma-muted">Límite: {viab.deadlineTime}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] text-slate-400 mb-1">
-                          <span>Salida: {viab.departureTime}</span>
-                          <span>Entregas: {viab.stops}</span>
-                          <span className={`font-bold ${viab.status === 'critical' ? 'text-red-400' : viab.status === 'warning' ? 'text-amber-400' : 'text-emerald-400'}`}>Regreso est: {viab.estimatedReturn}</span>
-                        </div>
-                        <div className="text-[9px] text-shuma-muted">
-                          Tránsito: ~{Math.floor(viab.transitMinutes/60)}h {viab.transitMinutes%60}m + Descarga: ~{Math.floor(viab.unloadMinutes/60)}h {viab.unloadMinutes%60}m = Total: ~{Math.floor(viab.totalMinutes/60)}h {viab.totalMinutes%60}m
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-            </div>
-          )}
-
-          {/* Tab: Rutas */}
-          {activeTab === 'routes' && (
-            <div className="space-y-3">
-              <RoutePanel
-                routes={state.routes}
-                onShareRoute={handleShareRoute}
-                onReoptimize={handleReoptimize}
-                allVehicles={state.vehicles}
-                hiddenRouteIds={hiddenRouteIds}
-                onReoptimizeSingle={handleReoptimizeSingle}
-                globalDepartureTime={state.globalConfig?.departureTime}
-                deadlineTime={state.globalConfig?.deadlineTime}
-                unloadConfig={state.globalConfig?.unloadConfig}
-                onVehicleTimeChange={(vehicleId, timeStr) => {
-                  dispatch({ 
-                    type: 'UPDATE_VEHICLE', 
-                    payload: { id: vehicleId, changes: { departureTime: timeStr } } 
-                  });
-                  // También actualizar la ruta activa para que se refleje inmediatamente
-                  dispatch({
-                    type: 'SET_ROUTES',
-                    payload: state.routes.map(r => 
-                      r.vehicleId === vehicleId ? { ...r, departureTime: timeStr } : r
-                    )
-                  });
-                }}
-                onToggleRouteVisibility={(vehicleId) => {
-                  setHiddenRouteIds((prev) => 
-                    prev.includes(vehicleId) 
-                      ? prev.filter((id) => id !== vehicleId) 
-                      : [...prev, vehicleId]
-                  );
-                }}
-              />
-              {state.routes.length > 0 && (
-                <ReportButton routes={state.routes} weather={weather} globalConfig={state.globalConfig} />
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer con botón optimizar */}
-        <div className="px-4 py-4 border-t border-shuma-border shrink-0 space-y-3">
-          {/* Error */}
-          {state.error && (
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-              <p className="text-xs text-red-400">{state.error}</p>
-            </div>
-          )}
-          
-          {activeTab === 'zones' && (
-            <button
-              onClick={() => {
-                dispatch({ type: 'SET_STEP', payload: 'optimizing' });
-                handleOptimize();
-              }}
-              className="w-full px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-xl shadow-md transition-all"
-            >
-              Confirmar Zonas y Optimizar
-            </button>
-          )}
-
-          {activeTab !== 'zones' && (
-            <OptimizeButton
-              step={state.step}
-              addresses={state.addresses}
-              vehicles={state.vehicles}
-              isOptimizing={isOptimizing}
-              onOptimize={handleOptimize}
-            />
-          )}
-        </div>
-        <p style={{
-          textAlign: 'center',
-          fontSize: 11,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase' as const,
-          padding: '8px 0',
-          background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
-          backgroundSize: '400% auto',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          animation: 'rgbRoll 5s linear infinite',
-          opacity: 0.6
-        }}>
-          Design &amp; Developed by Shuma Sistemas IT
-        </p>
-      </aside>
-
-      {/* ── MAPA ─────────────────────────────────────────────── */}
-      <main className="flex-1 relative overflow-hidden">
+      {/* ═══════════════════════════════════════════════ */}
+      {/* MAP AREA — full width                          */}
+      {/* ═══════════════════════════════════════════════ */}
+      <main style={{ flex: 1, position: 'relative', overflow: 'hidden', height: mapHeight }}>
+        {/* Map */}
         {state.step === 'zones' ? (
           <ZoneMap
             clusters={state.clusters}
@@ -889,7 +809,14 @@ export default function DispatcherPage() {
           />
         )}
 
-        {/* Badge de estado */}
+        {/* ── Weather widget (bottom-left) ── */}
+        {weather && (
+          <div style={{ position: 'absolute', bottom: 70, left: 12, zIndex: 10 }}>
+            <WeatherBanner weather={weather} />
+          </div>
+        )}
+
+        {/* ── Badge: geocoding ── */}
         {state.step === 'geocoding' && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10
                           flex items-center gap-2 px-4 py-2 rounded-full
@@ -903,6 +830,7 @@ export default function DispatcherPage() {
           </div>
         )}
 
+        {/* ── Badge: optimizing ── */}
         {state.step === 'optimizing' && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10
                           flex items-center gap-2 px-4 py-2 rounded-full
@@ -916,8 +844,9 @@ export default function DispatcherPage() {
           </div>
         )}
 
+        {/* ── Route legend badges (top-right, offset if fullscreen btn) ── */}
         {state.routes.length > 0 && (
-          <div className="absolute top-4 right-4 z-10 flex flex-col gap-1.5">
+          <div style={{ position: 'absolute', top: 16, right: 52, zIndex: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
             {state.routes.map((r) => (
               <div
                 key={r.vehicleId}
@@ -931,7 +860,420 @@ export default function DispatcherPage() {
             ))}
           </div>
         )}
+
+        {/* ── Fullscreen toggle (top-right corner) ── */}
+        <button
+          onClick={() => setIsMapFullscreen((prev) => !prev)}
+          title={isMapFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            zIndex: 12,
+            width: 32,
+            height: 32,
+            background: '#0A1628',
+            border: '1px solid #112040',
+            borderRadius: 6,
+            color: '#5B7BA0',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#2196F3';
+            e.currentTarget.style.color = '#2196F3';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = '#112040';
+            e.currentTarget.style.color = '#5B7BA0';
+          }}
+        >
+          {isMapFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+        </button>
+
+        {/* ── FAB (bottom-right) — always visible including fullscreen ── */}
+        {FAB_CONFIG[activeTab] && (
+          <button
+            onClick={() => setIsSlideOverOpen(true)}
+            style={{
+              position: 'absolute',
+              bottom: 20,
+              right: 20,
+              zIndex: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '10px 16px',
+              background: '#0047AB',
+              border: 'none',
+              borderRadius: 10,
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 600,
+              fontFamily: "'Exo 2', sans-serif",
+              letterSpacing: '0.08em',
+              boxShadow: '0 4px 20px rgba(0,71,171,0.4)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#1565C0';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#0047AB';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <span>{FAB_CONFIG[activeTab].icon}</span>
+            {FAB_CONFIG[activeTab].label}
+          </button>
+        )}
+
+        {/* ── Error banner on map ── */}
+        {state.error && (
+          <div style={{
+            position: 'absolute',
+            bottom: 70,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 15,
+            maxWidth: 500,
+            width: '90%',
+          }}>
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 backdrop-blur">
+              <p className="text-xs text-red-400">{state.error}</p>
+            </div>
+          </div>
+        )}
       </main>
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* FOOTER RGB — 28px                              */}
+      {/* ═══════════════════════════════════════════════ */}
+      {!isMapFullscreen && (
+        <footer
+          style={{
+            height: 28,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: "'Exo 2', sans-serif",
+            fontSize: 9,
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
+            backgroundSize: '400% auto',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            animation: 'rgbRoll 5s linear infinite',
+            opacity: 0.6,
+          }}
+        >
+          Design &amp; Developed by Shuma Sistemas IT
+        </footer>
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* SLIDE-OVER — per active tab                    */}
+      {/* ═══════════════════════════════════════════════ */}
+
+      {/* ── PASO 1: Configuración ── */}
+      <SlideOver
+        isOpen={isSlideOverOpen && activeTab === 'config'}
+        onClose={() => setIsSlideOverOpen(false)}
+        title={SLIDE_TITLES.config}
+        width={SLIDE_WIDTHS.config}
+        footer={
+          <>
+            <button className="so-btn-ghost" onClick={() => setIsSlideOverOpen(false)}>
+              Cancelar
+            </button>
+            <button
+              className="so-btn-primary"
+              id="config-submit-btn"
+              onClick={() => {
+                // The ConfigPanel handles save via the onSave prop
+                // We trigger it by dispatching a custom event
+                const btn = document.getElementById('config-save-trigger');
+                if (btn) btn.click();
+              }}
+            >
+              Guardar y continuar →
+            </button>
+          </>
+        }
+      >
+        <ConfigPanel
+          currentConfig={state.globalConfig}
+          vehicles={state.vehicles}
+          onAddVehicle={(v) => dispatch({ type: 'ADD_VEHICLE', payload: v })}
+          onRemoveVehicle={(id) => dispatch({ type: 'REMOVE_VEHICLE', payload: id })}
+          onSave={(conf) => {
+            dispatch({ type: 'SET_GLOBAL_CONFIG', payload: conf });
+            dispatch({ type: 'SET_STEP', payload: 'upload' });
+            setActiveTab('upload');
+            setIsSlideOverOpen(false);
+          }}
+        />
+      </SlideOver>
+
+      {/* ── PASO 2: Direcciones ── */}
+      <SlideOver
+        isOpen={isSlideOverOpen && activeTab === 'upload'}
+        onClose={() => setIsSlideOverOpen(false)}
+        title={SLIDE_TITLES.upload}
+        width={SLIDE_WIDTHS.upload}
+        footer={
+          <>
+            <button className="so-btn-ghost" onClick={() => { setActiveTab('config'); }}>
+              ← Volver
+            </button>
+            <button
+              className="so-btn-primary"
+              disabled={state.addresses.length === 0}
+              onClick={() => {
+                if (state.addresses.length > 0) {
+                  setActiveTab('zones');
+                  setIsSlideOverOpen(false);
+                }
+              }}
+            >
+              Continuar a Zonas →
+            </button>
+          </>
+        }
+      >
+        <CSVUploader onAddressesLoaded={handleAddressesLoaded} disabled={!state.globalConfig} />
+      </SlideOver>
+
+      {/* ── PASO 3: Zonas y viabilidad ── */}
+      <SlideOver
+        isOpen={isSlideOverOpen && activeTab === 'zones'}
+        onClose={() => setIsSlideOverOpen(false)}
+        title={SLIDE_TITLES.zones}
+        width={SLIDE_WIDTHS.zones}
+        footer={
+          <>
+            <button className="so-btn-ghost" onClick={() => { setActiveTab('upload'); }}>
+              ← Volver
+            </button>
+            <button
+              className="so-btn-primary"
+              onClick={() => {
+                dispatch({ type: 'SET_STEP', payload: 'optimizing' });
+                handleOptimize();
+              }}
+            >
+              ⚡ Optimizar Rutas
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-slate-700/50 p-3 rounded-xl border border-shuma-border">
+            <div>
+              <h3 className="text-sm font-bold text-white">Zonas ({state.clusters.length})</h3>
+              <p className="text-xs text-shuma-muted">1 zona por camión</p>
+            </div>
+            <button
+              onClick={() => setShowInlineVehicleForm(!showInlineVehicleForm)}
+              className="px-3 py-1.5 text-xs font-bold bg-slate-600 hover:bg-slate-500 rounded-lg text-white"
+            >
+              {showInlineVehicleForm ? 'Cancelar' : '+ Agregar camión'}
+            </button>
+          </div>
+
+          {showInlineVehicleForm && (
+            <div className="bg-shuma-surface rounded-xl p-3 border border-shuma-border">
+              <VehicleForm
+                vehicles={state.vehicles}
+                onAdd={(v) => {
+                  dispatch({ type: 'ADD_VEHICLE', payload: v });
+                  setShowInlineVehicleForm(false);
+                  const newClusters = clusterDeliveries(state.addresses, [...state.vehicles, v], state.clusteringConfig);
+                  dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
+                  setNumClusters(state.vehicles.length + 1);
+                }}
+                onRemove={(id) => dispatch({ type: 'REMOVE_VEHICLE', payload: id })}
+              />
+            </div>
+          )}
+
+          <div className="bg-shuma-surface p-3 rounded-xl border border-shuma-border space-y-3">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-shuma-text">Balanceo de Flota</label>
+              <span className="text-xs text-blue-400 font-mono">Automático</span>
+            </div>
+            <div className="text-[11px] text-shuma-muted leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-shuma-border">
+              <p>
+                Google Route Optimization API distribuye inteligentemente las paradas basándose en las capacidades de los vehículos minimizando el tiempo y costo total para toda la flota.
+              </p>
+            </div>
+          </div>
+
+          <ul className="space-y-2">
+            {state.clusters.map((cluster, idx) => {
+              const assignedVehicle = state.vehicles[idx];
+              return (
+                <li key={cluster.id} className="p-3 bg-shuma-surface rounded-lg border-l-4" style={{ borderColor: cluster.color }}>
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-200">{cluster.name}</h4>
+                      <p className="text-xs text-shuma-muted">{cluster.addresses.length} paradas</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-shuma-muted uppercase font-bold tracking-wider">Chofer Asignado</label>
+                    <select
+                      value={assignedVehicle?.id || ''}
+                      onChange={(e) => {
+                        const newVehicleId = e.target.value;
+                        const newIdx = state.vehicles.findIndex(v => v.id === newVehicleId);
+                        if (newIdx !== -1 && newIdx !== idx) {
+                          dispatch({ type: 'SWAP_VEHICLES', payload: { index1: idx, index2: newIdx } });
+                        }
+                      }}
+                      className="w-full bg-slate-900 border border-shuma-border rounded-md p-1.5 text-xs text-slate-200 outline-none"
+                    >
+                      {state.vehicles.map(v => (
+                        <option key={v.id} value={v.id}>{v.driverName} ({v.type})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1 mt-2">
+                    <label className="text-[10px] text-shuma-muted uppercase font-bold tracking-wider">Capacidad Máxima (Paradas)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={state.clusteringConfig.vehicleCapacities.find(c => c.vehicleId === assignedVehicle?.id)?.maxStops || (assignedVehicle?.type === 'Camioneta' ? 4 : 6)}
+                      onChange={(e) => {
+                        if (!assignedVehicle) return;
+                        const val = parseInt(e.target.value) || 0;
+                        const caps = [...state.clusteringConfig.vehicleCapacities];
+                        const idxCap = caps.findIndex(c => c.vehicleId === assignedVehicle.id);
+                        if (idxCap >= 0) caps[idxCap].maxStops = val;
+                        else caps.push({ vehicleId: assignedVehicle.id, maxStops: val });
+                        
+                        const newConfig = { ...state.clusteringConfig, vehicleCapacities: caps };
+                        dispatch({ type: 'SET_CLUSTERING_CONFIG', payload: newConfig });
+                        const newClusters = clusterDeliveries(state.addresses, state.vehicles, newConfig);
+                        dispatch({ type: 'SET_CLUSTERS', payload: newClusters });
+                      }}
+                      className="w-full bg-slate-900 border border-shuma-border rounded-md p-1.5 text-xs text-slate-200 outline-none"
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* PANEL DE VIABILIDAD ANTES DE OPTIMIZAR */}
+          <div className="bg-shuma-surface p-3 rounded-xl border border-shuma-border space-y-3 mt-4">
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-xs font-bold text-shuma-text">Viabilidad Estimada</label>
+              <span className="text-[10px] text-shuma-muted">Pre-optimización Google</span>
+            </div>
+            <div className="space-y-2">
+              {calcularViabilidad(state.vehicles, state.clusters, state.globalConfig).map(viab => {
+                let semaforo = '🟢';
+                let bgClass = 'bg-emerald-500/5';
+                let borderClass = 'border-l-emerald-500';
+                if (viab.status === 'warning') {
+                  semaforo = '🟡'; bgClass = 'bg-amber-500/5'; borderClass = 'border-l-amber-500';
+                } else if (viab.status === 'critical') {
+                  semaforo = '🔴'; bgClass = 'bg-red-500/5'; borderClass = 'border-l-red-500';
+                }
+
+                return (
+                  <div key={viab.vehicleId} className={`p-2 border-l-[3px] ${borderClass} ${bgClass} rounded-r-lg border-y border-r border-shuma-border/50`}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-bold text-slate-200">{semaforo} {viab.driverName}</span>
+                      <span className="text-[10px] font-medium text-shuma-muted">Límite: {viab.deadlineTime}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[10px] text-slate-400 mb-1">
+                      <span>Salida: {viab.departureTime}</span>
+                      <span>Entregas: {viab.stops}</span>
+                      <span className={`font-bold ${viab.status === 'critical' ? 'text-red-400' : viab.status === 'warning' ? 'text-amber-400' : 'text-emerald-400'}`}>Regreso est: {viab.estimatedReturn}</span>
+                    </div>
+                    <div className="text-[9px] text-shuma-muted">
+                      Tránsito: ~{Math.floor(viab.transitMinutes/60)}h {viab.transitMinutes%60}m + Descarga: ~{Math.floor(viab.unloadMinutes/60)}h {viab.unloadMinutes%60}m = Total: ~{Math.floor(viab.totalMinutes/60)}h {viab.totalMinutes%60}m
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </SlideOver>
+
+      {/* ── PASO 4: Rutas ── */}
+      <SlideOver
+        isOpen={isSlideOverOpen && activeTab === 'routes'}
+        onClose={() => setIsSlideOverOpen(false)}
+        title={SLIDE_TITLES.routes}
+        width={SLIDE_WIDTHS.routes}
+        footer={
+          state.routes.length > 0 ? (
+            <>
+              <ReportButton routes={state.routes} weather={weather} globalConfig={state.globalConfig} />
+            </>
+          ) : undefined
+        }
+      >
+        <div className="space-y-3">
+          <RoutePanel
+            routes={state.routes}
+            onShareRoute={handleShareRoute}
+            onReoptimize={handleReoptimize}
+            allVehicles={state.vehicles}
+            hiddenRouteIds={hiddenRouteIds}
+            onReoptimizeSingle={handleReoptimizeSingle}
+            globalDepartureTime={state.globalConfig?.departureTime}
+            deadlineTime={state.globalConfig?.deadlineTime}
+            unloadConfig={state.globalConfig?.unloadConfig}
+            onVehicleTimeChange={(vehicleId, timeStr) => {
+              dispatch({ 
+                type: 'UPDATE_VEHICLE', 
+                payload: { id: vehicleId, changes: { departureTime: timeStr } } 
+              });
+              dispatch({
+                type: 'SET_ROUTES',
+                payload: state.routes.map(r => 
+                  r.vehicleId === vehicleId ? { ...r, departureTime: timeStr } : r
+                )
+              });
+            }}
+            onToggleRouteVisibility={(vehicleId) => {
+              setHiddenRouteIds((prev) => 
+                prev.includes(vehicleId) 
+                  ? prev.filter((id) => id !== vehicleId) 
+                  : [...prev, vehicleId]
+              );
+            }}
+          />
+        </div>
+      </SlideOver>
+
+      {/* ── Responsive CSS ── */}
+      <style jsx global>{`
+        @media (max-width: 767px) {
+          .hidden-mobile {
+            display: none !important;
+          }
+        }
+        @media (min-width: 768px) {
+          .hidden-mobile {
+            display: inline;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -974,93 +1316,120 @@ function ConfigPanel({
   };
 
   return (
-    <div className="space-y-4">
-      {/* GLOBAL CONFIGURATION */}
-      <div className="bg-shuma-surface rounded-xl border border-shuma-border p-4 space-y-4">
-        <h3 className="text-sm font-bold text-white mb-2">Configuración Global de Ruta</h3>
-        
-        <div>
-          <label className="block text-xs font-medium text-shuma-muted mb-1">Bodega de salida</label>
-          <select 
-            value={depotId} 
-            onChange={(e) => setDepotId(e.target.value)}
-            className="w-full bg-slate-900 border border-shuma-border rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
-          >
-            {DEPOTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-shuma-muted mb-1">Bodega de regreso</label>
-          <select 
-            value={returnDepotId} 
-            onChange={(e) => setReturnDepotId(e.target.value)}
-            className="w-full bg-slate-900 border border-shuma-border rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-blue-500"
-          >
-            <option value="same">Misma que salida</option>
-            {DEPOTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <div className="flex justify-between items-center mb-1">
-            <label className="block text-xs font-medium text-shuma-muted">Hora estimada de salida</label>
+    <div className="space-y-6">
+      {/* SECCIÓN 1: Bodegas y horarios */}
+      <div className="so-section">
+        <h4 className="so-section-title">Bodegas y horarios</h4>
+        <div className="space-y-3">
+          <div>
+            <label className="so-label">Bodega de salida</label>
+            <select 
+              value={depotId} 
+              onChange={(e) => setDepotId(e.target.value)}
+              className="so-select"
+            >
+              {DEPOTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
           </div>
-          <input 
-            type="time" 
-            value={time} 
-            onChange={(e) => setTime(e.target.value)}
-            className={`w-full bg-slate-900 border ${(() => {
-              const now = new Date();
-              const currentMins = now.getHours() * 60 + now.getMinutes();
-              const [h, m] = (time || '08:00').split(':').map(Number);
-              return (h * 60 + m) < currentMins ? 'border-red-500 text-red-400' : 'border-shuma-border text-slate-200';
-            })()} rounded-lg p-2 text-sm outline-none focus:border-blue-500`}
-          />
-          {(() => {
-            const now = new Date();
-            const currentMins = now.getHours() * 60 + now.getMinutes();
-            const [h, m] = (time || '08:00').split(':').map(Number);
-            return (h * 60 + m) < currentMins ? (
-              <p className="text-red-500 text-[10px] mt-1">⚠️ Esta hora ya pasó</p>
-            ) : null;
-          })()}
-        </div>
-        <div>
-          <div className="flex justify-between items-center mb-1">
-            <label className="block text-xs font-medium text-shuma-muted">Hora límite de regreso</label>
-          </div>
-          <input 
-            type="time" 
-            value={deadlineTime} 
-            onChange={(e) => setDeadlineTime(e.target.value)}
-            className="w-full bg-slate-900 border border-shuma-border text-slate-200 rounded-lg p-2 text-sm outline-none focus:border-blue-500"
-          />
-        </div>
 
-        <div>
-          <label className="block text-xs font-medium text-shuma-muted mb-2">Tiempo de descarga por entrega (min)</label>
-          <div className="flex gap-2">
-            <div className="flex-1 flex flex-col gap-1">
-              <span className="text-[10px] text-shuma-muted">Camión grande</span>
-              <input type="number" min="1" value={unloadConfig.truckLarge} onChange={e => setUnloadConfig({...unloadConfig, truckLarge: parseInt(e.target.value) || 0})} className="w-full bg-slate-900 border border-shuma-border text-slate-200 rounded-lg p-1.5 text-xs text-center outline-none" />
+          <div>
+            <label className="so-label">Bodega de regreso</label>
+            <select 
+              value={returnDepotId} 
+              onChange={(e) => setReturnDepotId(e.target.value)}
+              className="so-select"
+            >
+              <option value="same">Misma que salida</option>
+              {DEPOTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label className="so-label">Hora de salida</label>
+              <input 
+                type="time" 
+                value={time} 
+                onChange={(e) => setTime(e.target.value)}
+                className="so-input"
+                style={(() => {
+                  const now = new Date();
+                  const currentMins = now.getHours() * 60 + now.getMinutes();
+                  const [h, m] = (time || '08:00').split(':').map(Number);
+                  return (h * 60 + m) < currentMins ? { borderColor: '#EF4444', color: '#EF4444' } : {};
+                })()}
+              />
+              {(() => {
+                const now = new Date();
+                const currentMins = now.getHours() * 60 + now.getMinutes();
+                const [h, m] = (time || '08:00').split(':').map(Number);
+                return (h * 60 + m) < currentMins ? (
+                  <p style={{ color: '#EF4444', fontSize: 10, marginTop: 4 }}>⚠️ Esta hora ya pasó</p>
+                ) : null;
+              })()}
             </div>
-            <div className="flex-1 flex flex-col gap-1">
-              <span className="text-[10px] text-shuma-muted">Camión chico</span>
-              <input type="number" min="1" value={unloadConfig.truckSmall} onChange={e => setUnloadConfig({...unloadConfig, truckSmall: parseInt(e.target.value) || 0})} className="w-full bg-slate-900 border border-shuma-border text-slate-200 rounded-lg p-1.5 text-xs text-center outline-none" />
-            </div>
-            <div className="flex-1 flex flex-col gap-1">
-              <span className="text-[10px] text-shuma-muted">Camioneta</span>
-              <input type="number" min="1" value={unloadConfig.van} onChange={e => setUnloadConfig({...unloadConfig, van: parseInt(e.target.value) || 0})} className="w-full bg-slate-900 border border-shuma-border text-slate-200 rounded-lg p-1.5 text-xs text-center outline-none" />
+            <div>
+              <label className="so-label">Límite de regreso</label>
+              <input 
+                type="time" 
+                value={deadlineTime} 
+                onChange={(e) => setDeadlineTime(e.target.value)}
+                className="so-input"
+              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* VEHICLES / FLEET CONFIGURATION */}
-      <VehicleForm vehicles={vehicles} onAdd={onAddVehicle} onRemove={onRemoveVehicle} />
+      {/* SECCIÓN 2: Tiempo de descarga */}
+      <div className="so-section">
+        <h4 className="so-section-title">Tiempo de descarga por entrega (min)</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          <div>
+            <label className="so-label">Camión grande</label>
+            <input 
+              type="number" 
+              min="1" 
+              value={unloadConfig.truckLarge} 
+              onChange={e => setUnloadConfig({...unloadConfig, truckLarge: parseInt(e.target.value) || 0})} 
+              className="so-input" 
+              style={{ textAlign: 'center' }}
+            />
+          </div>
+          <div>
+            <label className="so-label">Camión chico</label>
+            <input 
+              type="number" 
+              min="1" 
+              value={unloadConfig.truckSmall} 
+              onChange={e => setUnloadConfig({...unloadConfig, truckSmall: parseInt(e.target.value) || 0})} 
+              className="so-input" 
+              style={{ textAlign: 'center' }}
+            />
+          </div>
+          <div>
+            <label className="so-label">Camioneta</label>
+            <input 
+              type="number" 
+              min="1" 
+              value={unloadConfig.van} 
+              onChange={e => setUnloadConfig({...unloadConfig, van: parseInt(e.target.value) || 0})} 
+              className="so-input" 
+              style={{ textAlign: 'center' }}
+            />
+          </div>
+        </div>
+      </div>
 
-      <button 
+      {/* SECCIÓN 3: Flota asignada */}
+      <div className="so-section">
+        <h4 className="so-section-title">Flota asignada</h4>
+        <VehicleForm vehicles={vehicles} onAdd={onAddVehicle} onRemove={onRemoveVehicle} />
+      </div>
+
+      {/* Hidden trigger button for external save */}
+      <button
+        id="config-save-trigger"
         onClick={handleSave}
         disabled={vehicles.length === 0 || (() => {
           const now = new Date();
@@ -1068,9 +1437,9 @@ function ConfigPanel({
           const [h, m] = (time || '08:00').split(':').map(Number);
           return (h * 60 + m) < currentMins;
         })()}
-        className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-slate-600 disabled:text-shuma-muted disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-md text-sm mt-4"
+        style={{ display: 'none' }}
       >
-        Continuar al paso 2
+        Save
       </button>
     </div>
   );
