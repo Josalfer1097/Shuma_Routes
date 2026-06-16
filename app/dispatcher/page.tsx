@@ -206,10 +206,10 @@ const FAB_CONFIG: Record<string, { icon: string; label: string }> = {
 
 // ─── Slide-over widths per tab ─────────────────────────────
 const SLIDE_WIDTHS: Record<string, number> = {
-  config: 500,
-  upload: 600,
-  zones: 500,
-  routes: 520,
+  config: 600,
+  upload: 700,
+  zones: 600,
+  routes: 640,
 };
 
 // ─── Componente principal ──────────────────────────────────
@@ -560,36 +560,68 @@ export default function DispatcherPage() {
   };
 
   // ── Map height calculation ──
-  const mapHeight = isMapFullscreen ? '100vh' : 'calc(100vh - 48px - 40px - 28px)';
+  const mapHeight = isMapFullscreen ? '100vh' : 'calc(100vh - 22px - 48px - 40px)';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#050C1A', overflow: 'hidden' }}>
       {/* ═══════════════════════════════════════════════ */}
-      {/* HEADER — 48px                                  */}
+      {/* BANNER RGB Y HEADER                            */}
       {/* ═══════════════════════════════════════════════ */}
       {!isMapFullscreen && (
-        <header
-          style={{
-            height: 48,
-            flexShrink: 0,
+        <>
+          <div style={{
+            width: '100%',
+            height: 22,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 16px',
-            background: '#0A1628',
-            borderBottom: '1px solid #112040',
-          }}
-        >
-          {/* ── Left: Logo + Nav ── */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Image
-              src="/shuma_logo.png"
-              alt="Shuma Logo"
-              width={100}
-              height={28}
-              priority
-              style={{ height: 28, width: 'auto', filter: 'drop-shadow(0 0 8px rgba(33,150,243,0.35))' }}
-            />
+            justifyContent: 'center',
+            background: 'rgba(5,12,26,0.95)',
+            borderBottom: '1px solid rgba(17,32,64,0.8)',
+            flexShrink: 0,
+            zIndex: 50,
+            position: 'relative'
+          }}>
+            <span style={{
+              fontFamily: "'Exo 2', sans-serif",
+              fontSize: 9,
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
+              backgroundSize: '400% auto',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              animation: 'rgbRoll 5s linear infinite',
+              opacity: 0.75
+            }}>
+              Design &amp; Developed by Shuma Sistemas IT
+            </span>
+          </div>
+
+          <header
+            style={{
+              height: 48,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0 16px',
+              background: '#0A1628',
+              borderBottom: '1px solid #112040',
+            }}
+          >
+            {/* ── Left: Logo + Nav ── */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <img
+                src="/shuma_logo.png"
+                alt="Shuma"
+                style={{
+                  height: 32,
+                  width: 'auto',
+                  filter: 'brightness(0) invert(1) drop-shadow(0 0 8px rgba(33,150,243,0.6))',
+                  opacity: 0.95
+                }}
+              />
 
             {userRole !== 'driver' && (
               <>
@@ -716,6 +748,7 @@ export default function DispatcherPage() {
             </button>
           </div>
         </header>
+        </>
       )}
 
       {/* ═══════════════════════════════════════════════ */}
@@ -724,59 +757,35 @@ export default function DispatcherPage() {
       {!isMapFullscreen && (
         <nav
           style={{
-            height: 40,
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'stretch',
+            display: 'flex', alignItems: 'center',
+            height: 40, padding: '0 16px',
             background: '#0A1628',
             borderBottom: '1px solid #112040',
+            flexShrink: 0,
             overflowX: 'auto',
           }}
         >
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            const isCompleted = isTabCompleted(tab.id);
-            let tabColor = '#5B7BA0'; // inactive
-            if (isActive) tabColor = '#2196F3';
-            else if (isCompleted) tabColor = '#10B981';
-
+          {(['config','upload','zones','routes'] as const).map((s, i) => {
+            const labels = ['Conf.','Dir.','Zonas','Rutas'];
+            const isActive = activeTab === s;
+            const stepsOrder = ['config','upload','zones','routes'];
+            const isDone = stepsOrder.indexOf(activeTab) > stepsOrder.indexOf(s) || isTabCompleted(s);
+            
             return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+              <button key={s}
+                onClick={() => setActiveTab(s)}
                 style={{
-                  flex: 'none',
-                  padding: '0 16px',
-                  fontSize: 12,
+                  padding: '0 16px', height: '100%',
+                  background: 'transparent', border: 'none',
+                  borderBottom: isActive ? '2px solid #2196F3' : '2px solid transparent',
+                  color: isActive ? '#2196F3' : isDone ? '#10B981' : '#5B7BA0',
+                  fontSize: 12, cursor: 'pointer',
                   fontFamily: "'Exo 2', sans-serif",
                   letterSpacing: '0.06em',
-                  color: tabColor,
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: `2px solid ${isActive ? '#2196F3' : 'transparent'}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
                   whiteSpace: 'nowrap',
                 }}
               >
-                {tab.label}
-                {tab.count > 0 && (
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      background: isActive ? 'rgba(33,150,243,0.2)' : 'rgba(91,123,160,0.15)',
-                      borderRadius: 10,
-                      padding: '1px 6px',
-                      color: tabColor,
-                    }}
-                  >
-                    {tab.count}
-                  </span>
-                )}
+                {labels[i]}
               </button>
             );
           })}
@@ -950,34 +959,6 @@ export default function DispatcherPage() {
           </div>
         )}
       </main>
-
-      {/* ═══════════════════════════════════════════════ */}
-      {/* FOOTER RGB — 28px                              */}
-      {/* ═══════════════════════════════════════════════ */}
-      {!isMapFullscreen && (
-        <footer
-          style={{
-            height: 28,
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: "'Exo 2', sans-serif",
-            fontSize: 9,
-            letterSpacing: '0.14em',
-            textTransform: 'uppercase',
-            background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
-            backgroundSize: '400% auto',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            animation: 'rgbRoll 5s linear infinite',
-            opacity: 0.6,
-          }}
-        >
-          Design &amp; Developed by Shuma Sistemas IT
-        </footer>
-      )}
 
       {/* ═══════════════════════════════════════════════ */}
       {/* SLIDE-OVER — per active tab                    */}

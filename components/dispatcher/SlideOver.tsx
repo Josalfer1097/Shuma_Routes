@@ -18,7 +18,7 @@ export default function SlideOver({
   title,
   children,
   footer,
-  width = 500,
+  width = 600,
 }: SlideOverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
