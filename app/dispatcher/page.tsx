@@ -206,10 +206,10 @@ const FAB_CONFIG: Record<string, { icon: string; label: string }> = {
 
 // ─── Slide-over widths per tab ─────────────────────────────
 const SLIDE_WIDTHS: Record<string, number> = {
-  config: 440,
-  upload: 560,
-  zones: 440,
-  routes: 480,
+  config: 500,
+  upload: 600,
+  zones: 500,
+  routes: 520,
 };
 
 // ─── Componente principal ──────────────────────────────────

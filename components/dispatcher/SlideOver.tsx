@@ -8,7 +8,7 @@ interface SlideOverProps {
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  /** Panel width on desktop. Defaults to 440. Mobile always 100vw. */
+  /** Panel width on desktop. Defaults to 500. Mobile always 100vw. */
   width?: number;
 }
 
@@ -18,7 +18,7 @@ export default function SlideOver({
   title,
   children,
   footer,
-  width = 440,
+  width = 500,
 }: SlideOverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +59,7 @@ export default function SlideOver({
         }}
       />
 
-      {/* ── Panel ─────────────────────────────────────── */}
+      {/* ── Panel (Liquid Glass) ────────────────────────── */}
       <div
         ref={panelRef}
         style={{
@@ -69,20 +69,38 @@ export default function SlideOver({
           bottom: 0,
           width: typeof window !== 'undefined' && window.innerWidth < 768 ? '100vw' : `${width}px`,
           maxWidth: '100vw',
-          background: '#0A1628',
-          borderLeft: '1px solid #112040',
+          background: 'rgba(10,22,40,0.55)',
+          backdropFilter: 'blur(28px) saturate(1.6)',
+          WebkitBackdropFilter: 'blur(28px) saturate(1.6)',
+          borderLeft: '1px solid rgba(33,150,243,0.18)',
           zIndex: 41,
           display: 'flex',
           flexDirection: 'column',
           transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
           transition: 'transform 0.35s cubic-bezier(0.4,0,0.2,1)',
+          overflow: 'hidden',
         }}
       >
+        {/* ── Top glow line ── */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 2,
+            background: 'linear-gradient(90deg,transparent,rgba(33,150,243,0.6),rgba(100,180,255,0.4),transparent)',
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        />
+
         {/* ── Panel header ── */}
         <div
           style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid #112040',
+            padding: '18px 22px',
+            background: 'rgba(5,12,26,0.2)',
+            borderBottom: '1px solid rgba(33,150,243,0.1)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -106,23 +124,25 @@ export default function SlideOver({
             style={{
               width: 28,
               height: 28,
-              background: 'transparent',
-              border: '1px solid #112040',
-              borderRadius: 6,
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 7,
               color: '#5B7BA0',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: 'border-color 0.2s, color 0.2s',
+              transition: 'all 0.2s',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#EF4444';
+              e.currentTarget.style.borderColor = 'rgba(239,68,68,0.5)';
               e.currentTarget.style.color = '#EF4444';
+              e.currentTarget.style.background = 'rgba(239,68,68,0.08)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#112040';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
               e.currentTarget.style.color = '#5B7BA0';
+              e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
             }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -149,7 +169,10 @@ export default function SlideOver({
           <div
             style={{
               padding: '16px 20px',
-              borderTop: '1px solid #112040',
+              background: 'rgba(5,12,26,0.3)',
+              borderTop: '1px solid rgba(255,255,255,0.06)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
               display: 'flex',
               gap: 8,
               flexShrink: 0,
@@ -163,13 +186,13 @@ export default function SlideOver({
       {/* ── Scoped styles ── */}
       <style jsx global>{`
         .so-body::-webkit-scrollbar {
-          width: 4px;
+          width: 3px;
         }
         .so-body::-webkit-scrollbar-track {
           background: transparent;
         }
         .so-body::-webkit-scrollbar-thumb {
-          background: #112040;
+          background: rgba(33,150,243,0.2);
           border-radius: 999px;
         }
 
@@ -179,9 +202,9 @@ export default function SlideOver({
         }
         .so-section-title {
           font-family: 'Exo 2', sans-serif;
-          font-size: 10px;
-          letter-spacing: 0.16em;
-          color: #2a4060;
+          font-size: 9px;
+          letter-spacing: 0.2em;
+          color: rgba(33,150,243,0.5);
           text-transform: uppercase;
           margin-bottom: 12px;
         }
@@ -189,48 +212,79 @@ export default function SlideOver({
         /* ── Field styles ── */
         .so-label {
           font-size: 11px;
-          color: #5B7BA0;
+          color: rgba(255,255,255,0.45);
           margin-bottom: 5px;
           display: block;
         }
         .so-input {
           width: 100%;
-          background: #060F1D;
-          border: 1px solid #0d1f3a;
-          border-radius: 8px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 9px;
           padding: 9px 12px;
           color: #E8EFF8;
           font-size: 13px;
           font-family: 'DM Sans', sans-serif;
           outline: none;
-          transition: border-color 0.2s;
+          transition: all 0.2s;
         }
         .so-input:focus {
-          border-color: #2196F3;
+          border-color: rgba(33,150,243,0.45);
+          background: rgba(33,150,243,0.06);
+          box-shadow: 0 0 0 3px rgba(33,150,243,0.08);
         }
         .so-select {
           width: 100%;
-          background: #060F1D;
-          border: 1px solid #0d1f3a;
-          border-radius: 8px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 9px;
           padding: 9px 12px;
           color: #E8EFF8;
           font-size: 13px;
           font-family: 'DM Sans', sans-serif;
           outline: none;
-          transition: border-color 0.2s;
+          transition: all 0.2s;
           appearance: none;
         }
         .so-select:focus {
-          border-color: #2196F3;
+          border-color: rgba(33,150,243,0.45);
+          background: rgba(33,150,243,0.06);
+          box-shadow: 0 0 0 3px rgba(33,150,243,0.08);
+        }
+
+        /* ── Card styles inside slide-over ── */
+        .so-card {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 11px;
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+        }
+
+        /* ── Add driver button ── */
+        .so-btn-add {
+          background: rgba(33,150,243,0.06);
+          border: 1px dashed rgba(33,150,243,0.25);
+          color: rgba(33,150,243,0.7);
+          border-radius: 9px;
+          padding: 10px;
+          width: 100%;
+          cursor: pointer;
+          font-family: 'Exo 2', sans-serif;
+          font-size: 12px;
+          transition: all 0.2s;
+        }
+        .so-btn-add:hover {
+          background: rgba(33,150,243,0.1);
+          border-color: rgba(33,150,243,0.45);
         }
 
         /* ── Footer button styles ── */
         .so-btn-primary {
           flex: 1;
           padding: 10px;
-          background: #0047AB;
-          border: none;
+          background: rgba(0,71,171,0.8);
+          border: 1px solid rgba(33,150,243,0.3);
           border-radius: 8px;
           color: #fff;
           font-family: 'Exo 2', sans-serif;
@@ -239,29 +293,34 @@ export default function SlideOver({
           letter-spacing: 0.16em;
           text-transform: uppercase;
           cursor: pointer;
-          transition: background 0.2s;
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          transition: all 0.2s;
         }
         .so-btn-primary:hover {
-          background: #1565C0;
+          background: rgba(21,101,192,0.9);
+          box-shadow: 0 4px 20px rgba(0,71,171,0.3);
         }
         .so-btn-primary:disabled {
-          background: #1a2744;
-          color: #5B7BA0;
+          background: rgba(26,39,68,0.6);
+          color: rgba(91,123,160,0.6);
           cursor: not-allowed;
+          border-color: rgba(255,255,255,0.05);
+          box-shadow: none;
         }
         .so-btn-ghost {
           padding: 10px 14px;
-          background: transparent;
-          border: 1px solid #112040;
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.08);
           border-radius: 8px;
-          color: #5B7BA0;
+          color: rgba(255,255,255,0.45);
           font-family: 'Exo 2', sans-serif;
           font-size: 11px;
           cursor: pointer;
-          transition: border-color 0.2s, color 0.2s;
+          transition: all 0.2s;
         }
         .so-btn-ghost:hover {
-          border-color: #5B7BA0;
+          background: rgba(255,255,255,0.06);
           color: #E8EFF8;
         }
 
