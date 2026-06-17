@@ -1,0 +1,327 @@
+-- ═══════════════════════════════════════════════
+-- Shuma Rutas — Schema base
+-- v1.0 | Josue Ferreira | Junio 2025
+-- ═══════════════════════════════════════════════
+
+-- Extensiones necesarias
+create extension if not exists "uuid-ossp";
+
+-- Bodegas de salida/regreso
+create table public.depots (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null,
+  address text,
+  lat double precision not null,
+  lng double precision not null,
+  active boolean default true,
+  created_at timestamptz default now()
+);
+
+-- Catálogo de vehículos
+create table public.vehicles (
+  id uuid primary key default uuid_generate_v4(),
+  plate text not null unique,
+  type text not null check (type in ('van','truck_small','truck_large')),
+  max_load int not null default 4,
+  active boolean default true,
+  created_at timestamptz default now()
+);
+
+-- Catálogo de choferes
+create table public.drivers (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null,
+  employee_id text unique,
+  phone text,
+  vehicle_id uuid references public.vehicles(id) on delete set null,
+  active boolean default true,
+  created_at timestamptz default now()
+);
+
+-- Cabecera de cada ruta de entrega
+create table public.routes (
+  id uuid primary key default uuid_generate_v4(),
+  date date not null default current_date,
+  depot_id uuid references public.depots(id) on delete set null,
+  return_depot_id uuid references public.depots(id) on delete set null,
+  departure_time time not null,
+  status text not null default 'draft'
+    check (status in ('draft','optimized','in_progress','completed','cancelled')),
+  total_deliveries int default 0,
+  total_drivers int default 0,
+  created_by text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Choferes asignados a cada ruta
+create table public.route_drivers (
+  id uuid primary key default uuid_generate_v4(),
+  route_id uuid not null references public.routes(id) on delete cascade,
+  driver_id uuid not null references public.drivers(id) on delete cascade,
+  vehicle_id uuid references public.vehicles(id) on delete set null,
+  departure_time time,
+  color text,
+  route_order int,
+  total_km double precision,
+  total_time_min int,
+  created_at timestamptz default now(),
+  unique(route_id, driver_id)
+);
+
+-- Entregas de cada ruta
+create table public.deliveries (
+  id uuid primary key default uuid_generate_v4(),
+  route_id uuid not null references public.routes(id) on delete cascade,
+  route_driver_id uuid references public.route_drivers(id) on delete set null,
+  invoice text not null,
+  client_name text,
+  address text not null,
+  lat double precision,
+  lng double precision,
+  geocoded boolean default false,
+  stop_order int,
+  status text not null default 'pending'
+    check (status in ('pending','in_route','delivered','failed')),
+  notes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Log de eventos por entrega
+create table public.delivery_events (
+  id uuid primary key default uuid_generate_v4(),
+  delivery_id uuid not null references public.deliveries(id) on delete cascade,
+  event_type text not null
+    check (event_type in ('delivered','failed','photo','signature','panic','note')),
+  lat double precision,
+  lng double precision,
+  photo_url text,
+  signature_url text,
+  notes text,
+  created_at timestamptz default now()
+);
+
+-- Índices para queries frecuentes
+create index idx_routes_date on public.routes(date desc);
+create index idx_routes_status on public.routes(status);
+create index idx_deliveries_route on public.deliveries(route_id);
+create index idx_deliveries_status on public.deliveries(status);
+create index idx_delivery_events_delivery on public.delivery_events(delivery_id);
+create index idx_route_drivers_route on public.route_drivers(route_id);
+
+-- Trigger para updated_at automático
+create or replace function public.handle_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger routes_updated_at
+  before update on public.routes
+  for each row execute function public.handle_updated_at();
+
+create trigger deliveries_updated_at
+  before update on public.deliveries
+  for each row execute function public.handle_updated_at();
+
+-- Bodegas iniciales
+insert into public.depots (name, address, lat, lng) values
+  ('San Pablo', 'Bodega San Pablo, CDMX', 19.3550675, -99.0939998),
+  ('División del Norte', 'Bodega División del Norte, CDMX', 19.3464401, -99.1501142);
+
+-- Vehículos de prueba
+insert into public.vehicles (plate, type, max_load) values
+  ('MAT-123', 'truck_large', 6),
+  ('MAT-456', 'truck_large', 6),
+  ('MAT-789', 'van', 4);
+
+-- Choferes de prueba vinculados a sus vehículos
+insert into public.drivers (name, employee_id, vehicle_id) values
+  ('Sultano', 'EMP-001', (select id from public.vehicles where plate = 'MAT-123')),
+  ('Mengano', 'EMP-002', (select id from public.vehicles where plate = 'MAT-456')),
+  ('El Derek', 'EMP-003', (select id from public.vehicles where plate = 'MAT-789'));
+
+-- RLS habilitado en todas las tablas
+alter table public.depots enable row level security;
+alter table public.vehicles enable row level security;
+alter table public.drivers enable row level security;
+alter table public.routes enable row level security;
+alter table public.route_drivers enable row level security;
+alter table public.deliveries enable row level security;
+alter table public.delivery_events enable row level security;
+
+-- Lectura pública para catálogos (el frontend los necesita sin auth)
+create policy "read depots"
+  on public.depots for select to anon using (true);
+
+create policy "read vehicles"
+  on public.vehicles for select to anon using (true);
+
+create policy "read drivers"
+  on public.drivers for select to anon using (true);
+
+-- Escritura solo desde el backend via service_role
+create policy "backend access routes"
+  on public.routes for all to service_role using (true);
+
+create policy "backend access route_drivers"
+  on public.route_drivers for all to service_role using (true);
+
+create policy "backend access deliveries"
+  on public.deliveries for all to service_role using (true);
+
+create policy "backend access delivery_events"
+  on public.delivery_events for all to service_role using (true);
+
+-- Permitir lectura pública en depots, drivers y vehicles
+create policy "public read depots"
+  on public.depots for select using (true);
+
+create policy "public read drivers"
+  on public.drivers for select using (true);
+
+create policy "public read vehicles"
+  on public.vehicles for select using (true);
+
+-- Habilitar Data API para todas las tablas
+grant usage on schema public to anon, authenticated;
+
+grant select on public.depots to anon, authenticated;
+grant select on public.vehicles to anon, authenticated;
+grant select on public.drivers to anon, authenticated;
+
+grant all on public.routes to service_role;
+grant all on public.route_drivers to service_role;
+grant all on public.deliveries to service_role;
+grant all on public.delivery_events to service_role;
+
+-- ═══════════════════════════════════════════════
+-- Shuma Rutas — Schema v1.1
+-- Bitácora + Versionado de rutas + Perfiles
+-- Josue Ferreira | Junio 2025
+-- ═══════════════════════════════════════════════
+
+-- ─── 1. PERFILES DE USUARIO ───────────────────
+
+create table public.user_profiles (
+  id uuid primary key default uuid_generate_v4(),
+  username text not null unique,
+  password_hash text not null,   -- en v2 usar bcrypt, por ahora texto plano
+  full_name text,
+  role text not null check (role in ('admin','logistics','viewer','driver')),
+  driver_id uuid references public.drivers(id) on delete set null,
+  active boolean default true,
+  last_login timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index idx_users_username on public.user_profiles(username);
+create index idx_users_role on public.user_profiles(role);
+
+create trigger user_profiles_updated_at
+  before update on public.user_profiles
+  for each row execute function public.handle_updated_at();
+
+-- RLS
+alter table public.user_profiles enable row level security;
+create policy "backend access users"
+  on public.user_profiles for all to service_role using (true);
+
+-- Usuarios iniciales (contraseñas genéricas temporales)
+insert into public.user_profiles (username, password_hash, full_name, role) values
+  ('admin',      'Admin2025',    'Administrador Shuma',  'admin'),
+  ('logistica',  'Logistica25',  'Operaciones Shuma',    'logistics'),
+  ('supervisor', 'Viewer2025',   'Supervisor Shuma',     'viewer');
+
+-- Los choferes se agregan después vinculados a su driver_id
+
+-- ─── 2. BITÁCORA DE MOVIMIENTOS ───────────────
+
+create table public.audit_log (
+  id uuid primary key default uuid_generate_v4(),
+  action text not null,
+  -- Acciones posibles:
+  -- Auth:     login_success, login_failed, logout
+  -- Rutas:    route_created, route_optimized, route_reoptimized,
+  --           route_completed, route_cancelled
+  -- Entregas: delivery_moved, delivery_completed, delivery_failed
+  -- PDF:      pdf_downloaded
+  -- Catálogo: driver_created, driver_updated, driver_deleted,
+  --           vehicle_created, vehicle_updated
+  -- Pánico:   panic_triggered
+  entity text,        -- 'route', 'delivery', 'driver', 'vehicle', 'session'
+  entity_id text,     -- UUID del registro afectado
+  user_name text,     -- username de quien hizo la acción
+  user_role text,     -- rol en el momento de la acción
+  ip_address text,
+  user_agent text,
+  metadata jsonb,     -- datos extra según la acción
+  created_at timestamptz default now()
+);
+
+create index idx_audit_action   on public.audit_log(action);
+create index idx_audit_user     on public.audit_log(user_name);
+create index idx_audit_created  on public.audit_log(created_at desc);
+create index idx_audit_entity   on public.audit_log(entity, entity_id);
+create index idx_audit_role     on public.audit_log(user_role);
+
+-- RLS — solo el backend escribe y lee, nadie puede borrar
+alter table public.audit_log enable row level security;
+
+create policy "backend write audit"
+  on public.audit_log for insert to service_role with check (true);
+
+create policy "backend read audit"
+  on public.audit_log for select to service_role using (true);
+
+-- ─── 3. VERSIONADO EN TABLA ROUTES ────────────
+
+alter table public.routes
+  add column version int not null default 1,
+  add column parent_route_id uuid references public.routes(id) on delete set null,
+  add column is_latest boolean not null default true;
+
+create index idx_routes_latest on public.routes(parent_route_id, is_latest);
+create index idx_routes_version on public.routes(parent_route_id, version);
+
+-- ─── 4. GRANTS PARA NUEVAS TABLAS ─────────────
+
+grant all on public.user_profiles to service_role;
+grant all on public.audit_log to service_role;
+
+-- Usuarios para choferes existentes
+insert into public.user_profiles (username, password_hash, full_name, role, driver_id) values
+  ('sultano', 'Sultano25', 'Sultano', 'driver',
+    (select id from public.drivers where name = 'Sultano')),
+  ('mengano', 'Mengano25', 'Mengano', 'driver',
+    (select id from public.drivers where name = 'Mengano')),
+  ('derek', 'Derek2025', 'El Derek', 'driver',
+    (select id from public.drivers where name = 'El Derek'));
+
+insert into public.user_profiles (username, password_hash, full_name, role, driver_id) values
+  ('sultano', 'Sultano25', 'Sultano', 'driver',
+    (select id from public.drivers where name = 'Sultano')),
+  ('mengano', 'Mengano25', 'Mengano', 'driver',
+    (select id from public.drivers where name = 'Mengano')),
+  ('derek', 'Derek2025', 'El Derek', 'driver',
+    (select id from public.drivers where name = 'El Derek'));
+
+select username, full_name, role, driver_id 
+from public.user_profiles 
+order by role, username;
+
+SELECT active, count(*) 
+FROM public.user_profiles 
+GROUP BY active;
+
+insert into public.user_profiles (username, password_hash, full_name, role) values
+  ('zezar', 'Shuma777', 'Zezar', 'admin');
+
+  insert into public.user_profiles (username, password_hash, full_name, role, driver_id) values
+  ('demo', 'Demo25', 'Demo', 'driver',
+    (select id from public.drivers where name = 'Demo'))
+

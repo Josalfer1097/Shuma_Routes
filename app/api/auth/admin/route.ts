@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { logAction } from '@/lib/auditLogger';
 
 export async function POST(req: NextRequest) {
   const { username, password } = await req.json();
@@ -25,15 +26,15 @@ export async function POST(req: NextRequest) {
   }
 
   // Registrar login en audit_log
-  await supabaseAdmin.from('audit_log').insert({
-    action: 'login_success',
-    entity: 'session',
-    user_name: data.username,
-    user_role: data.role,
-    ip_address: req.headers.get('x-forwarded-for') || 'unknown',
-    user_agent: req.headers.get('user-agent') || 'unknown',
-    metadata: { full_name: data.full_name }
-  });
+  await logAction(
+    'login_success',
+    'user',
+    data.id,
+    data.username,
+    data.role,
+    'auth',
+    { ip: req.headers.get('x-forwarded-for') || 'unknown' }
+  );
 
   // Actualizar last_login
   await supabaseAdmin

@@ -21,6 +21,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { BarChart2, History, LogOut, Maximize2, Minimize2 } from 'lucide-react';
 import Image from 'next/image';
+import WeatherIntelPanel from '@/components/dispatcher/WeatherIntelPanel';
+import AuditLogModal from '@/components/dispatcher/AuditLogModal';
 
 // Leaflet NO es compatible con SSR → dynamic import
 const MapView = dynamic(() => import('@/components/dispatcher/MapView'), {
@@ -226,6 +228,7 @@ export default function DispatcherPage() {
   // ── New layout states ──
   const [isSlideOverOpen, setIsSlideOverOpen] = useState(false);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
 
   // ── Session data (client-only) ──
   const [userName, setUserName] = useState('');
@@ -657,6 +660,13 @@ export default function DispatcherPage() {
             )}
           </div>
 
+          {weather && (
+            <WeatherIntelPanel 
+              weather={weather}
+              onAuditOpen={() => setIsAuditModalOpen(true)}
+            />
+          )}
+
           <span style={{
             flex: 1,
             textAlign: 'center',
@@ -956,7 +966,13 @@ export default function DispatcherPage() {
             </>
           ) : activeTab === 'routes' && state.routes.length > 0 ? (
             <>
-              <ReportButton routes={state.routes} weather={weather} globalConfig={state.globalConfig} />
+              <ReportButton 
+                routes={state.routes} 
+                weather={weather} 
+                globalConfig={state.globalConfig} 
+                userName={userName}
+                userRole={userRole}
+              />
             </>
           ) : undefined
         }
@@ -1223,6 +1239,12 @@ export default function DispatcherPage() {
           }
         }
       `}</style>
+
+      <AuditLogModal 
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
+        userRole={userRole}
+      />
     </div>
   );
 }
