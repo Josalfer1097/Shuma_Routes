@@ -230,6 +230,7 @@ export default function DispatcherPage() {
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [fleetMode, setFleetMode] = useState<'auto' | 'manual'>('auto');
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
 
   // ── Session data (client-only) ──
@@ -595,60 +596,85 @@ export default function DispatcherPage() {
 
             {userRole !== 'driver' && (
               <>
-                <button
-                  onClick={() => window.location.href = '/dashboard'}
-                  title="Dashboard — métricas y KPIs (próximamente)"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '5px 10px', background: 'transparent',
-                    border: '1px solid #112040', borderRadius: 6,
-                    color: '#5B7BA0', fontSize: 11,
-                    fontFamily: "'Exo 2', sans-serif",
-                    cursor: 'pointer', transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor='#2196F3'; e.currentTarget.style.color='#2196F3'; e.currentTarget.style.background='rgba(33,150,243,0.06)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor='#112040'; e.currentTarget.style.color='#5B7BA0'; e.currentTarget.style.background='transparent'; }}
-                >
-                  <BarChart2 size={14} />
-                  <span className="hidden-mobile">Dashboard</span>
-                </button>
+                {/* Menú "Más" con Dashboard, Histórico y Bitácora */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setIsMoreMenuOpen(o => !o)}
+                    title="Más opciones"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '5px 10px', background: isMoreMenuOpen ? 'rgba(33,150,243,0.10)' : 'transparent',
+                      border: `1px solid ${isMoreMenuOpen ? '#2196F3' : '#112040'}`,
+                      borderRadius: 6, color: isMoreMenuOpen ? '#2196F3' : '#5B7BA0',
+                      fontSize: 11, fontFamily: "'Exo 2', sans-serif",
+                      cursor: 'pointer', transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#2196F3'; e.currentTarget.style.color = '#2196F3'; }}
+                    onMouseLeave={e => {
+                      if (!isMoreMenuOpen) {
+                        e.currentTarget.style.borderColor = '#112040';
+                        e.currentTarget.style.color = '#5B7BA0';
+                      }
+                    }}
+                  >
+                    <span style={{ fontSize: 13 }}>☰</span>
+                    <span className="hidden-mobile">Menú</span>
+                  </button>
 
-                <button
-                  onClick={() => window.location.href = '/history'}
-                  title="Histórico de rutas (próximamente)"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '5px 10px', background: 'transparent',
-                    border: '1px solid #112040', borderRadius: 6,
-                    color: '#5B7BA0', fontSize: 11,
-                    fontFamily: "'Exo 2', sans-serif",
-                    cursor: 'pointer', transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor='#2196F3'; e.currentTarget.style.color='#2196F3'; e.currentTarget.style.background='rgba(33,150,243,0.06)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor='#112040'; e.currentTarget.style.color='#5B7BA0'; e.currentTarget.style.background='transparent'; }}
-                >
-                  <History size={14} />
-                  <span className="hidden-mobile">Histórico</span>
-                </button>
+                  {/* Dropdown */}
+                  {isMoreMenuOpen && (
+                    <>
+                      <div
+                        style={{ position: 'fixed', inset: 0, zIndex: 100 }}
+                        onClick={() => setIsMoreMenuOpen(false)}
+                      />
+                      <div style={{
+                        position: 'absolute', top: 'calc(100% + 8px)', left: 0,
+                        zIndex: 101, minWidth: 160,
+                        background: '#0A1628',
+                        border: '1px solid #112040',
+                        borderRadius: 10,
+                        boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
+                        overflow: 'hidden',
+                        animation: 'fadeInDown 0.15s ease-out',
+                      }}>
+                        {[
+                          { icon: '📊', label: 'Dashboard', href: '/dashboard' },
+                          { icon: '📜', label: 'Histórico', href: '/history' },
+                          { icon: '🔍', label: 'Bitácora', action: () => { setIsAuditModalOpen(true); setIsMoreMenuOpen(false); } },
+                        ].map(item => (
+                          <button
+                            key={item.label}
+                            onClick={() => {
+                              if (item.action) item.action();
+                              else { window.location.href = item.href!; setIsMoreMenuOpen(false); }
+                            }}
+                            style={{
+                              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                              padding: '10px 14px', background: 'none', border: 'none',
+                              color: '#94a3b8', fontSize: 12, cursor: 'pointer',
+                              fontFamily: "'Exo 2', sans-serif", textAlign: 'left',
+                              borderBottom: '1px solid rgba(255,255,255,0.04)',
+                              transition: 'all 0.15s',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(33,150,243,0.08)'; e.currentTarget.style.color = '#e2e8f0'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94a3b8'; }}
+                          >
+                            <span style={{ fontSize: 14 }}>{item.icon}</span>
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
 
-                {/* Botón Bitácora independiente */}
-                <button
-                  onClick={() => setIsAuditModalOpen(true)}
-                  title="Bitácora de auditoría — registro de todas las acciones del sistema"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '5px 10px', background: 'transparent',
-                    border: '1px solid #112040', borderRadius: 6,
-                    color: '#5B7BA0', fontSize: 11,
-                    fontFamily: "'Exo 2', sans-serif",
-                    cursor: 'pointer', transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor='#2196F3'; e.currentTarget.style.color='#2196F3'; e.currentTarget.style.background='rgba(33,150,243,0.06)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor='#112040'; e.currentTarget.style.color='#5B7BA0'; e.currentTarget.style.background='transparent'; }}
-                >
-                  <span style={{ fontSize: 12 }}>📊</span>
-                  <span className="hidden-mobile">Bitácora</span>
-                </button>
+                <style>{`
+                  @keyframes fadeInDown {
+                    from { opacity: 0; transform: translateY(-6px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                  }
+                `}</style>
 
                 {/* Widget clima */}
                 {weather && (
@@ -993,7 +1019,13 @@ export default function DispatcherPage() {
           marginBottom: 20
         }}>
           {(['config','upload','zones','routes'] as const).map((s, i) => {
-            const labels = ['Conf.','Dir.','Zonas','Rutas'];
+            const tabMeta = [
+              { label: 'Conf.',  icon: '⚙️' },
+              { label: 'Dir.',   icon: '📂' },
+              { label: 'Zonas', icon: '🗺️' },
+              { label: 'Rutas', icon: '🚚' },
+            ];
+            const { label, icon } = tabMeta[i];
             const isActive = activeTab === s;
             const stepsOrder = ['config','upload','zones','routes'];
             const isDone = stepsOrder.indexOf(activeTab) > stepsOrder.indexOf(s) || isTabCompleted(s);
@@ -1017,10 +1049,16 @@ export default function DispatcherPage() {
                   cursor: 'pointer',
                   fontFamily: "'Exo 2', sans-serif",
                   letterSpacing: '0.06em',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  minWidth: 60
                 }}
               >
-                {labels[i]}
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <span style={{ fontSize: 14, lineHeight: 1 }}>
+                    {isDone && !isActive ? '✅' : icon}
+                  </span>
+                  <span style={{ fontSize: 10 }}>{label}</span>
+                </span>
               </button>
             );
           })}

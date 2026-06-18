@@ -18,8 +18,79 @@ export default function HomePage() {
     <main className="min-h-screen flex items-center justify-center bg-shuma-bg px-4">
       {/* Fondo decorativo */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Gradientes de fondo */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl" />
+
+        {/* SVG de rutas animadas */}
+        <svg
+          className="absolute inset-0 w-full h-full opacity-[0.07]"
+          viewBox="0 0 1200 800"
+          xmlns="http://www.w3.org/2000/svg"
+          preserveAspectRatio="xMidYMid slice"
+        >
+          <defs>
+            <style>{`
+              .route-path {
+                fill: none;
+                stroke: #2196F3;
+                stroke-width: 1.5;
+                stroke-dasharray: 800;
+                stroke-dashoffset: 800;
+              }
+              .route-path-amber {
+                fill: none;
+                stroke: #F59E0B;
+                stroke-width: 1.5;
+                stroke-dasharray: 600;
+                stroke-dashoffset: 600;
+              }
+              .rp1 { animation: draw-route 4s ease-in-out 0.2s infinite alternate; }
+              .rp2 { animation: draw-route 5s ease-in-out 0.8s infinite alternate; }
+              .rp3 { animation: draw-route 4.5s ease-in-out 1.4s infinite alternate; }
+              .rp4 { animation: draw-route-amber 3.5s ease-in-out 0.5s infinite alternate; }
+              .rp5 { animation: draw-route-amber 4.8s ease-in-out 1.1s infinite alternate; }
+              @keyframes draw-route {
+                0%   { stroke-dashoffset: 800; opacity: 0; }
+                10%  { opacity: 1; }
+                80%  { stroke-dashoffset: 0; opacity: 0.8; }
+                100% { stroke-dashoffset: 0; opacity: 0.3; }
+              }
+              @keyframes draw-route-amber {
+                0%   { stroke-dashoffset: 600; opacity: 0; }
+                10%  { opacity: 1; }
+                80%  { stroke-dashoffset: 0; opacity: 0.6; }
+                100% { stroke-dashoffset: 0; opacity: 0.2; }
+              }
+              .depot-dot { fill: #2196F3; animation: pulse-dot 2s ease-in-out infinite; }
+              .stop-dot  { fill: #F59E0B; animation: pulse-dot 2s ease-in-out 0.5s infinite; }
+              @keyframes pulse-dot {
+                0%,100% { r: 4; opacity: 0.8; }
+                50%      { r: 6; opacity: 0.4; }
+              }
+            `}</style>
+          </defs>
+
+          {/* Rutas azules — vehículo 1 */}
+          <path className="route-path rp1" d="M 600 400 L 450 320 L 300 280 L 180 350 L 120 420 L 200 500 L 350 530" />
+          <path className="route-path rp2" d="M 600 400 L 680 300 L 820 260 L 950 310 L 1020 400 L 980 500 L 880 550" />
+          <path className="route-path rp3" d="M 600 400 L 560 520 L 480 620 L 380 650 L 260 620 L 200 560" />
+
+          {/* Rutas ámbar — vehículo 2 */}
+          <path className="route-path-amber rp4" d="M 600 400 L 700 480 L 820 510 L 900 580 L 860 660 L 740 690" />
+          <path className="route-path-amber rp5" d="M 600 400 L 500 460 L 400 440 L 300 480 L 240 560 L 300 630" />
+
+          {/* Puntos depot */}
+          <circle className="depot-dot" cx="600" cy="400" r="6" />
+
+          {/* Puntos de parada */}
+          <circle className="stop-dot" cx="180" cy="350" r="4" style={{ animationDelay: '1s' }} />
+          <circle className="stop-dot" cx="950" cy="310" r="4" style={{ animationDelay: '1.5s' }} />
+          <circle className="stop-dot" cx="480" cy="620" r="4" style={{ animationDelay: '2s' }} />
+          <circle className="stop-dot" cx="820" cy="510" r="4" style={{ animationDelay: '0.7s' }} />
+          <circle className="stop-dot" cx="300" cy="280" r="4" style={{ animationDelay: '2.5s' }} />
+          <circle className="stop-dot" cx="860" cy="660" r="4" style={{ animationDelay: '1.2s' }} />
+        </svg>
       </div>
       <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
@@ -48,7 +119,7 @@ export default function HomePage() {
           </p>
           <Link
             href="/admin-login"
-            className="group flex items-center gap-4 w-full p-5 rounded-2xl
+            className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-accent transition-all duration-300 hover:shadow-lg
                        hover:shadow-[0_0_15px_rgba(33,150,243,0.15)] hover:-translate-y-0.5"
@@ -73,10 +144,17 @@ export default function HomePage() {
               fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
+            <div style={{
+              position: 'absolute', bottom: 8, right: 48,
+              fontSize: 18, opacity: 0,
+              transition: 'all 0.3s ease',
+            }}
+              className="group-hover:opacity-30 group-hover:translate-x-2"
+            >🗺️</div>
           </Link>
           <Link
             href="/driver-login"
-            className="group flex items-center gap-4 w-full p-5 rounded-2xl
+            className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-warning transition-all duration-300 hover:shadow-lg
                        hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:-translate-y-0.5"
@@ -101,6 +179,13 @@ export default function HomePage() {
               fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
+            <div style={{
+              position: 'absolute', bottom: 8, right: 48,
+              fontSize: 18, opacity: 0,
+              transition: 'all 0.3s ease',
+            }}
+              className="group-hover:opacity-30 group-hover:translate-x-2"
+            >🚛</div>
           </Link>
         </div>
         {/* Footer RGB */}

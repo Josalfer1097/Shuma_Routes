@@ -462,6 +462,11 @@ export default function AdminLoginPage() {
           opacity: 0.08; transition: opacity 0.4s ease 0.2s; pointer-events: none;
         }
 
+        @keyframes bounce-dot {
+          0%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-4px); }
+        }
+
         /* ATTEMPT DOTS */
         .ls-attempt-bar {
           display: flex; gap: 4px; margin-top: 8px; justify-content: center;
@@ -578,7 +583,35 @@ export default function AdminLoginPage() {
               onClick={handleSubmit}
               disabled={loading}
             >
-              {accessGranted ? "Acceso concedido ✓" : loading ? "Verificando..." : "Ingresar"}
+              {loading ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                  <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="2" x2="12" y2="6"></line>
+                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                    <line x1="2" y1="12" x2="6" y2="12"></line>
+                    <line x1="18" y1="12" x2="22" y2="12"></line>
+                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                    <line x1="16.24" y1="4.93" x2="19.07" y2="7.76"></line>
+                  </svg>
+                  Autenticando
+                  <span style={{ display: 'inline-flex', gap: 2 }}>
+                    {[0,1,2].map(i => (
+                      <span key={i} style={{
+                        width: 4, height: 4, borderRadius: '50%', background: 'currentColor',
+                        animation: 'bounce-dot 1s ease-in-out infinite',
+                        animationDelay: `${i * 0.15}s`,
+                        display: 'inline-block',
+                      }} />
+                    ))}
+                  </span>
+                </span>
+              ) : accessGranted ? (
+                <span>✓ Acceso concedido</span>
+              ) : (
+                <span>Acceder</span>
+              )}
             </button>
 
             <div className={`ls-error ${error ? "show" : ""} ${shaking ? "shake" : ""}`}>
