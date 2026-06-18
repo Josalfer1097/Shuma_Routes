@@ -875,46 +875,159 @@ export default function DispatcherPage() {
           </div>
         )}
 
-        {/* ── Mensaje de bienvenida cuando no hay datos ── */}
+        {/* ── Mensaje de bienvenida con línea GPS animada ── */}
         {state.step === 'config' && state.addresses.length === 0 && !isSlideOverOpen && (
-          <div style={{
-            position: 'absolute',
-            top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 10,
-            textAlign: 'center',
-            pointerEvents: 'none',
-          }}>
+          <>
+            <style>{`
+              @keyframes draw-route-line {
+                0%   { stroke-dashoffset: 400; opacity: 0; }
+                10%  { opacity: 1; }
+                100% { stroke-dashoffset: 0; opacity: 1; }
+              }
+              @keyframes pulse-dot {
+                0%, 100% { r: 5; opacity: 1; }
+                50%      { r: 8; opacity: 0.6; }
+              }
+              @keyframes arrive-dot {
+                0%, 60%  { opacity: 0; transform: scale(0); }
+                80%      { opacity: 1; transform: scale(1.3); }
+                100%     { opacity: 1; transform: scale(1); }
+              }
+              @keyframes welcome-fade-in {
+                from { opacity: 0; transform: translate(-50%, -54%); }
+                to   { opacity: 1; transform: translate(-50%, -50%); }
+              }
+            `}</style>
+
+            {/* Card de bienvenida — centrada */}
             <div style={{
-              background: 'rgba(10,22,40,0.92)',
-              border: '1px solid #1E3A5F',
-              borderRadius: 20,
-              padding: '28px 36px',
-              backdropFilter: 'blur(12px)',
-              boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
-              maxWidth: 320,
+              position: 'absolute',
+              top: '42%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 10,
+              textAlign: 'center',
+              animation: 'welcome-fade-in 0.4s ease-out',
             }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🗺️</div>
-              <p style={{
-                fontSize: 16, fontWeight: 700, color: '#E8EFF8',
-                fontFamily: "'Exo 2', sans-serif", marginBottom: 6,
-              }}>
-                Bienvenido a Shuma Rutas
-              </p>
-              <p style={{ fontSize: 12, color: '#5B7BA0', lineHeight: 1.5, marginBottom: 16 }}>
-                Optimiza las rutas de entrega de tu flota en minutos.
-              </p>
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                justifyContent: 'center',
-                fontSize: 11, color: '#2196F3',
-                fontFamily: "'Exo 2', sans-serif",
+                background: 'rgba(10,22,40,0.94)',
+                border: '1px solid #1E3A5F',
+                borderRadius: 20,
+                padding: '28px 36px',
+                backdropFilter: 'blur(12px)',
+                boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+                maxWidth: 300,
               }}>
-                <span style={{ fontSize: 16 }}>⚙️</span>
-                <span>Presiona <strong>Configuración</strong> para comenzar</span>
+                <div style={{ fontSize: 38, marginBottom: 10 }}>🗺️</div>
+                <p style={{
+                  fontSize: 16, fontWeight: 700, color: '#E8EFF8',
+                  fontFamily: "'Exo 2', sans-serif", marginBottom: 6, margin: '0 0 6px',
+                }}>
+                  Bienvenido a Shuma Rutas
+                </p>
+                <p style={{
+                  fontSize: 12, color: '#5B7BA0', lineHeight: 1.5,
+                  margin: '0 0 14px',
+                }}>
+                  Optimiza las rutas de entrega de tu flota en minutos.
+                </p>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  justifyContent: 'center', fontSize: 11,
+                  color: '#2196F3', fontFamily: "'Exo 2', sans-serif",
+                }}>
+                  <span style={{ fontSize: 13 }}>⚙️</span>
+                  <span>Toca <strong>Configuración</strong> para comenzar</span>
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* SVG overlay con línea animada tipo GPS */}
+            {/* La línea va desde la card (centro del mapa ~50%, ~42%)
+                hasta el botón Configuración (bottom-right ~95%, ~90%) */}
+            <svg
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 9,
+                pointerEvents: 'none',
+              }}
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+            >
+              <defs>
+                <marker
+                  id="arrow-head"
+                  markerWidth="6"
+                  markerHeight="6"
+                  refX="3"
+                  refY="3"
+                  orient="auto"
+                >
+                  <path
+                    d="M0,0 L0,6 L6,3 z"
+                    fill="#2196F3"
+                    opacity="0.9"
+                  />
+                </marker>
+              </defs>
+
+              {/* Línea punteada de ruta — curva desde card hasta botón */}
+              <path
+                d="M 50 52 C 55 65, 75 70, 93 88"
+                fill="none"
+                stroke="#2196F3"
+                strokeWidth="0.8"
+                strokeDasharray="3,2"
+                strokeLinecap="round"
+                markerEnd="url(#arrow-head)"
+                style={{
+                  strokeDashoffset: 400,
+                  animation: 'draw-route-line 1.8s ease-out 0.3s forwards',
+                }}
+              />
+
+              {/* Punto de origen (en la card) */}
+              <circle
+                cx="50"
+                cy="52"
+                fill="#2196F3"
+                style={{
+                  animation: 'pulse-dot 1.5s ease-in-out infinite',
+                }}
+              />
+
+              {/* Halo del punto de origen */}
+              <circle
+                cx="50"
+                cy="52"
+                r="9"
+                fill="none"
+                stroke="#2196F3"
+                strokeWidth="0.4"
+                opacity="0.3"
+                style={{
+                  animation: 'pulse-dot 1.5s ease-in-out infinite',
+                }}
+              />
+
+              {/* Punto de destino (en el botón Configuración) */}
+              <circle
+                cx="93"
+                cy="88"
+                r="4"
+                fill="#0047AB"
+                stroke="#2196F3"
+                strokeWidth="0.8"
+                style={{
+                  transformOrigin: '93px 88px',
+                  animation: 'arrive-dot 1.8s ease-out 0.3s forwards',
+                  opacity: 0,
+                }}
+              />
+            </svg>
+          </>
         )}
 
         {/* ── Banner: geocodificación completada ── */}
