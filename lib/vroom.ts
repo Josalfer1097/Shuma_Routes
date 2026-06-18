@@ -528,3 +528,51 @@ export function assignVehicleColors(vehicles: Vehicle[]): Vehicle[] {
     color: DRIVER_COLORS[idx % DRIVER_COLORS.length],
   }));
 }
+
+/**
+ * Redibuja la polilínea de una ruta usando Google Routes API
+ * respetando el orden de paradas exactamente como viene.
+ * NO llama a Route Optimization — solo calcula la geometría.
+ */
+export async function redrawPolylineForRoute(route: Route): Promise<Route> {
+  if (route.stops.length === 0) return route;
+
+  try {
+    const depot = route.depot;
+    const endDep = route.endDepot ?? route.depot;
+
+    const waypoints: [number, number][] = [
+      [depot.lat, depot.lng],
+      ...route.stops
+        .filter(s => s.address.lat != null && s.address.lng != null)
+        .map(s => [s.address.lat!, s.address.lng!] as [number, number]),
+      [endDep.lat, endDep.lng],
+    ];
+
+    if (waypoints.length < 2) return route;
+
+    const result = await getRouteGoogle(waypoints);
+
+    // Recalcular ETAs y distancias acumuladas basados en la nueva polilínea
+    let accDist = 0;
+    let accTime = 0;
+    const updatedStops = route.stops.map((stop, i) => {
+      // Estimación simple: dividir total proporcionalmente
+      const fraction = (i + 1) / route.stops.length;
+      accDist = result.distanceMeters * fraction;
+      accTime = result.durationSeconds * fraction;
+      return { ...stop, distance: Math.round(accDist), eta: Math.round(accTime) };
+    });
+
+    return {
+      ...route,
+      stops: updatedStops,
+      polyline: result.polyline,
+      totalDistance: result.distanceMeters,
+      totalDuration: result.durationSeconds,
+    };
+  } catch (err) {
+    console.warn('[redrawPolyline] Error obteniendo polilínea:', err);
+    return route; // Fallback: retornar ruta sin cambiar polilínea
+  }
+}

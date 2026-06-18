@@ -19,10 +19,40 @@ export async function POST(req: NextRequest) {
 
     for (const route of routes) {
       // 1. Insertar ruta principal
+      // Buscar depot_id por coordenadas (tolerancia de 0.001 grados)
+      let depotId: string | null = null;
+      let returnDepotId: string | null = null;
+
+      if (route.depot?.lat && route.depot?.lng) {
+        const { data: depotData } = await supabaseAdmin
+          .from('depots')
+          .select('id')
+          .gte('lat', route.depot.lat - 0.001)
+          .lte('lat', route.depot.lat + 0.001)
+          .gte('lng', route.depot.lng - 0.001)
+          .lte('lng', route.depot.lng + 0.001)
+          .single();
+        depotId = depotData?.id || null;
+      }
+
+      if (route.endDepot?.lat && route.endDepot?.lng) {
+        const { data: returnData } = await supabaseAdmin
+          .from('depots')
+          .select('id')
+          .gte('lat', route.endDepot.lat - 0.001)
+          .lte('lat', route.endDepot.lat + 0.001)
+          .gte('lng', route.endDepot.lng - 0.001)
+          .lte('lng', route.endDepot.lng + 0.001)
+          .single();
+        returnDepotId = returnData?.id || null;
+      }
+
       const { data: routeData, error: routeErr } = await supabaseAdmin
         .from('routes')
         .insert({
           date: now.toISOString().split('T')[0],
+          depot_id: depotId,
+          return_depot_id: returnDepotId,
           departure_time: route.departureTime
             ? new Date(route.departureTime).toTimeString().slice(0, 5)
             : '08:00',

@@ -7,7 +7,7 @@ import type {
 } from '@/types';
 import { getWeatherCDMX, type WeatherData } from '@/lib/weather';
 import { geocodeBatch, geocodeAddress } from '@/lib/nominatim';
-import { optimizeRoutes, assignVehicleColors, optimizeSingleVehicle } from '@/lib/vroom';
+import { optimizeRoutes, assignVehicleColors, optimizeSingleVehicle, redrawPolylineForRoute } from '@/lib/vroom';
 import CSVUploader from '@/components/dispatcher/CSVUploader';
 import VehicleForm from '@/components/dispatcher/VehicleForm';
 import RoutePanel from '@/components/dispatcher/RoutePanel';
@@ -222,6 +222,7 @@ export default function DispatcherPage() {
   const [activeTab, setActiveTab] = useState<'config' | 'upload' | 'zones' | 'routes'>('config');
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [geocodingDone, setGeocodingDone] = useState(false);
 
   const { logout } = useAuth();
   const router = useRouter();
@@ -397,6 +398,9 @@ export default function DispatcherPage() {
         type: 'SET_ERROR', 
         payload: 'No se pudo geocodificar ninguna dirección. Verifica tu API Key de Google (Geocoding API habilitada y sin restricciones de referrer).' 
       });
+    } else if (successCount > 0) {
+      setGeocodingDone(true);
+      setTimeout(() => setGeocodingDone(false), 4000);
     }
   }, [state.vehicles, state.clusteringConfig]);
 
@@ -560,10 +564,24 @@ export default function DispatcherPage() {
     }
   }, [state.clusters, state.vehicles, state.globalConfig]);
 
-  const handleSaveManualOrder = useCallback((manualRoutes: Route[]) => {
+  const handleSaveManualOrder = useCallback(async (manualRoutes: Route[]) => {
     // Guarda el orden manual directamente en el state SIN llamar a Google
     dispatch({ type: 'SET_ROUTES', payload: manualRoutes });
-    saveRoutesData(manualRoutes);
+
+    // Luego redibujar polilíneas en background con Google Routes
+    setIsOptimizing(true);
+    try {
+      const routesWithPolylines = await Promise.all(
+        manualRoutes.map(route => redrawPolylineForRoute(route))
+      );
+      dispatch({ type: 'SET_ROUTES', payload: routesWithPolylines });
+      saveRoutesData(routesWithPolylines);
+    } catch (err) {
+      console.warn('No se pudo redibujar polilínea:', err);
+      saveRoutesData(manualRoutes);
+    } finally {
+      setIsOptimizing(false);
+    }
   }, []);
 
   const handleReoptimizeSingle = useCallback(async (vehicleId: string, manualStops: Stop[]) => {
@@ -854,6 +872,77 @@ export default function DispatcherPage() {
         {weather && (
           <div style={{ position: 'absolute', bottom: 70, left: 12, zIndex: 10 }}>
             <WeatherBanner weather={weather} />
+          </div>
+        )}
+
+        {/* ── Mensaje de bienvenida cuando no hay datos ── */}
+        {state.step === 'config' && state.addresses.length === 0 && !isSlideOverOpen && (
+          <div style={{
+            position: 'absolute',
+            top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 10,
+            textAlign: 'center',
+            pointerEvents: 'none',
+          }}>
+            <div style={{
+              background: 'rgba(10,22,40,0.92)',
+              border: '1px solid #1E3A5F',
+              borderRadius: 20,
+              padding: '28px 36px',
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+              maxWidth: 320,
+            }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🗺️</div>
+              <p style={{
+                fontSize: 16, fontWeight: 700, color: '#E8EFF8',
+                fontFamily: "'Exo 2', sans-serif", marginBottom: 6,
+              }}>
+                Bienvenido a Shuma Rutas
+              </p>
+              <p style={{ fontSize: 12, color: '#5B7BA0', lineHeight: 1.5, marginBottom: 16 }}>
+                Optimiza las rutas de entrega de tu flota en minutos.
+              </p>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                justifyContent: 'center',
+                fontSize: 11, color: '#2196F3',
+                fontFamily: "'Exo 2', sans-serif",
+              }}>
+                <span style={{ fontSize: 16 }}>⚙️</span>
+                <span>Presiona <strong>Configuración</strong> para comenzar</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Banner: geocodificación completada ── */}
+        {geocodingDone && state.step !== 'geocoding' && (
+          <div style={{
+            position: 'absolute',
+            top: 16, left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 11,
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 18px',
+            borderRadius: 20,
+            background: 'rgba(16,185,129,0.15)',
+            border: '1px solid rgba(16,185,129,0.4)',
+            backdropFilter: 'blur(8px)',
+            color: '#10B981',
+            fontSize: 12,
+            fontFamily: "'Exo 2', sans-serif",
+            fontWeight: 600,
+            boxShadow: '0 4px 20px rgba(16,185,129,0.2)',
+            animation: 'fadeInDown 0.3s ease-out',
+            whiteSpace: 'nowrap',
+          }}>
+            <span>✅</span>
+            <span>
+              {state.addresses.filter(a => a.geocoded && !a.geocodeError).length} direcciones
+              geocodificadas — listo para continuar
+            </span>
           </div>
         )}
 

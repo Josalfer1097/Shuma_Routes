@@ -11,6 +11,8 @@
     polyline: [number, number][];
     /** Rutas alternativas (hasta 2) */
     alternatives: [number, number][][];
+    distanceMeters: number;
+    durationSeconds: number;
   }
   
   /**
@@ -99,7 +101,7 @@
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GOOGLE_API_KEY,
-        'X-Goog-FieldMask': 'routes.polyline.encodedPolyline',
+        'X-Goog-FieldMask': 'routes.polyline.encodedPolyline,routes.distanceMeters,routes.duration',
       },
       body: JSON.stringify(body),
     });
@@ -128,5 +130,9 @@
       }
     }
   
-    return { polyline: mainPolyline, alternatives };
+    const mainRoute = googleRoutes[0];
+    const distanceMeters = mainRoute.distanceMeters || 0;
+    const durationSeconds = parseInt(mainRoute.duration || '0s') || 0;
+
+    return { polyline: mainPolyline, alternatives, distanceMeters, durationSeconds };
   }
