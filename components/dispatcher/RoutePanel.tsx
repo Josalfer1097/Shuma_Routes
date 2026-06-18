@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import type { Route, Stop, Vehicle } from '@/types';
 import { formatDuration, formatDistance } from '@/lib/osrm';
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, KeyboardSensor, PointerSensor, closestCorners, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, KeyboardSensor, PointerSensor, closestCorners, rectIntersection, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import SortableStop from './SortableStop';
 import ConfirmationModal from './ConfirmationModal';
@@ -57,6 +57,7 @@ export default function RoutePanel({
   const [editedRoutes, setEditedRoutes] = useState<Route[]>([]);
   const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [dragOverVehicleId, setDragOverVehicleId] = useState<string | null>(null);
   const [metricsModalRouteId, setMetricsModalRouteId] = useState<string | null>(null);
 
   // Modal State
@@ -165,7 +166,7 @@ export default function RoutePanel({
 
   // ────────────── DnD Logic ──────────────
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -395,7 +396,25 @@ export default function RoutePanel({
 
       {/* LISTA DE CHOFERES Y PARADAS */}
       <div className="flex-1 overflow-y-auto p-4">
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext 
+          sensors={sensors} 
+          collisionDetection={rectIntersection} 
+          onDragStart={handleDragStart} 
+          onDragEnd={handleDragEnd}
+          onDragOver={(event) => {
+            const { over } = event;
+            if (!over) { setDragOverVehicleId(null); return; }
+            const overId = over.id as string;
+            // Encontrar a qué chofer pertenece el over
+            for (const route of editedRoutes) {
+              if (route.vehicleId === overId || route.stops.some(s => s.address.id === overId)) {
+                setDragOverVehicleId(route.vehicleId);
+                return;
+              }
+            }
+            setDragOverVehicleId(null);
+          }}
+        >
           <ul className="space-y-2 pb-10">
             {displayRoutes.map((route) => {
               const isExpanded = isEditing ? true : expandedRoute === route.vehicleId;
@@ -404,7 +423,16 @@ export default function RoutePanel({
               const stopIds = route.stops.map(s => s.address.id);
 
               return (
-                <li key={route.vehicleId} className="rounded-xl border border-shuma-border overflow-hidden bg-shuma-surface/20">
+                <li 
+                  key={route.vehicleId} 
+                  className={`rounded-xl border bg-shuma-surface/20 transition-all duration-150 ${
+                    isEditing ? '' : 'overflow-hidden'
+                  } ${
+                    dragOverVehicleId === route.vehicleId && activeDragId && !editedRoutes.find(r => r.vehicleId === route.vehicleId)?.stops.some(s => s.address.id === activeDragId)
+                      ? 'border-blue-500/60 bg-blue-500/5 shadow-[0_0_12px_rgba(33,150,243,0.2)]'
+                      : 'border-shuma-border'
+                  }`}
+                >
                   {/* HEADER DEL CHOFER */}
                   <div
                     role="button"
@@ -551,11 +579,13 @@ export default function RoutePanel({
                     </div>
                   </div>
 
-                  {/* LISTA DE PARADAS SORTABLE */}
-                  {isExpanded && (
-                    <div className="border-t border-shuma-border">
-                      <SortableContext items={[route.vehicleId, ...stopIds]} strategy={verticalListSortingStrategy}>
-                        <ul className={`divide-y divide-slate-700/50 min-h-[40px] ${activeDragId && isEditing ? 'outline-dashed outline-2 outline-shuma-border outline-offset-[-2px] bg-shuma-surface/10' : ''}`}>
+                  {/* LISTA DE PARADAS SORTABLE — SortableContext SIEMPRE en DOM */}
+                  <SortableContext items={[route.vehicleId, ...stopIds]} strategy={verticalListSortingStrategy}>
+                    <div
+                      className="border-t border-shuma-border"
+                      style={{ display: isExpanded ? 'block' : 'none' }}
+                    >
+                      <ul className={`divide-y divide-slate-700/50 min-h-[40px] ${activeDragId && isEditing ? 'outline-dashed outline-2 outline-shuma-border outline-offset-[-2px] bg-shuma-surface/10' : ''}`}>
                           {route.stops.map((stop, idx) => (
                             <SortableStop
                               key={stop.address.id}
@@ -584,7 +614,6 @@ export default function RoutePanel({
                             />
                           ))}
                         </ul>
-                      </SortableContext>
 
                       {/* BOTONES DE REOPTIMIZACIÓN INDIVIDUAL (MODO EDICIÓN) */}
                       {isEditing && (
@@ -641,7 +670,7 @@ export default function RoutePanel({
                         </div>
                       )}
                     </div>
-                  )}
+                  </SortableContext>
                 </li>
               );
             })}
