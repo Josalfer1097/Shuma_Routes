@@ -15,6 +15,7 @@ interface Props {
   allVehicles?: Vehicle[];
   hiddenRouteIds?: string[];
   onToggleRouteVisibility?: (vehicleId: string) => void;
+  onSaveManualOrder?: (routes: Route[]) => void;
   onReoptimizeSingle?: (vehicleId: string, stops: Stop[]) => void; // Para CAMBIO 4
   globalDepartureTime?: string;
   onVehicleTimeChange?: (vehicleId: string, timeStr: string) => void;
@@ -46,6 +47,7 @@ export default function RoutePanel({
   allVehicles,
   hiddenRouteIds = [],
   onToggleRouteVisibility,
+  onSaveManualOrder,
   onReoptimizeSingle,
   globalDepartureTime = '08:00',
   onVehicleTimeChange,
@@ -336,7 +338,7 @@ export default function RoutePanel({
             <button
               title="Mantiene exactamente el orden que arrastraste. No llama a Google."
               onClick={() => {
-                // Reasignar sequence según posición actual y recalcular distancias sin Google
+                // Reasignar sequence y recalcular distancias SIN llamar a Google
                 const newRoutes = editedRoutes.map(route => {
                   const updatedStops = route.stops.map((s, i) => ({ ...s, sequence: i + 1 }));
                   const updatedRoute = { ...route, stops: updatedStops };
@@ -346,8 +348,8 @@ export default function RoutePanel({
                 setEditedRoutes(newRoutes);
                 setHasUnsavedEdits(false);
                 setIsEditing(false);
-                // Propagar al estado global
-                if (onReoptimize) onReoptimize(newRoutes);
+                // USA onSaveManualOrder — NO llama a Google
+                if (onSaveManualOrder) onSaveManualOrder(newRoutes);
               }}
               style={{
                 flex: 1, padding: '7px 4px', borderRadius: 8, cursor: 'pointer',

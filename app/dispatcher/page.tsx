@@ -559,6 +559,12 @@ export default function DispatcherPage() {
     }
   }, [state.clusters, state.vehicles, state.globalConfig]);
 
+  const handleSaveManualOrder = useCallback((manualRoutes: Route[]) => {
+    // Guarda el orden manual directamente en el state SIN llamar a Google
+    dispatch({ type: 'SET_ROUTES', payload: manualRoutes });
+    saveRoutesData(manualRoutes);
+  }, []);
+
   const handleReoptimizeSingle = useCallback(async (vehicleId: string, manualStops: Stop[]) => {
     setIsOptimizing(true);
     dispatch({ type: 'SET_ERROR', payload: null });
@@ -1415,6 +1421,7 @@ export default function DispatcherPage() {
               onReoptimize={handleReoptimize}
               allVehicles={state.vehicles}
               hiddenRouteIds={hiddenRouteIds}
+              onSaveManualOrder={handleSaveManualOrder}
               onReoptimizeSingle={handleReoptimizeSingle}
               globalDepartureTime={state.globalConfig?.departureTime}
               deadlineTime={state.globalConfig?.deadlineTime}

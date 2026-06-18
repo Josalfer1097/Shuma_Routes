@@ -40,26 +40,48 @@ export async function POST(req: NextRequest) {
 
       if (routeErr) throw new Error(`Error guardando ruta: ${routeErr.message}`);
 
-      // 2. Buscar el driver_id por nombre
-      const { data: driverData } = await supabaseAdmin
-        .from('drivers')
-        .select('id')
-        .eq('name', route.driverName)
-        .single();
+      // 2. Buscar driver_id usando la matricula (plate) del vehículo — más confiable que el nombre
+      let driverId: string | null = null;
+      let vehicleIdFromDb: string | null = null;
 
-      const driverId = driverData?.id || null;
+      if (route.matricula) {
+        // Primero buscar el vehículo por placa
+        const { data: vehicleData } = await supabaseAdmin
+          .from('vehicles')
+          .select('id')
+          .eq('plate', route.matricula)
+          .single();
+
+        vehicleIdFromDb = vehicleData?.id || null;
+
+        if (vehicleIdFromDb) {
+          // Luego buscar el driver asignado a ese vehículo
+          const { data: driverData } = await supabaseAdmin
+            .from('drivers')
+            .select('id, name')
+            .eq('vehicle_id', vehicleIdFromDb)
+            .eq('active', true)
+            .single();
+
+          driverId = driverData?.id || null;
+        }
+      }
+
+      // Fallback: si no encontró por matricula, intentar por nombre exacto
+      if (!driverId && route.driverName) {
+        const { data: driverByName } = await supabaseAdmin
+          .from('drivers')
+          .select('id')
+          .ilike('name', route.driverName.trim())
+          .single();
+        driverId = driverByName?.id || null;
+      }
 
       // 3. Insertar en route_drivers para vincular chofer ↔ ruta
       let routeDriverId: string | null = null;
       if (driverId) {
-        // Buscar vehicle_id por placa (matricula)
-        const { data: vehicleData } = await supabaseAdmin
-          .from('vehicles')
-          .select('id')
-          .eq('plate', route.matricula || '')
-          .single();
-
-        const vehicleId = vehicleData?.id || null;
+        // vehicleIdFromDb ya fue buscado arriba por matricula
+        const vehicleId = vehicleIdFromDb;
 
         const { data: rdData, error: rdErr } = await supabaseAdmin
           .from('route_drivers')
@@ -86,6 +108,7 @@ export async function POST(req: NextRequest) {
       const deliveries = route.stops.map(stop => ({
         route_id: routeData.id,
         route_driver_id: routeDriverId,
+        driver_id: driverId,
         invoice: stop.address.invoice || 'SIN-FACTURA',
         client_name: stop.address.clientName || stop.address.name || '',
         address: stop.address.raw || '',
