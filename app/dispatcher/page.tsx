@@ -595,31 +595,17 @@ export default function DispatcherPage() {
               <>
                 <button
                   onClick={() => window.location.href = '/dashboard'}
-                  title="Dashboard"
+                  title="Dashboard — métricas y KPIs (próximamente)"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    padding: '5px 10px',
-                    background: 'transparent',
-                    border: '1px solid #112040',
-                    borderRadius: 6,
-                    color: '#5B7BA0',
-                    fontSize: 11,
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '5px 10px', background: 'transparent',
+                    border: '1px solid #112040', borderRadius: 6,
+                    color: '#5B7BA0', fontSize: 11,
                     fontFamily: "'Exo 2', sans-serif",
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
+                    cursor: 'pointer', transition: 'all 0.2s',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#2196F3';
-                    e.currentTarget.style.color = '#2196F3';
-                    e.currentTarget.style.background = 'rgba(33,150,243,0.06)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#112040';
-                    e.currentTarget.style.color = '#5B7BA0';
-                    e.currentTarget.style.background = 'transparent';
-                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor='#2196F3'; e.currentTarget.style.color='#2196F3'; e.currentTarget.style.background='rgba(33,150,243,0.06)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor='#112040'; e.currentTarget.style.color='#5B7BA0'; e.currentTarget.style.background='transparent'; }}
                 >
                   <BarChart2 size={14} />
                   <span className="hidden-mobile">Dashboard</span>
@@ -627,42 +613,46 @@ export default function DispatcherPage() {
 
                 <button
                   onClick={() => window.location.href = '/history'}
-                  title="Histórico"
+                  title="Histórico de rutas (próximamente)"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    padding: '5px 10px',
-                    background: 'transparent',
-                    border: '1px solid #112040',
-                    borderRadius: 6,
-                    color: '#5B7BA0',
-                    fontSize: 11,
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '5px 10px', background: 'transparent',
+                    border: '1px solid #112040', borderRadius: 6,
+                    color: '#5B7BA0', fontSize: 11,
                     fontFamily: "'Exo 2', sans-serif",
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
+                    cursor: 'pointer', transition: 'all 0.2s',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#2196F3';
-                    e.currentTarget.style.color = '#2196F3';
-                    e.currentTarget.style.background = 'rgba(33,150,243,0.06)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#112040';
-                    e.currentTarget.style.color = '#5B7BA0';
-                    e.currentTarget.style.background = 'transparent';
-                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor='#2196F3'; e.currentTarget.style.color='#2196F3'; e.currentTarget.style.background='rgba(33,150,243,0.06)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor='#112040'; e.currentTarget.style.color='#5B7BA0'; e.currentTarget.style.background='transparent'; }}
                 >
                   <History size={14} />
                   <span className="hidden-mobile">Histórico</span>
                 </button>
+
+                {/* Botón Bitácora independiente */}
+                <button
+                  onClick={() => setIsAuditModalOpen(true)}
+                  title="Bitácora de auditoría — registro de todas las acciones del sistema"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '5px 10px', background: 'transparent',
+                    border: '1px solid #112040', borderRadius: 6,
+                    color: '#5B7BA0', fontSize: 11,
+                    fontFamily: "'Exo 2', sans-serif",
+                    cursor: 'pointer', transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor='#2196F3'; e.currentTarget.style.color='#2196F3'; e.currentTarget.style.background='rgba(33,150,243,0.06)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor='#112040'; e.currentTarget.style.color='#5B7BA0'; e.currentTarget.style.background='transparent'; }}
+                >
+                  <span style={{ fontSize: 12 }}>📊</span>
+                  <span className="hidden-mobile">Bitácora</span>
+                </button>
+
+                {/* Widget clima */}
+                {weather && (
+                  <WeatherIntelPanel weather={weather} />
+                )}
               </>
-            )}
-            {weather && userRole !== 'driver' && (
-              <WeatherIntelPanel
-                weather={weather}
-                onAuditOpen={() => setIsAuditModalOpen(true)}
-              />
             )}
           </div>
 

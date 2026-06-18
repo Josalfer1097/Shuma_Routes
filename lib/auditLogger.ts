@@ -5,10 +5,10 @@ export async function logAction(
   userName: string,
   userRole: string,
   module: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
+  ipAddress?: string   // ← pasar desde server-side cuando se tenga
 ) {
   try {
-    // Detectar si estamos en server-side (Next.js API route) o client-side
     const isServer = typeof window === 'undefined';
 
     if (isServer) {
@@ -20,11 +20,10 @@ export async function logAction(
         entity_id: entityId,
         user_name: userName,
         user_role: userRole,
+        ip_address: ipAddress || 'unknown',
+        user_agent: 'server',
         module: module || 'general',
         metadata,
-        // La IP se registra en el API route de auth, no aquí
-        ip_address: 'server',
-        user_agent: 'server',
         created_at: new Date().toISOString(),
       });
     } else {
@@ -33,9 +32,13 @@ export async function logAction(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action, entity, entity_id: entityId,
-          user_name: userName, user_role: userRole,
-          module, metadata,
+          action,
+          entity,
+          entity_id: entityId,
+          user_name: userName,
+          user_role: userRole,
+          module,
+          metadata,
         }),
       });
     }
