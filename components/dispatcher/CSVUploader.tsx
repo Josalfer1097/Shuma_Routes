@@ -180,24 +180,28 @@ export default function CSVUploader({ onAddressesLoaded, disabled }: Props) {
             </span>
             <span className="text-xs text-shuma-muted">Preview</span>
           </div>
-          <ul className="divide-y divide-slate-700/50 max-h-40 overflow-y-auto">
-            {preview.slice(0, 8).map((addr) => (
+          <ul className="divide-y divide-slate-700/50 max-h-64 overflow-y-auto">
+            {preview.map((addr, idx) => (
               <li key={addr.id} className="flex items-center gap-2 px-3 py-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-shuma-text truncate">{addr.name}</p>
+                <span className="text-[10px] text-shuma-muted w-4 shrink-0 text-right">{idx + 1}</span>
+                <span className="w-1.5 h-1.5 rounded-full shrink-0"
+                  style={{ backgroundColor: addr.merchandiseValue && addr.merchandiseValue >= 10000 ? '#f59e0b' : '#6b7280' }} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-medium text-shuma-text truncate">{addr.name}</p>
+                    {addr.merchandiseValue && addr.merchandiseValue > 0 && (
+                      <span className={`text-[10px] font-semibold shrink-0 ${addr.merchandiseValue >= 10000 ? 'text-amber-400' : 'text-slate-400'}`}>
+                        ${addr.merchandiseValue.toLocaleString('es-MX')}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-shuma-muted truncate">{addr.raw}</p>
-                  {addr.merchandiseValue && (
-                    <p className="text-xs text-amber-400">💰 ${addr.merchandiseValue.toLocaleString('es-MX')}</p>
+                  {addr.invoice && (
+                    <p className="text-[10px] text-blue-400">{addr.invoice}</p>
                   )}
                 </div>
               </li>
             ))}
-            {preview.length > 8 && (
-              <li className="px-3 py-2 text-center text-xs text-shuma-muted">
-                +{preview.length - 8} más…
-              </li>
-            )}
           </ul>
         </div>
       )}

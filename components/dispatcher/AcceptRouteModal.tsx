@@ -53,15 +53,12 @@ export default function AcceptRouteModal({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60]" onClick={onClose} />
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
         <div
-          className="
-            bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl
-            w-full max-w-md max-h-[85vh]
-            flex flex-col overflow-hidden
-          "
+          className="bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden"
+          style={{ maxHeight: 'min(85vh, 600px)' }}
           onClick={e => e.stopPropagation()}
         >
           <div className="flex items-center justify-between p-6 border-b border-shuma-border">

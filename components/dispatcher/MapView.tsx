@@ -277,6 +277,16 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
           const distStr = accumulated > 0 ? formatDistance(accumulated) : '—';
           const etaStr = stop.eta != null ? formatDuration(stop.eta) : '—';
 
+          const clientNameStr = stop.address.clientName || stop.address.name;
+          const invoiceStr = stop.address.invoice ? `<div style="font-size:11px;color:#2563eb;margin-top:2px;font-weight:600;">Factura: ${stop.address.invoice}</div>` : '';
+          
+          let valStr = '';
+          if (stop.address.merchandiseValue && stop.address.merchandiseValue > 0) {
+            const isHighValue = stop.address.merchandiseValue >= 10000;
+            const valColor = isHighValue ? '#f59e0b' : '#64748b';
+            valStr = `<div style="font-size:11px;color:${valColor};margin-top:2px;font-weight:700;">💰 $${stop.address.merchandiseValue.toLocaleString('es-MX')}</div>`;
+          }
+
           addInfoWindow(
             marker,
             `
@@ -284,8 +294,10 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
               <div style="font-weight:700;color:${route.color};margin-bottom:6px;font-size:14px;border-bottom:1px solid #e2e8f0;padding-bottom:4px">
                 Parada ${stop.sequence} · ${route.driverName}
               </div>
-              <div style="font-weight:600;color:#1e293b;font-size:13px">${stop.address.name}</div>
-              <div style="font-size:12px;color:#64748b;margin-top:2px;margin-bottom:8px">${stop.address.raw}</div>
+              <div style="font-weight:600;color:#1e293b;font-size:13px">${clientNameStr}</div>
+              ${invoiceStr}
+              ${valStr}
+              <div style="font-size:12px;color:#64748b;margin-top:4px;margin-bottom:8px">${stop.address.raw}</div>
               <div style="display:flex;justify-content:space-between;font-size:12px;color:#475569;background:#f8fafc;padding:6px;border-radius:4px">
                 <div><b>Distancia:</b><br/>${distStr}</div>
                 <div style="text-align:right"><b>ETA:</b><br/>${etaStr}</div>
@@ -322,12 +334,24 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
             map,
             content: createStopPin('·'),
           });
+          const clientNameStr = addr.clientName || addr.name;
+          const invoiceStr = addr.invoice ? `<div style="font-size:11px;color:#2563eb;margin-top:2px;font-weight:600;">Factura: ${addr.invoice}</div>` : '';
+          
+          let valStr = '';
+          if (addr.merchandiseValue && addr.merchandiseValue > 0) {
+            const isHighValue = addr.merchandiseValue >= 10000;
+            const valColor = isHighValue ? '#f59e0b' : '#64748b';
+            valStr = `<div style="font-size:11px;color:${valColor};margin-top:2px;font-weight:700;">💰 $${addr.merchandiseValue.toLocaleString('es-MX')}</div>`;
+          }
+
           addInfoWindow(
             marker,
             `
             <div style="font-family:Inter,sans-serif;padding:4px">
-              <div style="font-weight:600;color:#1e293b;font-size:13px">${addr.name}</div>
-              <div style="font-size:12px;color:#64748b;margin-top:2px">${addr.raw}</div>
+              <div style="font-weight:600;color:#1e293b;font-size:13px">${clientNameStr}</div>
+              ${invoiceStr}
+              ${valStr}
+              <div style="font-size:12px;color:#64748b;margin-top:4px">${addr.raw}</div>
             </div>
             `
           );

@@ -231,6 +231,7 @@ export default function DispatcherPage() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [fleetMode, setFleetMode] = useState<'auto' | 'manual'>('auto');
 
+
   // ── Session data (client-only) ──
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('');
@@ -789,12 +790,29 @@ export default function DispatcherPage() {
             {state.routes.map((r) => (
               <div
                 key={r.vehicleId}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full
-                           bg-slate-900/90 backdrop-blur border border-shuma-border text-xs"
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs transition-colors ${
+                  hiddenRouteIds.includes(r.vehicleId) 
+                    ? 'bg-slate-900/50 border-slate-700/50 opacity-60' 
+                    : 'bg-slate-900/90 backdrop-blur border-shuma-border'
+                }`}
               >
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: hiddenRouteIds.includes(r.vehicleId) ? '#64748b' : r.color }} />
                 <span className="text-shuma-text font-medium">{r.driverName}</span>
                 <span className="text-shuma-muted">{r.stops.length} paradas</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setHiddenRouteIds(prev => 
+                      prev.includes(r.vehicleId) 
+                        ? prev.filter(id => id !== r.vehicleId) 
+                        : [...prev, r.vehicleId]
+                    );
+                  }}
+                  className="ml-1 p-1 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center text-shuma-muted hover:text-white"
+                  title={hiddenRouteIds.includes(r.vehicleId) ? "Mostrar ruta" : "Ocultar ruta"}
+                >
+                  {hiddenRouteIds.includes(r.vehicleId) ? '👁️‍🗨️' : '👁️'}
+                </button>
               </div>
             ))}
           </div>

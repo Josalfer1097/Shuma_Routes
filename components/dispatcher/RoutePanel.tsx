@@ -513,6 +513,36 @@ export default function RoutePanel({
                         </ul>
                       </SortableContext>
 
+                      {/* BOTONES DE REOPTIMIZACIÓN INDIVIDUAL (MODO EDICIÓN) */}
+                      {isEditing && (
+                        <div className="p-3 border-t border-shuma-border bg-shuma-surface flex justify-end gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const newRoutes = [...editedRoutes];
+                              const routeIdx = newRoutes.findIndex(r => r.vehicleId === route.vehicleId);
+                              recalculateRoute(newRoutes[routeIdx]);
+                              setEditedRoutes(newRoutes);
+                              setHasUnsavedEdits(true);
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-shuma-surface hover:bg-shuma-border text-shuma-text text-xs font-bold border border-shuma-border transition-colors flex items-center gap-1.5"
+                          >
+                            ✓ Mi orden
+                          </button>
+                          {onReoptimizeSingle && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onReoptimizeSingle(route.vehicleId, route.stops);
+                              }}
+                              className="px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-bold border border-blue-500/30 transition-colors flex items-center gap-1.5"
+                            >
+                              ⚡ Google
+                            </button>
+                          )}
+                        </div>
+                      )}
+
                       {/* COMPARTIR */}
                       {!isEditing && (
                         <div className="p-3 border-t border-shuma-border bg-shuma-surface flex flex-col gap-2">

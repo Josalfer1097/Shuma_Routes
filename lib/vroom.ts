@@ -203,9 +203,20 @@ export async function optimizeSingleVehicle(
   if (vehicle.type === 'Camión grande') maxLoad = 6;
   if (vehicle.type === 'Camioneta') maxLoad = 4;
 
+
+
+  // Fallback seguro para coordenadas (San Pablo como default)
+  const DEFAULT_LAT = 19.3550675;
+  const DEFAULT_LNG = -99.0939998;
+
+  const startLat = typeof vehicle.depot?.lat === 'number' && isFinite(vehicle.depot.lat) ? vehicle.depot.lat : DEFAULT_LAT;
+  const startLng = typeof vehicle.depot?.lng === 'number' && isFinite(vehicle.depot.lng) ? vehicle.depot.lng : DEFAULT_LNG;
+  const endLat   = typeof endDep?.lat === 'number' && isFinite(endDep.lat) ? endDep.lat : startLat;
+  const endLng   = typeof endDep?.lng === 'number' && isFinite(endDep.lng) ? endDep.lng : startLng;
+
   const googleVehicle = {
-    startLocation: { latitude: vehicle.depot.lat, longitude: vehicle.depot.lng },
-    endLocation: { latitude: endDep.lat, longitude: endDep.lng },
+    startLocation: { latitude: startLat, longitude: startLng },
+    endLocation:   { latitude: endLat,   longitude: endLng },
     label: vehicle.driverName,
     loadLimits: { parcels: { maxLoad: maxLoad.toString() } },
     startTimeWindows: [{ startTime: vehicleStartTime, endTime: vehicleEndTime }],
@@ -356,9 +367,16 @@ export async function optimizeRoutes(
       if (v.type === 'Camión grande') maxLoad = 6;
       if (v.type === 'Camioneta') maxLoad = 4;
 
+      const DEFAULT_LAT = 19.3550675;
+      const DEFAULT_LNG = -99.0939998;
+      const sLat = typeof v.depot?.lat === 'number' && isFinite(v.depot.lat) ? v.depot.lat : DEFAULT_LAT;
+      const sLng = typeof v.depot?.lng === 'number' && isFinite(v.depot.lng) ? v.depot.lng : DEFAULT_LNG;
+      const eLat = typeof endDep?.lat === 'number' && isFinite(endDep.lat) ? endDep.lat : sLat;
+      const eLng = typeof endDep?.lng === 'number' && isFinite(endDep.lng) ? endDep.lng : sLng;
+
       googleVehicles.push({
-        startLocation: { latitude: v.depot.lat, longitude: v.depot.lng },
-        endLocation: { latitude: endDep.lat, longitude: endDep.lng },
+        startLocation: { latitude: sLat, longitude: sLng },
+        endLocation:   { latitude: eLat, longitude: eLng },
         label: v.driverName,
         loadLimits: { parcels: { maxLoad: maxLoad.toString() } },
         startTimeWindows: [{ startTime: vehicleStartTime, endTime: vehicleEndTime }],
