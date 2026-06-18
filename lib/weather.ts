@@ -1,72 +1,74 @@
 export interface WeatherData {
   temp: number;
+  feelsLike: number;
   description: string;
   icon: string;
   humidity: number;
   windSpeed: number;
+  windDeg: number;
+  pressure: number;
+  visibility: number;       // metros → mostrar en km
+  clouds: number;           // porcentaje de nubosidad
+  rain1h?: number;          // mm en última hora (si llueve)
   alerts: string[];
+  sunrise: number;          // unix timestamp
+  sunset: number;           // unix timestamp
 }
 
 export async function getWeatherCDMX(lat: number, lng: number): Promise<WeatherData> {
   const apiKey = (process.env.NEXT_PUBLIC_OWM_API_KEY || '').trim();
-  
-  // NOTA: La API Key de OpenWeatherMap (NEXT_PUBLIC_OWM_API_KEY) está intencionalmente expuesta 
-  // del lado del cliente. OWM permite esto ya que son keys gratuitas/públicas por diseño y su 
-  // restricción principal se basa en rate limiting o HTTP Referrer, no en ocultamiento estricto.
-  
-  // Si no hay API key o es un valor placeholder, usar clima simulado realista para CDMX
+
   if (!apiKey || apiKey.toLowerCase().includes('tu_api_key') || apiKey.length < 10) {
     return {
-      temp: 22,
-      description: 'Cielo despejado',
-      icon: '01d',
-      humidity: 40,
-      windSpeed: 10,
-      alerts: [],
+      temp: 22, feelsLike: 21, description: 'Cielo despejado', icon: '01d',
+      humidity: 40, windSpeed: 10, windDeg: 180, pressure: 1013,
+      visibility: 10000, clouds: 5, alerts: [],
+      sunrise: Date.now() / 1000 - 21600,
+      sunset: Date.now() / 1000 + 21600,
     };
   }
-  
-  const url = 'https://api.openweathermap.org/data/2.5/weather?lat=' + 
-    lat + '&lon=' + lng + 
-    '&appid=' + apiKey + 
-    '&units=metric&lang=es';
-  console.log('Fetching OWM URL:', url); // <-- Debug de la URL completa (CUIDADO con exponer la API KEY en logs públicos)
+
+  const url =
+    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}` +
+    `&appid=${apiKey}&units=metric&lang=es`;
 
   try {
-    const res = await fetch(url, { next: { revalidate: 600 } }); // Cache for 10 mins
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`OWM API Falló con Status ${res.status}: ${errorText}`);
-    }
-    
+    const res = await fetch(url, { next: { revalidate: 600 } });
+    if (!res.ok) throw new Error(`OWM ${res.status}`);
     const data = await res.json();
+
+    const windKmH = Math.round((data.wind?.speed || 0) * 3.6);
     const alerts: string[] = [];
-    
-    const isRaining = data.weather.some((w: any) => w.main === 'Rain' || w.main === 'Drizzle' || w.main === 'Thunderstorm');
-    // OpenWeatherMap wind speed is in m/s. 30 km/h is ~8.33 m/s.
-    const windKmH = data.wind.speed * 3.6;
-    
+    const isRaining = data.weather.some(
+      (w: { main: string }) => w.main === 'Rain' || w.main === 'Drizzle' || w.main === 'Thunderstorm'
+    );
     if (isRaining || windKmH > 30) {
-      alerts.push('⚠️ Condiciones adversas - tome precauciones');
+      alerts.push('⚠️ Condiciones adversas — tome precauciones');
     }
 
     return {
       temp: Math.round(data.main.temp),
+      feelsLike: Math.round(data.main.feels_like),
       description: data.weather?.[0]?.description || 'Sin datos',
       icon: data.weather?.[0]?.icon || '01d',
       humidity: data.main.humidity,
-      windSpeed: Math.round(windKmH),
+      windSpeed: windKmH,
+      windDeg: data.wind?.deg || 0,
+      pressure: data.main.pressure,
+      visibility: data.visibility || 10000,
+      clouds: data.clouds?.all || 0,
+      rain1h: data.rain?.['1h'],
       alerts,
+      sunrise: data.sys?.sunrise || 0,
+      sunset: data.sys?.sunset || 0,
     };
   } catch (error) {
-    console.error('Error fetching weather:', error);
+    console.error('OWM error:', error);
     return {
-      temp: 0,
-      description: 'Error',
-      icon: '01d',
-      humidity: 0,
-      windSpeed: 0,
-      alerts: [],
+      temp: 0, feelsLike: 0, description: 'Sin señal', icon: '01d',
+      humidity: 0, windSpeed: 0, windDeg: 0, pressure: 0,
+      visibility: 0, clouds: 0, alerts: [],
+      sunrise: 0, sunset: 0,
     };
   }
 }

@@ -658,14 +658,13 @@ export default function DispatcherPage() {
                 </button>
               </>
             )}
+            {weather && userRole !== 'driver' && (
+              <WeatherIntelPanel
+                weather={weather}
+                onAuditOpen={() => setIsAuditModalOpen(true)}
+              />
+            )}
           </div>
-
-          {weather && (
-            <WeatherIntelPanel 
-              weather={weather}
-              onAuditOpen={() => setIsAuditModalOpen(true)}
-            />
-          )}
 
           <span style={{
             flex: 1,
