@@ -15,6 +15,16 @@
     --shuma-danger: #EF4444;
     --shuma-warning: #F59E0B;
     --shuma-success: #10B981;
+
+    --font-scale: 1;
+    --font-xs:   calc(0.65rem * var(--font-scale));
+    --font-sm:   calc(0.75rem * var(--font-scale));
+    --font-base: calc(0.875rem * var(--font-scale));
+    --font-md:   calc(1rem * var(--font-scale));
+    --font-lg:   calc(1.125rem * var(--font-scale));
+    --font-xl:   calc(1.25rem * var(--font-scale));
+    --font-2xl:  calc(1.5rem * var(--font-scale));
+    --font-3xl:  calc(2rem * var(--font-scale));
   }
 
   * {
@@ -115,3 +125,12 @@
   from { background-position: 0% center; }
   to   { background-position: 400% center; }
 }
+
+.text-scale-xs   { font-size: var(--font-xs); }
+.text-scale-sm   { font-size: var(--font-sm); }
+.text-scale-base { font-size: var(--font-base); }
+.text-scale-md   { font-size: var(--font-md); }
+.text-scale-lg   { font-size: var(--font-lg); }
+.text-scale-xl   { font-size: var(--font-xl); }
+.text-scale-2xl  { font-size: var(--font-2xl); }
+.text-scale-3xl  { font-size: var(--font-3xl); }

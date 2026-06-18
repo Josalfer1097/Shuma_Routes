@@ -23,6 +23,7 @@ import { BarChart2, History, LogOut, Maximize2, Minimize2 } from 'lucide-react';
 import Image from 'next/image';
 import WeatherIntelPanel from '@/components/dispatcher/WeatherIntelPanel';
 import AuditLogModal from '@/components/dispatcher/AuditLogModal';
+import FontScaleButton from '@/components/dispatcher/FontScaleButton';
 
 // Leaflet NO es compatible con SSR → dynamic import
 const MapView = dynamic(() => import('@/components/dispatcher/MapView'), {
@@ -745,6 +746,9 @@ export default function DispatcherPage() {
                     to   { opacity: 1; transform: translateY(0); }
                   }
                 `}</style>
+
+                {/* Botón tamaño de texto */}
+                {userRole !== 'driver' && <FontScaleButton />}
 
                 {/* Widget clima */}
                 {weather && (

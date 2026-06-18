@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Exo_2, DM_Sans } from 'next/font/google';
 import './globals.css';
 import AuthGuard from '@/components/AuthGuard';
+import { FontScaleProvider } from '@/lib/fontScaleContext';
 
 const exo2 = Exo_2({ subsets: ['latin'], variable: '--font-exo-2' });
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans' });
@@ -31,9 +32,11 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${exo2.variable} ${dmSans.variable}`}>
       <body className="antialiased font-sans">
-        <AuthGuard>
-          {children}
-        </AuthGuard>
+        <FontScaleProvider>
+          <AuthGuard>
+            {children}
+          </AuthGuard>
+        </FontScaleProvider>
       </body>
     </html>
   );
