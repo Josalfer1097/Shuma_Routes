@@ -57,7 +57,11 @@ export default function AcceptRouteModal({
 
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl w-full max-w-md flex flex-col"
+          className="
+            bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl
+            w-full max-w-md max-h-[85vh]
+            flex flex-col overflow-hidden
+          "
           onClick={e => e.stopPropagation()}
         >
           <div className="flex items-center justify-between p-6 border-b border-shuma-border">
@@ -96,16 +100,13 @@ export default function AcceptRouteModal({
                     {routes.reduce((acc, r) => acc + r.stops.length, 0)} entregas
                   </strong>?
                 </p>
-                <div className="p-3 rounded-lg bg-shuma-surface border border-shuma-border space-y-2">
-                  {routes.slice(0, 3).map((route, i) => (
+                <div className="p-3 rounded-lg bg-shuma-surface border border-shuma-border space-y-2 max-h-48 overflow-y-auto">
+                  {routes.map((route, i) => (
                     <div key={i} className="flex items-center gap-2 text-xs text-shuma-muted">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                      <span>{route.vehicleId} • {route.stops.length} paradas</span>
+                      <span style={{ color: route.color }}>●</span>
+                      <span>{route.driverName} • {route.stops.length} paradas • {(( route.totalDistance || 0)/1000).toFixed(1)} km</span>
                     </div>
                   ))}
-                  {routes.length > 3 && (
-                    <p className="text-xs text-shuma-muted">+{routes.length - 3} más</p>
-                  )}
                 </div>
               </div>
             )}

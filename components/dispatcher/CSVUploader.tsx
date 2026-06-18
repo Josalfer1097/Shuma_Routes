@@ -19,6 +19,9 @@ interface CSVRow {
   invoice?: string;
   direccion?: string;
   address?: string;
+  valor?: string;
+  merchandise_value?: string;
+  value?: string;
   [key: string]: string | undefined;
 }
 
@@ -55,6 +58,9 @@ export default function CSVUploader({ onAddressesLoaded, disabled }: Props) {
               const client = row.cliente ?? row.clientName ?? row.nombre ?? row.name;
               const inv = row.factura ?? row.invoice;
               
+              const valorRaw = row.valor ?? row.merchandise_value ?? row.value;
+              const merchandiseValue = valorRaw ? parseFloat(valorRaw.replace(/[$,\s]/g, '')) || undefined : undefined;
+              
               // Determinar el mejor "name" a mostrar
               let finalName = 'Sin nombre';
               if (client && client.trim()) finalName = client.trim();
@@ -67,6 +73,7 @@ export default function CSVUploader({ onAddressesLoaded, disabled }: Props) {
                 name: finalName,
                 clientName: client?.trim() || undefined,
                 invoice: inv?.trim() || undefined,
+                merchandiseValue,
                 lat: null,
                 lng: null,
                 label: '',
@@ -140,7 +147,10 @@ export default function CSVUploader({ onAddressesLoaded, disabled }: Props) {
           {fileName ? fileName : 'Arrastra tu CSV aquí'}
         </p>
         <p className="text-xs text-shuma-muted">o haz clic para seleccionar</p>
-        <p className="text-xs text-shuma-muted mt-1">Columnas: <code className="text-blue-400">nombre, direccion</code></p>
+        <p className="text-xs text-shuma-muted mt-1">
+          Columnas requeridas: <code className="text-blue-400">nombre, direccion</code>
+          {'  '}Opcional: <code className="text-amber-400">factura, valor</code>
+        </p>
         <input
           ref={inputRef}
           type="file"
@@ -177,6 +187,9 @@ export default function CSVUploader({ onAddressesLoaded, disabled }: Props) {
                 <div className="min-w-0">
                   <p className="text-xs font-medium text-shuma-text truncate">{addr.name}</p>
                   <p className="text-xs text-shuma-muted truncate">{addr.raw}</p>
+                  {addr.merchandiseValue && (
+                    <p className="text-xs text-amber-400">💰 ${addr.merchandiseValue.toLocaleString('es-MX')}</p>
+                  )}
                 </div>
               </li>
             ))}

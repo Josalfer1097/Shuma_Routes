@@ -325,7 +325,7 @@ export default function RoutePanel({
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <ul className="space-y-2 pb-10">
             {displayRoutes.map((route) => {
-              const isExpanded = expandedRoute === route.vehicleId || isEditing; // auto-expand in edit mode
+              const isExpanded = isEditing ? true : expandedRoute === route.vehicleId;
               const completed = route.stops.filter((s) => s.status === 'completed').length;
               
               const stopIds = route.stops.map(s => s.address.id);
@@ -336,7 +336,9 @@ export default function RoutePanel({
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={() => setExpandedRoute(isExpanded ? null : route.vehicleId)}
+                    onClick={() => {
+                      if (!isEditing) setExpandedRoute(isExpanded ? null : route.vehicleId);
+                    }}
                     className="w-full flex items-center gap-3 px-3 py-3 hover:bg-shuma-border/40 transition-colors duration-150 cursor-pointer text-left focus:outline-none"
                   >
                     <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: route.color }} />
@@ -479,7 +481,7 @@ export default function RoutePanel({
                   {/* LISTA DE PARADAS SORTABLE */}
                   {isExpanded && (
                     <div className="border-t border-shuma-border">
-                      <SortableContext items={stopIds} strategy={verticalListSortingStrategy}>
+                      <SortableContext items={[route.vehicleId, ...stopIds]} strategy={verticalListSortingStrategy}>
                         <ul className={`divide-y divide-slate-700/50 min-h-[40px] ${activeDragId && isEditing ? 'outline-dashed outline-2 outline-shuma-border outline-offset-[-2px] bg-shuma-surface/10' : ''}`}>
                           {route.stops.map((stop, idx) => (
                             <SortableStop
@@ -489,6 +491,7 @@ export default function RoutePanel({
                               isEditing={isEditing}
                               isFirst={idx === 0}
                               isLast={idx === route.stops.length - 1}
+                              merchandiseValue={stop.address.merchandiseValue}
                               onMoveUp={() => {
                                 const newRoutes = [...editedRoutes];
                                 const routeIdx = newRoutes.findIndex(r => r.vehicleId === route.vehicleId);
@@ -605,6 +608,75 @@ export default function RoutePanel({
                     <span className="font-bold text-blue-400">{efficiency}% <span className="text-[10px] text-shuma-muted font-normal">(vs manual)</span></span>
                   </div>
                 </div>
+
+                {/* Detalle por parada */}
+                <div style={{ marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 8,
+                    textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Detalle de paradas
+                  </p>
+                  <div style={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {route.stops.map((stop, idx) => {
+                      const distKm = stop.distance ? (stop.distance / 1000).toFixed(1) : '—';
+                      const etaMin = stop.eta ? Math.round(stop.eta / 60) : null;
+                      const valor = stop.address.merchandiseValue;
+                      return (
+                        <div key={stop.address.id} style={{
+                          display: 'flex', alignItems: 'flex-start', gap: 8,
+                          padding: '6px 8px', borderRadius: 8,
+                          background: 'rgba(255,255,255,0.03)',
+                          border: '1px solid rgba(255,255,255,0.05)',
+                        }}>
+                          <span style={{
+                            width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                            background: route.color, display: 'flex',
+                            alignItems: 'center', justifyContent: 'center',
+                            fontSize: 9, fontWeight: 700, color: '#fff',
+                          }}>{idx + 1}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 11, fontWeight: 600, color: '#e2e8f0', margin: 0,
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {stop.address.clientName || stop.address.name}
+                            </p>
+                            {stop.address.invoice && (
+                              <p style={{ fontSize: 10, color: '#5B7BA0', margin: '1px 0 0' }}>
+                                Factura: {stop.address.invoice}
+                              </p>
+                            )}
+                            <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+                              {etaMin !== null && (
+                                <span style={{ fontSize: 10, color: '#94a3b8' }}>⏱ ~{etaMin} min desde depósito</span>
+                              )}
+                              {stop.distance && (
+                                <span style={{ fontSize: 10, color: '#94a3b8' }}>📍 {distKm} km acumulado</span>
+                              )}
+                              {valor !== undefined && valor > 0 && (
+                                <span style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600 }}>
+                                  💰 ${valor.toLocaleString('es-MX')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Resumen de valor total */}
+                {route.stops.some(s => s.address.merchandiseValue) && (
+                  <div style={{
+                    marginTop: 10, padding: '8px 12px', borderRadius: 8,
+                    background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}>
+                    <span style={{ fontSize: 11, color: '#f59e0b' }}>Valor total en ruta</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>
+                      ${route.stops.reduce((acc, s) => acc + (s.address.merchandiseValue || 0), 0)
+                        .toLocaleString('es-MX')}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="p-3 border-t border-shuma-border bg-shuma-surface/80">
                 <button onClick={() => setMetricsModalRouteId(null)} className="w-full py-2 bg-shuma-surface hover:bg-shuma-border text-white rounded-lg text-sm font-bold transition-colors">

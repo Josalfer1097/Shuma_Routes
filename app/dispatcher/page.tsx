@@ -229,6 +229,7 @@ export default function DispatcherPage() {
   const [isSlideOverOpen, setIsSlideOverOpen] = useState(false);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [fleetMode, setFleetMode] = useState<'auto' | 'manual'>('auto');
 
   // ── Session data (client-only) ──
   const [userName, setUserName] = useState('');
@@ -1073,8 +1074,31 @@ export default function DispatcherPage() {
             <div className="bg-shuma-surface p-3 rounded-xl border border-shuma-border space-y-3">
               <div className="flex justify-between items-center">
                 <label className="text-xs font-bold text-shuma-text">Balanceo de Flota</label>
-                <span className="text-xs text-blue-400 font-mono">Automático</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    onClick={() => setFleetMode(m => m === 'auto' ? 'manual' : 'auto')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '3px 10px',
+                      borderRadius: 20,
+                      border: `1px solid ${fleetMode === 'auto' ? '#22c55e' : '#f59e0b'}`,
+                      background: fleetMode === 'auto' ? 'rgba(34,197,94,0.10)' : 'rgba(245,158,11,0.10)',
+                      color: fleetMode === 'auto' ? '#22c55e' : '#f59e0b',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                      fontFamily: "'Exo 2', sans-serif",
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {fleetMode === 'auto' ? '⚡ Automático' : '✋ Manual'}
+                  </button>
+                </div>
               </div>
+              {fleetMode === 'manual' && (
+                <p style={{ fontSize: 11, color: '#f59e0b', margin: '8px 0 0', lineHeight: 1.5 }}>
+                  Modo manual: arrastra las facturas entre choferes en el paso de Rutas para
+                  redistribuir paradas. Google no rebalanceará automáticamente.
+                </p>
+              )}
               <div className="text-[11px] text-shuma-muted leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-shuma-border">
                 <p>
                   Google Route Optimization API distribuye inteligentemente las paradas basándose en las capacidades de los vehículos minimizando el tiempo y costo total para toda la flota.

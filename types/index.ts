@@ -13,6 +13,7 @@ export interface Address {
   name: string;
   clientName?: string;
   invoice?: string;
+  merchandiseValue?: number;   // Valor en MXN de la mercancía a entregar
   /** Coordenadas geocodificadas */
   lat: number | null;
   lng: number | null;

@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
         geocoded: stop.address.geocoded || false,
         stop_order: stop.sequence,
         status: 'pending',
+        merchandise_value: stop.address.merchandiseValue || null,
       }));
 
       const { error: deliveriesErr } = await supabaseAdmin.from('deliveries').insert(deliveries);

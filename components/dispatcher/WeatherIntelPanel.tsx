@@ -217,19 +217,20 @@ export default function WeatherIntelPanel({ weather }: Props) {
             </div>
 
             {/* Alerta */}
-            {hasAlert && (
-              <div style={{
-                margin: '10px 12px 0',
+            {weather.alerts.length > 0 && weather.alerts.map((alert, i) => (
+              <div key={i} style={{
+                margin: i === 0 ? '10px 12px 0' : '4px 12px 0',
                 padding: '8px 12px',
                 borderRadius: 8,
-                background: 'rgba(239,68,68,0.12)',
-                border: '1px solid rgba(239,68,68,0.3)',
+                background: 'rgba(239,68,68,0.10)',
+                border: '1px solid rgba(239,68,68,0.25)',
                 fontSize: 11,
                 color: '#fca5a5',
+                lineHeight: 1.4,
               }}>
-                {weather.alerts[0]}
+                {alert}
               </div>
-            )}
+            ))}
 
             {/* Grid de datos con tooltips */}
             <div style={{

@@ -39,11 +39,40 @@ export async function getWeatherCDMX(lat: number, lng: number): Promise<WeatherD
 
     const windKmH = Math.round((data.wind?.speed || 0) * 3.6);
     const alerts: string[] = [];
-    const isRaining = data.weather.some(
-      (w: { main: string }) => w.main === 'Rain' || w.main === 'Drizzle' || w.main === 'Thunderstorm'
-    );
-    if (isRaining || windKmH > 30) {
-      alerts.push('⚠️ Condiciones adversas — tome precauciones');
+    const weatherMain = data.weather[0]?.main || '';
+    const weatherDesc = data.weather[0]?.description || '';
+    const tempC = Math.round(data.main.temp);
+    const rain1h = data.rain?.['1h'] || 0;
+
+    // Alertas específicas con causa y dato concreto
+    if (weatherMain === 'Thunderstorm') {
+      alerts.push(`⛈️ Tormenta eléctrica detectada — suspender rutas externas`);
+    } else if (weatherMain === 'Rain' && rain1h > 10) {
+      alerts.push(`🌧️ Lluvia intensa: ${rain1h} mm/h — visibilidad reducida, precaución en vialidades`);
+    } else if (weatherMain === 'Rain') {
+      alerts.push(`🌦️ Lluvia ligera: ${rain1h > 0 ? rain1h + ' mm/h' : weatherDesc} — pavimento mojado`);
+    } else if (weatherMain === 'Drizzle') {
+      alerts.push(`🌂 Llovizna — condiciones resbaladizas en calles`);
+    } else if (weatherMain === 'Snow') {
+      alerts.push(`🌨️ Nevadas detectadas — rutas severamente afectadas`);
+    } else if (weatherMain === 'Fog' || weatherMain === 'Mist') {
+      alerts.push(`🌫️ Neblina — visibilidad ${(data.visibility / 1000).toFixed(1)} km, reduzca velocidad`);
+    } else if (weatherMain === 'Dust' || weatherMain === 'Sand') {
+      alerts.push(`💨 Tolvanera — visibilidad reducida, cerrar ventanas`);
+    }
+
+    // Alerta de viento independiente
+    if (windKmH > 50) {
+      alerts.push(`💨 Viento fuerte: ${windKmH} km/h — riesgo de objetos en vía`);
+    } else if (windKmH > 30) {
+      alerts.push(`🌬️ Viento moderado: ${windKmH} km/h — precaución en autopistas`);
+    }
+
+    // Alerta de temperatura extrema
+    if (tempC >= 35) {
+      alerts.push(`🌡️ Calor extremo: ${tempC}°C — hidratación y descanso para conductores`);
+    } else if (tempC <= 4) {
+      alerts.push(`🥶 Temperatura baja: ${tempC}°C — riesgo de hielo en carretera`);
     }
 
     return {

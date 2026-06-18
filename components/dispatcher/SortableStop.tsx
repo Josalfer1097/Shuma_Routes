@@ -11,6 +11,7 @@ interface Props {
   onMoveDown?: () => void;
   isFirst?: boolean;
   isLast?: boolean;
+  merchandiseValue?: number;
 }
 
 export default function SortableStop({ 
@@ -20,7 +21,8 @@ export default function SortableStop({
   onMoveUp,
   onMoveDown,
   isFirst,
-  isLast
+  isLast,
+  merchandiseValue
 }: Props) {
   const {
     attributes,
@@ -65,7 +67,19 @@ export default function SortableStop({
                 ? stop.address.name 
                 : stop.address.raw.substring(0, 30) + '...')}
         </p>
-        <p className="text-[11px] text-shuma-muted truncate">{stop.address.raw}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-[11px] text-shuma-muted truncate">{stop.address.raw}</p>
+          {merchandiseValue !== undefined && merchandiseValue >= 10000 && (
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/30">
+              💰 ALTO
+            </span>
+          )}
+          {merchandiseValue !== undefined && merchandiseValue >= 5000 && merchandiseValue < 10000 && (
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-500/20 text-slate-300 border border-slate-500/30">
+              💰 MED
+            </span>
+          )}
+        </div>
       </div>
 
       {!isEditing && stop.status === 'completed' && (
