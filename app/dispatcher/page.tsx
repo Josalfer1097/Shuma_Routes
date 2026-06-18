@@ -223,6 +223,7 @@ export default function DispatcherPage() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [geocodingDone, setGeocodingDone] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
 
   const { logout } = useAuth();
   const router = useRouter();
@@ -876,56 +877,169 @@ export default function DispatcherPage() {
         )}
 
         {/* ── Mensaje de bienvenida con línea GPS animada ── */}
-        {state.step === 'config' && state.addresses.length === 0 && !isSlideOverOpen && (
+        {state.step === 'config' && state.addresses.length === 0 && !isSlideOverOpen && !welcomeDismissed && (
           <>
             <style>{`
-              @keyframes draw-route-line {
-                0%   { stroke-dashoffset: 400; opacity: 0; }
-                10%  { opacity: 1; }
-                100% { stroke-dashoffset: 0; opacity: 1; }
+              @keyframes draw-gps-line {
+                from { stroke-dashoffset: 500; }
+                to   { stroke-dashoffset: 0; }
               }
-              @keyframes pulse-dot {
-                0%, 100% { r: 5; opacity: 1; }
-                50%      { r: 8; opacity: 0.6; }
+              @keyframes pulse-origin {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50%       { opacity: 0.5; transform: scale(1.4); }
               }
-              @keyframes arrive-dot {
-                0%, 60%  { opacity: 0; transform: scale(0); }
-                80%      { opacity: 1; transform: scale(1.3); }
-                100%     { opacity: 1; transform: scale(1); }
+              @keyframes pop-dest {
+                0%   { opacity: 0; transform: scale(0); }
+                70%  { transform: scale(1.3); }
+                100% { opacity: 1; transform: scale(1); }
               }
-              @keyframes welcome-fade-in {
-                from { opacity: 0; transform: translate(-50%, -54%); }
+              @keyframes welcome-in {
+                from { opacity: 0; transform: translate(-50%, -46%); }
                 to   { opacity: 1; transform: translate(-50%, -50%); }
               }
             `}</style>
 
-            {/* Card de bienvenida — centrada */}
+            {/* SVG overlay — DETRÁS de la card */}
+            <svg
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 9,
+                pointerEvents: 'none',
+                overflow: 'visible',
+              }}
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+            >
+              {/* Línea punteada animada — de la card al botón */}
+              <path
+                d="M 50 54 C 58 68, 78 74, 94 89"
+                fill="none"
+                stroke="#2196F3"
+                strokeWidth="0.7"
+                strokeDasharray="500"
+                strokeDashoffset="500"
+                strokeLinecap="round"
+                opacity="0.85"
+              >
+                <animate
+                  attributeName="stroke-dashoffset"
+                  from="500"
+                  to="0"
+                  dur="1.6s"
+                  begin="0.4s"
+                  fill="freeze"
+                  calcMode="spline"
+                  keyTimes="0;1"
+                  keySplines="0.4 0 0.2 1"
+                />
+              </path>
+
+              {/* Puntos en la línea (efecto ruta) */}
+              {[0.25, 0.5, 0.75].map((offset, i) => {
+                // Puntos a lo largo de la curva Bézier
+                const t = offset;
+                const bx = 3*(1-t)*(1-t)*t*50 + 3*(1-t)*t*t*78 + t*t*t*94 + (1-t)*(1-t)*(1-t)*50;
+                const by = 3*(1-t)*(1-t)*t*54 + 3*(1-t)*t*t*74 + t*t*t*89 + (1-t)*(1-t)*(1-t)*54;
+                return (
+                  <circle key={i} cx={bx.toFixed(1)} cy={by.toFixed(1)} r="0.8" fill="#2196F3" opacity="0">
+                    <animate
+                      attributeName="opacity"
+                      values="0;0.6;0"
+                      dur="2s"
+                      begin={`${0.8 + i * 0.3}s`}
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                );
+              })}
+
+              {/* Punto origen — pulsa */}
+              <circle cx="50" cy="54" r="3" fill="#2196F3" opacity="0.9">
+                <animate attributeName="r" values="3;5;3" dur="1.5s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.9;0.4;0.9" dur="1.5s" repeatCount="indefinite" />
+              </circle>
+              {/* Halo origen */}
+              <circle cx="50" cy="54" r="7" fill="none" stroke="#2196F3" strokeWidth="0.3" opacity="0">
+                <animate attributeName="r" values="5;12;5" dur="1.5s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.4;0;0.4" dur="1.5s" repeatCount="indefinite" />
+              </circle>
+
+              {/* Punto destino — aparece cuando llega la línea */}
+              <circle cx="94" cy="89" r="0" fill="#0047AB" stroke="#2196F3" strokeWidth="0.6">
+                <animate
+                  attributeName="r"
+                  values="0;5;3.5"
+                  dur="0.5s"
+                  begin="1.9s"
+                  fill="freeze"
+                />
+                <animate
+                  attributeName="opacity"
+                  values="0;1"
+                  dur="0.2s"
+                  begin="1.9s"
+                  fill="freeze"
+                />
+              </circle>
+              {/* Halo destino */}
+              <circle cx="94" cy="89" r="0" fill="none" stroke="#2196F3" strokeWidth="0.4" opacity="0">
+                <animate attributeName="r" values="4;10" dur="0.8s" begin="1.9s" fill="freeze" />
+                <animate attributeName="opacity" values="0.6;0" dur="0.8s" begin="1.9s" fill="freeze" />
+              </circle>
+
+              {/* Flecha al final */}
+              <polygon points="94,86 91,90 97,90" fill="#2196F3" opacity="0">
+                <animate attributeName="opacity" values="0;0.9" dur="0.3s" begin="2s" fill="freeze" />
+              </polygon>
+            </svg>
+
+            {/* Card de bienvenida — ENCIMA del SVG */}
             <div style={{
               position: 'absolute',
               top: '42%', left: '50%',
               transform: 'translate(-50%, -50%)',
               zIndex: 10,
               textAlign: 'center',
-              animation: 'welcome-fade-in 0.4s ease-out',
+              animation: 'welcome-in 0.4s ease-out',
             }}>
               <div style={{
                 background: 'rgba(10,22,40,0.94)',
                 border: '1px solid #1E3A5F',
                 borderRadius: 20,
-                padding: '28px 36px',
+                padding: '24px 32px 20px',
                 backdropFilter: 'blur(12px)',
                 boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
                 maxWidth: 300,
+                position: 'relative',
               }}>
-                <div style={{ fontSize: 38, marginBottom: 10 }}>🗺️</div>
+                {/* Botón X para cerrar */}
+                <button
+                  onClick={() => setWelcomeDismissed(true)}
+                  style={{
+                    position: 'absolute', top: 10, right: 12,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: '#3B5270', fontSize: 16, lineHeight: 1,
+                    padding: 4, transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#E8EFF8'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#3B5270'; }}
+                  title="Cerrar"
+                >
+                  ✕
+                </button>
+
+                <div style={{ fontSize: 36, marginBottom: 8 }}>🗺️</div>
                 <p style={{
-                  fontSize: 16, fontWeight: 700, color: '#E8EFF8',
-                  fontFamily: "'Exo 2', sans-serif", marginBottom: 6, margin: '0 0 6px',
+                  fontSize: 15, fontWeight: 700, color: '#E8EFF8',
+                  fontFamily: "'Exo 2', sans-serif", margin: '0 0 6px',
                 }}>
                   Bienvenido a Shuma Rutas
                 </p>
                 <p style={{
-                  fontSize: 12, color: '#5B7BA0', lineHeight: 1.5,
+                  fontSize: 11, color: '#5B7BA0', lineHeight: 1.5,
                   margin: '0 0 14px',
                 }}>
                   Optimiza las rutas de entrega de tu flota en minutos.
@@ -940,93 +1054,6 @@ export default function DispatcherPage() {
                 </div>
               </div>
             </div>
-
-            {/* SVG overlay con línea animada tipo GPS */}
-            {/* La línea va desde la card (centro del mapa ~50%, ~42%)
-                hasta el botón Configuración (bottom-right ~95%, ~90%) */}
-            <svg
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                zIndex: 9,
-                pointerEvents: 'none',
-              }}
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-            >
-              <defs>
-                <marker
-                  id="arrow-head"
-                  markerWidth="6"
-                  markerHeight="6"
-                  refX="3"
-                  refY="3"
-                  orient="auto"
-                >
-                  <path
-                    d="M0,0 L0,6 L6,3 z"
-                    fill="#2196F3"
-                    opacity="0.9"
-                  />
-                </marker>
-              </defs>
-
-              {/* Línea punteada de ruta — curva desde card hasta botón */}
-              <path
-                d="M 50 52 C 55 65, 75 70, 93 88"
-                fill="none"
-                stroke="#2196F3"
-                strokeWidth="0.8"
-                strokeDasharray="3,2"
-                strokeLinecap="round"
-                markerEnd="url(#arrow-head)"
-                style={{
-                  strokeDashoffset: 400,
-                  animation: 'draw-route-line 1.8s ease-out 0.3s forwards',
-                }}
-              />
-
-              {/* Punto de origen (en la card) */}
-              <circle
-                cx="50"
-                cy="52"
-                fill="#2196F3"
-                style={{
-                  animation: 'pulse-dot 1.5s ease-in-out infinite',
-                }}
-              />
-
-              {/* Halo del punto de origen */}
-              <circle
-                cx="50"
-                cy="52"
-                r="9"
-                fill="none"
-                stroke="#2196F3"
-                strokeWidth="0.4"
-                opacity="0.3"
-                style={{
-                  animation: 'pulse-dot 1.5s ease-in-out infinite',
-                }}
-              />
-
-              {/* Punto de destino (en el botón Configuración) */}
-              <circle
-                cx="93"
-                cy="88"
-                r="4"
-                fill="#0047AB"
-                stroke="#2196F3"
-                strokeWidth="0.8"
-                style={{
-                  transformOrigin: '93px 88px',
-                  animation: 'arrive-dot 1.8s ease-out 0.3s forwards',
-                  opacity: 0,
-                }}
-              />
-            </svg>
           </>
         )}
 

@@ -74,38 +74,47 @@ export async function POST(req: NextRequest) {
       let driverId: string | null = null;
       let vehicleIdFromDb: string | null = null;
 
+      console.log(`[accept] route.matricula="${route.matricula}" route.driverName="${route.driverName}"`);
+
       if (route.matricula) {
-        // Primero buscar el vehículo por placa
-        const { data: vehicleData } = await supabaseAdmin
+        const { data: vehicleData, error: vErr } = await supabaseAdmin
           .from('vehicles')
-          .select('id')
+          .select('id, plate')
           .eq('plate', route.matricula)
           .single();
 
+        console.log(`[accept] vehicle lookup plate="${route.matricula}":`, vehicleData, vErr?.message);
         vehicleIdFromDb = vehicleData?.id || null;
 
         if (vehicleIdFromDb) {
-          // Luego buscar el driver asignado a ese vehículo
-          const { data: driverData } = await supabaseAdmin
+          const { data: driverData, error: dErr } = await supabaseAdmin
             .from('drivers')
-            .select('id, name')
+            .select('id, name, vehicle_id, active')
             .eq('vehicle_id', vehicleIdFromDb)
-            .eq('active', true)
-            .single();
+            .single();  // quitamos .eq('active', true) temporalmente para ver si hay driver
 
-          driverId = driverData?.id || null;
+          console.log(`[accept] driver lookup vehicle_id="${vehicleIdFromDb}":`, driverData, dErr?.message);
+          if (driverData?.active) {
+            driverId = driverData.id;
+          } else if (driverData) {
+            console.log(`[accept] driver encontrado pero active=${driverData.active} — usando de todas formas`);
+            driverId = driverData.id; // usar aunque active sea false
+          }
         }
       }
 
-      // Fallback: si no encontró por matricula, intentar por nombre exacto
+      // Fallback por nombre
       if (!driverId && route.driverName) {
-        const { data: driverByName } = await supabaseAdmin
+        const { data: driverByName, error: dnErr } = await supabaseAdmin
           .from('drivers')
-          .select('id')
+          .select('id, name')
           .ilike('name', route.driverName.trim())
           .single();
+        console.log(`[accept] fallback by name "${route.driverName}":`, driverByName, dnErr?.message);
         driverId = driverByName?.id || null;
       }
+
+      console.log(`[accept] FINAL driverId="${driverId}" vehicleIdFromDb="${vehicleIdFromDb}"`);
 
       // 3. Insertar en route_drivers para vincular chofer ↔ ruta
       let routeDriverId: string | null = null;
