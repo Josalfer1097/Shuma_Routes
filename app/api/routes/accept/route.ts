@@ -53,9 +53,17 @@ export async function POST(req: NextRequest) {
           date: now.toISOString().split('T')[0],
           depot_id: depotId,
           return_depot_id: returnDepotId,
-          departure_time: route.departureTime
-            ? new Date(route.departureTime).toTimeString().slice(0, 5)
-            : '08:00',
+          departure_time: (() => {
+            if (!route.departureTime) return '08:00';
+            // Si ya es HH:MM, usarlo directo
+            if (/^\d{2}:\d{2}$/.test(route.departureTime)) return route.departureTime;
+            // Si es ISO string, extraer la hora
+            try {
+              const d = new Date(route.departureTime);
+              if (!isNaN(d.getTime())) return d.toTimeString().slice(0, 5);
+            } catch { /* ignore */ }
+            return '08:00';
+          })(),
           status: 'optimized',
           total_deliveries: route.stops.length,
           total_drivers: 1,
@@ -128,9 +136,17 @@ export async function POST(req: NextRequest) {
             route_id: routeData.id,
             driver_id: driverId,
             vehicle_id: vehicleId,
-            departure_time: route.departureTime
-              ? new Date(route.departureTime).toTimeString().slice(0, 5)
-              : '08:00',
+            departure_time: (() => {
+              if (!route.departureTime) return '08:00';
+              // Si ya es HH:MM, usarlo directo
+              if (/^\d{2}:\d{2}$/.test(route.departureTime)) return route.departureTime;
+              // Si es ISO string, extraer la hora
+              try {
+                const d = new Date(route.departureTime);
+                if (!isNaN(d.getTime())) return d.toTimeString().slice(0, 5);
+              } catch { /* ignore */ }
+              return '08:00';
+            })(),
             color: route.color,
             route_order: 1,
             total_km: (route.totalDistance || 0) / 1000,

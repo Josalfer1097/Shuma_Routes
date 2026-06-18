@@ -15,11 +15,11 @@ const FontScaleContext = createContext<FontScaleContextType>({
 });
 
 function applyScale(s: FontScale) {
-  // zoom escala absolutamente todo: px, rem, em, imágenes, etc.
-  // Es la única forma de escalar una app con fontSize px hardcodeados
-  document.body.style.zoom = s === 1 ? '' : s.toString();
-  // También actualizar la CSS var para los text-scale-* que sí la usan
+  // SOLO escalar textos — NO zoom del body (afectaría el mapa)
+  // Aplicar en el elemento raíz como CSS var
   document.documentElement.style.setProperty('--font-scale', s.toString());
+  // También en el data-attribute para que el SlideOver y panels lo usen
+  document.documentElement.setAttribute('data-font-scale', s.toString());
 }
 
 export function FontScaleProvider({ children }: { children: React.ReactNode }) {
