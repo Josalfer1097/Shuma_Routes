@@ -120,7 +120,7 @@ export default function FontScaleButton() {
               return (
                 <button
                   key={opt.value}
-                  onClick={() => { setScale(opt.value); setOpen(false); }}
+                  onClick={() => setScale(opt.value)}
                   style={{
                     height: 38, borderRadius: 8,
                     background: active ? 'rgba(33,150,243,0.15)' : 'rgba(255,255,255,0.03)',
@@ -170,7 +170,7 @@ export default function FontScaleButton() {
           {/* Restablecer */}
           {scale !== 1 && (
             <button
-              onClick={() => { setScale(1); setOpen(false); }}
+              onClick={() => setScale(1)}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 color: '#3B5270', fontSize: 9, marginTop: 8, padding: 0,
@@ -220,7 +220,7 @@ export default function FontScaleButton() {
                 return (
                   <button
                     key={opt.value}
-                    onClick={() => { setScale(opt.value); setOpen(false); }}
+                    onClick={() => setScale(opt.value)}
                     style={{
                       height: 48, borderRadius: 10, width: '100%',
                       background: active ? 'rgba(33,150,243,0.15)' : 'rgba(255,255,255,0.03)',
@@ -244,7 +244,7 @@ export default function FontScaleButton() {
             </div>
             {scale !== 1 && (
               <button
-                onClick={() => { setScale(1); setOpen(false); }}
+                onClick={() => setScale(1)}
                 style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer',
                   color: '#3B5270', fontSize: 10, padding: '6px 0',
                   fontFamily: "'Exo 2', sans-serif" }}

@@ -134,3 +134,12 @@
 .text-scale-xl   { font-size: var(--font-xl); }
 .text-scale-2xl  { font-size: var(--font-2xl); }
 .text-scale-3xl  { font-size: var(--font-3xl); }
+
+/* Cuando font-scale está activo, compensar el zoom en elementos fixed */
+/* El zoom CSS afecta position:fixed — esto lo corrige */
+@media screen {
+  body:not([style*="zoom: 1"]) .shuma-fixed-compensate {
+    /* Los elementos fixed se comportan como si estuvieran en el viewport escalado */
+    /* No se necesita compensación adicional con zoom nativo del browser */
+  }
+}

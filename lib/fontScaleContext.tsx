@@ -14,6 +14,14 @@ const FontScaleContext = createContext<FontScaleContextType>({
   setScale: () => {},
 });
 
+function applyScale(s: FontScale) {
+  // zoom escala absolutamente todo: px, rem, em, imágenes, etc.
+  // Es la única forma de escalar una app con fontSize px hardcodeados
+  document.body.style.zoom = s === 1 ? '' : s.toString();
+  // También actualizar la CSS var para los text-scale-* que sí la usan
+  document.documentElement.style.setProperty('--font-scale', s.toString());
+}
+
 export function FontScaleProvider({ children }: { children: React.ReactNode }) {
   const [scale, setScaleState] = useState<FontScale>(1);
 
@@ -21,9 +29,9 @@ export function FontScaleProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem('shuma-rutas-font-scale');
     if (saved) {
       const parsed = parseFloat(saved) as FontScale;
-      if ([1, 1.15, 1.3, 1.5].includes(parsed)) {
-        setScaleState(parsed);
-        document.documentElement.style.setProperty('--font-scale', parsed.toString());
+      if (([1, 1.15, 1.3, 1.5] as number[]).includes(parsed)) {
+        setScaleState(parsed as FontScale);
+        applyScale(parsed as FontScale);
       }
     }
   }, []);
@@ -31,7 +39,7 @@ export function FontScaleProvider({ children }: { children: React.ReactNode }) {
   const setScale = (s: FontScale) => {
     setScaleState(s);
     localStorage.setItem('shuma-rutas-font-scale', s.toString());
-    document.documentElement.style.setProperty('--font-scale', s.toString());
+    applyScale(s);
   };
 
   return (
