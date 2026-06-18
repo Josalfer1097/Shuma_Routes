@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import { X, CheckCircle, AlertCircle } from 'lucide-react';
 import type { Route } from '@/types';
@@ -25,7 +26,6 @@ export default function AcceptRouteModal({
   const [error, setError]     = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Guard ANTES del early return — no hay hooks después de este punto
   if (!isOpen) return null;
 
   const handleAcceptRoute = async () => {
@@ -51,26 +51,34 @@ export default function AcceptRouteModal({
     }
   };
 
-  return (
+  const modalContent = (
     <>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60]" onClick={onClose} />
-
-      <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+        style={{ zIndex: 9998 }}
+        onClick={onClose}
+      />
+      <div
+        className="fixed inset-0 flex items-center justify-center p-4"
+        style={{ zIndex: 9999, pointerEvents: 'none' }}
+      >
         <div
-          className="bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden"
+          className="pointer-events-auto bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl w-full max-w-md flex flex-col"
           style={{ maxHeight: 'min(85vh, 600px)' }}
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between p-6 border-b border-shuma-border">
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-shuma-border shrink-0">
             <h2 className="text-lg font-bold text-shuma-text">✅ Aceptar Ruta</h2>
             <button onClick={onClose} className="p-1 hover:bg-shuma-surface rounded-lg">
               <X className="w-5 h-5 text-shuma-muted" />
             </button>
           </div>
 
-          <div className="p-6 space-y-4">
+          {/* Contenido scrolleable */}
+          <div className="p-5 space-y-4 overflow-y-auto flex-1">
             {success ? (
-              <div className="text-center space-y-3">
+              <div className="text-center space-y-3 py-4">
                 <CheckCircle className="w-12 h-12 text-green-500 mx-auto animate-bounce" />
                 <p className="text-shuma-text font-semibold">¡Ruta guardada exitosamente!</p>
                 <p className="text-xs text-shuma-muted">{routes.length} ruta(s) guardada(s) en Supabase</p>
@@ -97,20 +105,27 @@ export default function AcceptRouteModal({
                     {routes.reduce((acc, r) => acc + r.stops.length, 0)} entregas
                   </strong>?
                 </p>
-                <div className="p-3 rounded-lg bg-shuma-surface border border-shuma-border space-y-2 max-h-48 overflow-y-auto">
-                  {routes.map((route, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs text-shuma-muted">
-                      <span style={{ color: route.color }}>●</span>
-                      <span>{route.driverName} • {route.stops.length} paradas • {(( route.totalDistance || 0)/1000).toFixed(1)} km</span>
-                    </div>
-                  ))}
+                <div className="rounded-lg bg-shuma-surface border border-shuma-border overflow-hidden">
+                  <div className="overflow-y-auto divide-y divide-shuma-border/50" style={{ maxHeight: 200 }}>
+                    {routes.map((route, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-2.5 text-xs text-shuma-muted">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: route.color }} />
+                        <span className="font-medium text-shuma-text">{route.driverName}</span>
+                        <span>·</span>
+                        <span>{route.stops.length} paradas</span>
+                        <span>·</span>
+                        <span>{((route.totalDistance || 0) / 1000).toFixed(1)} km</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
           </div>
 
+          {/* Footer fijo */}
           {!success && !error && (
-            <div className="flex gap-3 p-6 border-t border-shuma-border">
+            <div className="flex gap-3 p-5 border-t border-shuma-border shrink-0">
               <button
                 onClick={onClose}
                 disabled={loading}
@@ -131,4 +146,7 @@ export default function AcceptRouteModal({
       </div>
     </>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(modalContent, document.body);
 }

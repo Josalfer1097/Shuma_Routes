@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import Papa from 'papaparse';
 import type { Address } from '@/types';
 import { nanoid } from 'nanoid';
@@ -8,6 +8,8 @@ import { nanoid } from 'nanoid';
 interface Props {
   onAddressesLoaded: (addresses: Address[]) => void;
   disabled?: boolean;
+  persistedAddresses?: Address[];
+  persistedFileName?: string;
 }
 
 interface CSVRow {
@@ -25,12 +27,21 @@ interface CSVRow {
   [key: string]: string | undefined;
 }
 
-export default function CSVUploader({ onAddressesLoaded, disabled }: Props) {
+export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddresses, persistedFileName }: Props) {
   const [isDragging, setIsDragging] = useState(false);
-  const [preview, setPreview] = useState<Address[]>([]);
+  const [preview, setPreview] = useState<Address[]>(persistedAddresses || []);
   const [error, setError] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(persistedFileName || null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (persistedAddresses && persistedAddresses.length > 0 && preview.length === 0) {
+      setPreview(persistedAddresses);
+    }
+    if (persistedFileName && !fileName) {
+      setFileName(persistedFileName);
+    }
+  }, [persistedAddresses, persistedFileName]);
 
   const parseCSV = useCallback(
     (file: File) => {
@@ -180,7 +191,7 @@ export default function CSVUploader({ onAddressesLoaded, disabled }: Props) {
             </span>
             <span className="text-xs text-shuma-muted">Preview</span>
           </div>
-          <ul className="divide-y divide-slate-700/50 max-h-64 overflow-y-auto">
+          <ul className="divide-y divide-slate-700/50 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 380px)', minHeight: 120 }}>
             {preview.map((addr, idx) => (
               <li key={addr.id} className="flex items-center gap-2 px-3 py-2">
                 <span className="text-[10px] text-shuma-muted w-4 shrink-0 text-right">{idx + 1}</span>

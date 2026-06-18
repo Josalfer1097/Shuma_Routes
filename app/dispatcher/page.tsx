@@ -1041,7 +1041,12 @@ export default function DispatcherPage() {
         )}
 
         {activeTab === 'upload' && (
-          <CSVUploader onAddressesLoaded={handleAddressesLoaded} disabled={!state.globalConfig} />
+          <CSVUploader
+            onAddressesLoaded={handleAddressesLoaded}
+            disabled={!state.globalConfig}
+            persistedAddresses={state.addresses}
+            persistedFileName={state.addresses.length > 0 ? `${state.addresses.length} direcciones cargadas` : undefined}
+          />
         )}
 
         {activeTab === 'zones' && (

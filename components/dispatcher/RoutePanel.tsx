@@ -303,20 +303,70 @@ export default function RoutePanel({
       </div>
 
       {hasUnsavedEdits && isEditing && (
-        <div className="bg-yellow-500/10 border-b border-yellow-500/30 p-3">
-          <p className="text-xs text-yellow-400 font-medium mb-2 leading-relaxed">
-            ⚠️ Distancias calculadas en línea recta. Presiona Reoptimizar para obtener tiempos reales por calles.
+        <div style={{ borderBottom: '1px solid rgba(245,158,11,0.2)', padding: '10px 12px', background: 'rgba(245,158,11,0.05)' }}>
+          <p style={{ fontSize: 11, color: '#fbbf24', marginBottom: 8, lineHeight: 1.4 }}>
+            ⚠️ Tienes cambios sin aplicar. Elige cómo confirmar el orden:
           </p>
-          <button
-            onClick={() => {
-              setIsEditing(false);
-              setHasUnsavedEdits(false);
-              if (onReoptimize) onReoptimize(editedRoutes);
-            }}
-            className="w-full py-1.5 rounded bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 text-xs font-bold transition-colors border border-yellow-500/20"
-          >
-            Reoptimizar ahora
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {/* MI ORDEN — no llama a Google */}
+            <button
+              title="Mantiene exactamente el orden que arrastraste. No llama a Google."
+              onClick={() => {
+                // Reasignar sequence según posición actual y recalcular distancias sin Google
+                const newRoutes = editedRoutes.map(route => {
+                  const updatedStops = route.stops.map((s, i) => ({ ...s, sequence: i + 1 }));
+                  const updatedRoute = { ...route, stops: updatedStops };
+                  recalculateRoute(updatedRoute);
+                  return updatedRoute;
+                });
+                setEditedRoutes(newRoutes);
+                setHasUnsavedEdits(false);
+                setIsEditing(false);
+                // Propagar al estado global
+                if (onReoptimize) onReoptimize(newRoutes);
+              }}
+              style={{
+                flex: 1, padding: '7px 4px', borderRadius: 8, cursor: 'pointer',
+                background: 'rgba(34,197,94,0.12)',
+                border: '2px solid rgba(34,197,94,0.4)',
+                color: '#22c55e', fontSize: 11, fontWeight: 700,
+                fontFamily: "'Exo 2', sans-serif",
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,197,94,0.22)'; e.currentTarget.style.borderColor = 'rgba(34,197,94,0.7)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(34,197,94,0.12)'; e.currentTarget.style.borderColor = 'rgba(34,197,94,0.4)'; }}
+            >
+              <span style={{ fontSize: 14 }}>✋</span>
+              <span>Mi orden</span>
+              <span style={{ fontSize: 9, color: '#86efac', fontWeight: 400 }}>Sin Google</span>
+            </button>
+
+            {/* GOOGLE OPTIMIZA — llama a la API */}
+            <button
+              title="Google reordena las paradas para minimizar tiempo y distancia total."
+              onClick={() => {
+                setIsEditing(false);
+                setHasUnsavedEdits(false);
+                if (onReoptimize) onReoptimize(editedRoutes);
+              }}
+              style={{
+                flex: 1, padding: '7px 4px', borderRadius: 8, cursor: 'pointer',
+                background: 'rgba(33,150,243,0.12)',
+                border: '2px solid rgba(33,150,243,0.4)',
+                color: '#60a5fa', fontSize: 11, fontWeight: 700,
+                fontFamily: "'Exo 2', sans-serif",
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(33,150,243,0.22)'; e.currentTarget.style.borderColor = 'rgba(33,150,243,0.7)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(33,150,243,0.12)'; e.currentTarget.style.borderColor = 'rgba(33,150,243,0.4)'; }}
+            >
+              <span style={{ fontSize: 14 }}>⚡</span>
+              <span>Google</span>
+              <span style={{ fontSize: 9, color: '#93c5fd', fontWeight: 400 }}>Reordena</span>
+            </button>
+          </div>
         </div>
       )}
 
