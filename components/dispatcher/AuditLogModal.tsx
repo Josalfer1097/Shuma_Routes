@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { X, Download, Filter } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { X, Download } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { WeatherData } from '@/lib/weather';
 
 interface AuditLogEntry {
   id: string;
@@ -15,7 +14,7 @@ interface AuditLogEntry {
   ip_address: string;
   user_agent: string;
   module: string;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -37,10 +36,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole }: Props) {
   const [filterUser, setFilterUser] = useState('');
   const [dateFrom, setDateFrom] = useState('');
 
-  // Solo admin puede ver
-  if (!isOpen || userRole !== 'admin') return null;
-
-  const fetchAuditLogs = async () => {
+  const fetchAuditLogs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -67,13 +63,16 @@ export default function AuditLogModal({ isOpen, onClose, userRole }: Props) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterAction, filterModule, filterUser, dateFrom]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && userRole === 'admin') {
       fetchAuditLogs();
     }
-  }, [isOpen, filterAction, filterModule, filterUser, dateFrom]);
+  }, [isOpen, userRole, fetchAuditLogs]);
+
+  // Guard DESPUÉS de todos los hooks
+  if (!isOpen || userRole !== 'admin') return null;
 
   const exportToCSV = () => {
     const csv = [
@@ -187,7 +186,6 @@ export default function AuditLogModal({ isOpen, onClose, userRole }: Props) {
                 setFilterModule('');
                 setFilterUser('');
                 setDateFrom('');
-                fetchAuditLogs();
               }}
               className="px-3 py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30 transition-colors"
             >
