@@ -236,11 +236,74 @@ export default function DispatcherPage() {
   // ── Session data (client-only) ──
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('');
+  const [liveDeliveryStatus, setLiveDeliveryStatus] = useState<Record<string, string>>({});
+  const [sessionToRestore, setSessionToRestore] = useState<null | {
+    savedAt: string;
+    vehicleCount: number;
+    addressCount: number;
+  }>(null);
+
+  const SESSION_KEY = 'shuma_rutas_session';
+
+  const saveSession = useCallback(() => {
+    if (!state.globalConfig) return;
+    try {
+      const sessionData = {
+        globalConfig: state.globalConfig,
+        vehicles: state.vehicles,
+        addresses: state.addresses.map(a => ({ ...a })),
+        clusters: state.clusters,
+        step: state.step,
+        savedAt: new Date().toISOString(),
+      };
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+    } catch { /* ignore quota errors */ }
+  }, [state.globalConfig, state.vehicles, state.addresses, state.clusters, state.step]);
+
+  useEffect(() => {
+    if (state.globalConfig) {
+      saveSession();
+    }
+  }, [state.globalConfig, state.vehicles, state.addresses, state.clusters, saveSession]);
+
+  useEffect(() => {
+    // Polling 30s para live tracking
+    const fetchStatuses = async () => {
+      try {
+        const res = await fetch('/api/deliveries/status');
+        const json = await res.json();
+        if (json.ok && json.statuses) {
+          setLiveDeliveryStatus(json.statuses);
+        }
+      } catch (err) {
+        console.error('Error fetching live delivery statuses', err);
+      }
+    };
+
+    fetchStatuses();
+    const intv = setInterval(fetchStatuses, 30000);
+    return () => clearInterval(intv);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setUserName(sessionStorage.getItem('shuma_name') || '');
       setUserRole(sessionStorage.getItem('shuma_role') || '');
+
+      // Verificar si hay sesión guardada
+      try {
+        const saved = sessionStorage.getItem('shuma_rutas_session');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.globalConfig && (parsed.vehicles?.length > 0 || parsed.addresses?.length > 0)) {
+            setSessionToRestore({
+              savedAt: parsed.savedAt,
+              vehicleCount: parsed.vehicles?.length || 0,
+              addressCount: parsed.addresses?.length || 0,
+            });
+          }
+        }
+      } catch { /* ignore */ }
     }
   }, []);
 
@@ -250,6 +313,7 @@ export default function DispatcherPage() {
     sessionStorage.removeItem('shuma_user');
     sessionStorage.removeItem('shuma_name');
     sessionStorage.removeItem('shuma_driver_id');
+    sessionStorage.removeItem('shuma_rutas_session');
     localStorage.removeItem('shuma_auth');
     document.cookie = "shuma_auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     window.location.href = '/';
@@ -773,6 +837,7 @@ export default function DispatcherPage() {
           routes={state.routes}
           depot={state.depot}
           hiddenRouteIds={hiddenRouteIds}
+          liveDeliveryStatus={liveDeliveryStatus}
         />
 
         {/* ── Weather widget (bottom-left) ── */}
@@ -939,6 +1004,85 @@ export default function DispatcherPage() {
           </div>
         )}
       </main>
+
+      {/* ── Modal de recuperación de sesión ── */}
+      {sessionToRestore && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9990,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        }}>
+          <div style={{
+            background: '#0A1628', border: '1px solid #1E3A5F',
+            borderRadius: 20, padding: '24px', maxWidth: 380, width: '100%',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+          }}>
+            <div style={{ fontSize: 32, textAlign: 'center', marginBottom: 12 }}>💾</div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', textAlign: 'center', marginBottom: 6 }}>
+              Sesión anterior encontrada
+            </h3>
+            <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginBottom: 4 }}>
+              Guardada: {new Date(sessionToRestore.savedAt).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}
+            </p>
+            <div style={{
+              display: 'flex', gap: 8, margin: '12px 0',
+              padding: '10px 14px', borderRadius: 10,
+              background: 'rgba(33,150,243,0.08)', border: '1px solid rgba(33,150,243,0.15)',
+            }}>
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <p style={{ fontSize: 20, fontWeight: 800, color: '#60a5fa' }}>{sessionToRestore.vehicleCount}</p>
+                <p style={{ fontSize: 10, color: '#5B7BA0', textTransform: 'uppercase' }}>Vehículos</p>
+              </div>
+              <div style={{ width: 1, background: 'rgba(255,255,255,0.06)' }} />
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <p style={{ fontSize: 20, fontWeight: 800, color: '#60a5fa' }}>{sessionToRestore.addressCount}</p>
+                <p style={{ fontSize: 10, color: '#5B7BA0', textTransform: 'uppercase' }}>Direcciones</p>
+              </div>
+            </div>
+            <p style={{ fontSize: 11, color: '#64748b', textAlign: 'center', marginBottom: 16 }}>
+              ¿Deseas continuar donde lo dejaste?
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => {
+                  sessionStorage.removeItem('shuma_rutas_session');
+                  setSessionToRestore(null);
+                }}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: 10, cursor: 'pointer',
+                  background: 'transparent', border: '1px solid #1E3A5F',
+                  color: '#5B7BA0', fontSize: 12, fontWeight: 600,
+                }}
+              >
+                Empezar nuevo
+              </button>
+              <button
+                onClick={() => {
+                  try {
+                    const saved = sessionStorage.getItem('shuma_rutas_session');
+                    if (!saved) return;
+                    const parsed = JSON.parse(saved);
+                    if (parsed.globalConfig) dispatch({ type: 'SET_GLOBAL_CONFIG', payload: parsed.globalConfig });
+                    if (parsed.vehicles?.length) parsed.vehicles.forEach((v: any) => dispatch({ type: 'ADD_VEHICLE', payload: v }));
+                    if (parsed.addresses?.length) dispatch({ type: 'SET_ADDRESSES', payload: parsed.addresses });
+                    if (parsed.clusters?.length) dispatch({ type: 'SET_CLUSTERS', payload: parsed.clusters });
+                    if (parsed.step) dispatch({ type: 'SET_STEP', payload: parsed.step });
+                  } catch { /* ignore */ }
+                  setSessionToRestore(null);
+                }}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: 10, cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #1E3A8A, #2563EB)',
+                  border: '1px solid #3B82F6',
+                  color: '#fff', fontSize: 12, fontWeight: 700,
+                }}
+              >
+                ✓ Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════════════════════════════════════════ */}
       {/* SLIDE-OVER CON PESTAÑAS INTERNAS                */}

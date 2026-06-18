@@ -43,6 +43,7 @@ export default function AcceptRouteModal({
       if (!json.ok) throw new Error(json.error || 'Error al guardar rutas');
 
       setSuccess(true);
+      sessionStorage.removeItem('shuma_rutas_session');
       setTimeout(() => { onSuccess?.(); onClose(); }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');

@@ -10,6 +10,7 @@ interface Props {
   routes: Route[];
   depot: { lat: number; lng: number; label: string } | null;
   hiddenRouteIds?: string[];
+  liveDeliveryStatus?: Record<string, string>;
 }
 
 // ── Helpers para crear marcadores personalizados (HTML) ───────────
@@ -29,20 +30,19 @@ function createDepotPin(title: string, color: string, scale: number = 1) {
   return div;
 }
 
-function createStopPin(number: string | number) {
+function createStopPin(number: string | number, statusColor?: string) {
   const div = document.createElement('div');
-  // Fondo blanco, borde #FF6B00 (naranja brillante) y texto negro
-  div.className = 'flex items-center justify-center rounded-full border-[3px] font-bold text-sm shadow-md';
-  div.style.backgroundColor = '#FFFFFF';
+  div.className = 'flex items-center justify-center rounded-full border-[3px] font-bold text-sm shadow-md transition-colors';
+  div.style.backgroundColor = statusColor || '#FFFFFF';
   div.style.borderColor = '#FF6B00';
-  div.style.color = '#000000';
+  div.style.color = statusColor === '#22c55e' || statusColor === '#ef4444' ? '#FFFFFF' : '#000000';
   div.style.width = '28px';
   div.style.height = '28px';
   div.textContent = String(number);
   return div;
 }
 
-export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] }: Props) {
+export default function MapView({ addresses, routes, depot, hiddenRouteIds = [], liveDeliveryStatus = {} }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
@@ -268,10 +268,17 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [] 
             accumulated = stop.distance;
           }
 
+          let stopStatusColor: string | undefined = undefined;
+          if (stop.address.invoice) {
+            const status = liveDeliveryStatus[stop.address.invoice];
+            if (status === 'completed') stopStatusColor = '#22c55e';
+            if (status === 'failed') stopStatusColor = '#ef4444';
+          }
+
           const marker = new AdvancedMarkerElement({
             position: { lat, lng },
             map: isVisible ? map : null,
-            content: createStopPin(stop.sequence),
+            content: createStopPin(stop.sequence, stopStatusColor),
           });
 
           const distStr = accumulated > 0 ? formatDistance(accumulated) : '—';

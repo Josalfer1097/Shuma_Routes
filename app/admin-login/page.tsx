@@ -12,6 +12,8 @@ export default function AdminLoginPage() {
   const [focusU, setFocusU] = useState(false);
   const [focusP, setFocusP] = useState(false);
   const [attempts, setAttempts] = useState(0);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockCountdown, setBlockCountdown] = useState(0);
   const [glitching, setGlitching] = useState(false);
   const [accessGranted, setAccessGranted] = useState(false);
   const [scanningEye, setScanningEye] = useState(false);
@@ -20,6 +22,7 @@ export default function AdminLoginPage() {
   const router = useRouter();
 
   const handleSubmit = async () => {
+    if (isBlocked) return;
     if (loading || accessGranted) return;
     if (!user.trim() || !pass.trim()) return;
 
@@ -47,6 +50,37 @@ export default function AdminLoginPage() {
       } else {
         const newAttempts = Math.min(attempts + 1, 5);
         setAttempts(newAttempts);
+
+        if (newAttempts >= 3) {
+          setIsBlocked(true);
+          setBlockCountdown(30);
+          fetch('/api/audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'Cuenta bloqueada',
+              entity: 'session',
+              entity_id: null,
+              user_name: user.toLowerCase().trim(),
+              user_role: 'unknown',
+              module: 'Autenticación',
+              metadata: { attempts: newAttempts, reason: '3 intentos fallidos' },
+            }),
+          }).catch(console.error);
+
+          const interval = setInterval(() => {
+            setBlockCountdown(prev => {
+              if (prev <= 1) {
+                clearInterval(interval);
+                setIsBlocked(false);
+                setAttempts(0);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        }
+
         setErrorMsg(data.error || 'Credenciales incorrectas — acceso denegado');
         setGlitching(true);
         setTimeout(() => {
@@ -59,6 +93,37 @@ export default function AdminLoginPage() {
     } catch {
       const newAttempts = Math.min(attempts + 1, 5);
       setAttempts(newAttempts);
+
+      if (newAttempts >= 3) {
+        setIsBlocked(true);
+        setBlockCountdown(30);
+        fetch('/api/audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'Cuenta bloqueada',
+            entity: 'session',
+            entity_id: null,
+            user_name: user.toLowerCase().trim(),
+            user_role: 'unknown',
+            module: 'Autenticación',
+            metadata: { attempts: newAttempts, reason: '3 intentos fallidos' },
+          }),
+        }).catch(console.error);
+
+        const interval = setInterval(() => {
+          setBlockCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(interval);
+              setIsBlocked(false);
+              setAttempts(0);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+
       setErrorMsg('Error de conexión — intenta de nuevo');
       setGlitching(true);
       setTimeout(() => {
@@ -581,7 +646,7 @@ export default function AdminLoginPage() {
             <button
               className={`ls-btn${accessGranted ? " success" : ""}`}
               onClick={handleSubmit}
-              disabled={loading}
+              disabled={loading || accessGranted || isBlocked || !user.trim() || !pass.trim()}
             >
               {loading ? (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
@@ -619,11 +684,42 @@ export default function AdminLoginPage() {
               {errorMsg || 'Credenciales incorrectas — acceso denegado'}
             </div>
 
-            {attempts > 0 && (
+            {attempts > 0 && !isBlocked && (
               <div className="ls-attempt-bar">
                 {[0,1,2,3,4].map(i => (
                   <div key={i} className={`ls-a-dot${i < attempts ? ' used' : ''}`} />
                 ))}
+              </div>
+            )}
+
+            {isBlocked && (
+              <div style={{
+                marginTop: 12,
+                padding: '10px 16px',
+                borderRadius: 10,
+                background: 'rgba(239,68,68,0.10)',
+                border: '1px solid rgba(239,68,68,0.30)',
+                textAlign: 'center',
+              }}>
+                <p style={{ fontSize: 12, color: '#f87171', fontWeight: 700, marginBottom: 4 }}>
+                  🔒 Acceso bloqueado temporalmente
+                </p>
+                <p style={{ fontSize: 11, color: '#fca5a5' }}>
+                  Espera <strong>{blockCountdown}s</strong> antes de intentar de nuevo
+                </p>
+                <div style={{
+                  marginTop: 8, height: 3, borderRadius: 2,
+                  background: 'rgba(239,68,68,0.2)',
+                  overflow: 'hidden',
+                }}>
+                  <div style={{
+                    height: '100%',
+                    background: '#ef4444',
+                    width: `${(blockCountdown / 30) * 100}%`,
+                    transition: 'width 1s linear',
+                    borderRadius: 2,
+                  }} />
+                </div>
               </div>
             )}
 
