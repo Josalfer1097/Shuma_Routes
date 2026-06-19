@@ -1,27 +1,53 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { driverName, stopIndex, status, notes } = await req.json();
+    const { deliveryId, status, notes, driverName } = await req.json();
 
-    const { error } = await supabaseAdmin.from('audit_log').insert({
-      action: status === 'completed' ? 'delivery_completed' : 'delivery_failed',
-      entity: 'delivery',
-      entity_id: stopIndex.toString(),
-      user_name: driverName,
-      user_role: 'driver',
-      metadata: { notes, stopIndex }
-    });
-
-    if (error) {
-      console.error('Error in driver/deliver audit log:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!deliveryId || !status) {
+      return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
     }
+
+    // Actualizar el status de la entrega
+    const { error: updateErr } = await supabaseAdmin
+      .from('deliveries')
+      .update({
+        status: status === 'completed' ? 'delivered' : 'failed',
+        notes:  notes || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', deliveryId);
+
+    if (updateErr) throw updateErr;
+
+    // Registrar en delivery_events
+    const { error: evtErr } = await supabaseAdmin
+      .from('delivery_events')
+      .insert({
+        delivery_id: deliveryId,
+        event_type:  status === 'completed' ? 'delivered' : 'failed',
+        notes:       notes || null,
+        created_at:  new Date().toISOString(),
+      });
+
+    if (evtErr) console.warn('[deliver] Event insert error:', evtErr.message);
+
+    // Audit log
+    await supabaseAdmin.from('audit_log').insert({
+      action:    status === 'completed' ? 'Entrega completada' : 'Entrega fallida',
+      entity:    'entrega',
+      entity_id: deliveryId,
+      user_name: driverName || 'chofer',
+      user_role: 'driver',
+      module:    'Entregas',
+      metadata:  { notes },
+      created_at: new Date().toISOString(),
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('Error in driver/deliver:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[driver/deliver] Error:', err);
+    return NextResponse.json({ ok: false, error: 'Error interno' }, { status: 500 });
   }
 }
