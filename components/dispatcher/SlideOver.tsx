@@ -209,7 +209,7 @@ export default function SlideOver({
         }
         .so-section-title {
           font-family: 'Exo 2', sans-serif;
-          font-size: 9px;
+          font-size: calc(9px * var(--font-scale, 1));
           letter-spacing: 0.2em;
           color: rgba(33,150,243,0.5);
           text-transform: uppercase;
@@ -218,7 +218,7 @@ export default function SlideOver({
 
         /* ── Field styles ── */
         .so-label {
-          font-size: 11px;
+          font-size: calc(11px * var(--font-scale, 1));
           color: rgba(255,255,255,0.45);
           margin-bottom: 5px;
           display: block;
@@ -230,7 +230,7 @@ export default function SlideOver({
           border-radius: 9px;
           padding: 9px 12px;
           color: #E8EFF8;
-          font-size: 13px;
+          font-size: calc(13px * var(--font-scale, 1));
           font-family: 'DM Sans', sans-serif;
           outline: none;
           transition: all 0.2s;
@@ -247,7 +247,7 @@ export default function SlideOver({
           border-radius: 9px;
           padding: 9px 12px;
           color: #E8EFF8;
-          font-size: 13px;
+          font-size: calc(13px * var(--font-scale, 1));
           font-family: 'DM Sans', sans-serif;
           outline: none;
           transition: all 0.2s;
@@ -278,7 +278,7 @@ export default function SlideOver({
           width: 100%;
           cursor: pointer;
           font-family: 'Exo 2', sans-serif;
-          font-size: 12px;
+          font-size: calc(12px * var(--font-scale, 1));
           transition: all 0.2s;
         }
         .so-btn-add:hover {
@@ -295,7 +295,7 @@ export default function SlideOver({
           border-radius: 8px;
           color: #fff;
           font-family: 'Exo 2', sans-serif;
-          font-size: 11px;
+          font-size: calc(11px * var(--font-scale, 1));
           font-weight: 700;
           letter-spacing: 0.16em;
           text-transform: uppercase;
@@ -322,7 +322,7 @@ export default function SlideOver({
           border-radius: 8px;
           color: rgba(255,255,255,0.45);
           font-family: 'Exo 2', sans-serif;
-          font-size: 11px;
+          font-size: calc(11px * var(--font-scale, 1));
           cursor: pointer;
           transition: all 0.2s;
         }

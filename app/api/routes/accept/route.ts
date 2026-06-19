@@ -78,51 +78,61 @@ export async function POST(req: NextRequest) {
 
       if (routeErr) throw new Error(`Error guardando ruta: ${routeErr.message}`);
 
-      // 2. Buscar driver_id usando la matricula (plate) del vehículo — más confiable que el nombre
+      // 2. Buscar driver_id desde user_profiles (más confiable — tiene driver_id directo)
       let driverId: string | null = null;
       let vehicleIdFromDb: string | null = null;
 
-      console.log(`[accept] route.matricula="${route.matricula}" route.driverName="${route.driverName}"`);
+      // Intentar por username (driverName en lowercase, sin espacios especiales)
+      if (route.driverName) {
+        const usernameGuess = route.driverName.toLowerCase()
+          .replace(/\s+/g, '') // "El Derek" → "elderek"
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // quitar acentos
 
-      if (route.matricula) {
-        const { data: vehicleData, error: vErr } = await supabaseAdmin
-          .from('vehicles')
-          .select('id, plate')
-          .eq('plate', route.matricula)
+        // También intentar con el primer token: "El Derek" → "derek", "Sultano" → "sultano"
+        const firstToken = route.driverName.toLowerCase().split(' ').pop() || '';
+
+        const { data: profileData } = await supabaseAdmin
+          .from('user_profiles')
+          .select('driver_id, username')
+          .or(`username.eq.${usernameGuess},username.eq.${firstToken},username.ilike.%${firstToken}%`)
+          .eq('role', 'driver')
+          .not('driver_id', 'is', null)
+          .limit(1)
           .single();
 
-        console.log(`[accept] vehicle lookup plate="${route.matricula}":`, vehicleData, vErr?.message);
-        vehicleIdFromDb = vehicleData?.id || null;
-
-        if (vehicleIdFromDb) {
-          const { data: driverData, error: dErr } = await supabaseAdmin
-            .from('drivers')
-            .select('id, name, vehicle_id, active')
-            .eq('vehicle_id', vehicleIdFromDb)
-            .single();  // quitamos .eq('active', true) temporalmente para ver si hay driver
-
-          console.log(`[accept] driver lookup vehicle_id="${vehicleIdFromDb}":`, driverData, dErr?.message);
-          if (driverData?.active) {
-            driverId = driverData.id;
-          } else if (driverData) {
-            console.log(`[accept] driver encontrado pero active=${driverData.active} — usando de todas formas`);
-            driverId = driverData.id; // usar aunque active sea false
-          }
+        if (profileData?.driver_id) {
+          driverId = profileData.driver_id;
+          console.log(`[accept] driver encontrado via user_profiles: username=${profileData.username} driver_id=${driverId}`);
         }
       }
 
-      // Fallback por nombre
+      // Fallback: buscar en drivers por nombre directo
       if (!driverId && route.driverName) {
-        const { data: driverByName, error: dnErr } = await supabaseAdmin
+        const { data: driverDirect } = await supabaseAdmin
           .from('drivers')
-          .select('id, name')
-          .ilike('name', route.driverName.trim())
+          .select('id, vehicle_id')
+          .ilike('name', `%${route.driverName.split(' ').pop() || route.driverName}%`)
+          .limit(1)
           .single();
-        console.log(`[accept] fallback by name "${route.driverName}":`, driverByName, dnErr?.message);
-        driverId = driverByName?.id || null;
+
+        if (driverDirect) {
+          driverId = driverDirect.id;
+          vehicleIdFromDb = driverDirect.vehicle_id;
+          console.log(`[accept] driver encontrado via drivers table: id=${driverId}`);
+        }
       }
 
-      console.log(`[accept] FINAL driverId="${driverId}" vehicleIdFromDb="${vehicleIdFromDb}"`);
+      // Buscar vehicle por matricula (para route_drivers)
+      if (!vehicleIdFromDb && route.matricula) {
+        const { data: vehicleData } = await supabaseAdmin
+          .from('vehicles')
+          .select('id')
+          .eq('plate', route.matricula)
+          .single();
+        vehicleIdFromDb = vehicleData?.id || null;
+      }
+
+      console.log(`[accept] FINAL driverId="${driverId}" vehicleId="${vehicleIdFromDb}" matricula="${route.matricula}"`);
 
       // 3. Insertar en route_drivers para vincular chofer ↔ ruta
       let routeDriverId: string | null = null;

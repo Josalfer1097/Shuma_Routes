@@ -4,10 +4,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useFontScale } from '@/lib/fontScaleContext';
 
 const SCALE_OPTIONS = [
-  { label: 'Normal',     value: 1    as const, desc: 'Predeterminado' },
-  { label: 'Grande',     value: 1.15 as const, desc: 'Un poco más' },
-  { label: 'Más grande', value: 1.3  as const, desc: 'Fácil lectura' },
-  { label: 'Accesible',  value: 1.5  as const, desc: 'Máximo tamaño' },
+  { label: 'Normal',      value: 1    as const, desc: 'Predeterminado' },
+  { label: 'Grande',      value: 1.15 as const, desc: 'Un poco más' },
+  { label: 'Más grande',  value: 1.3  as const, desc: 'Fácil lectura' },
+  { label: 'Accesible',   value: 1.5  as const, desc: 'Alto contraste' },
+  { label: 'Máximo',      value: 1.8  as const, desc: 'Ultra grande' },
 ];
 
 export default function FontScaleButton() {
