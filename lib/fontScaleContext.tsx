@@ -50,3 +50,12 @@ export function FontScaleProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useFontScale = () => useContext(FontScaleContext);
+
+/**
+ * Hook que retorna un multiplicador para usar en style={{ fontSize }} inline.
+ * Uso: const fs = useFontSize(); style={{ fontSize: fs(11) }}
+ */
+export function useFontSize() {
+  const { scale } = useFontScale();
+  return (base: number) => Math.round(base * scale);
+}

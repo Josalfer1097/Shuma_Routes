@@ -24,6 +24,7 @@ import Image from 'next/image';
 import WeatherIntelPanel from '@/components/dispatcher/WeatherIntelPanel';
 import AuditLogModal from '@/components/dispatcher/AuditLogModal';
 import FontScaleButton from '@/components/dispatcher/FontScaleButton';
+import { useFontSize } from '@/lib/fontScaleContext';
 
 // Leaflet NO es compatible con SSR → dynamic import
 const MapView = dynamic(() => import('@/components/dispatcher/MapView'), {
@@ -219,6 +220,7 @@ const SLIDE_WIDTHS: Record<string, number> = {
 
 export default function DispatcherPage() {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const fs = useFontSize();
   const [activeTab, setActiveTab] = useState<'config' | 'upload' | 'zones' | 'routes'>('config');
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -332,6 +334,10 @@ export default function DispatcherPage() {
     sessionStorage.removeItem('shuma_driver_id');
     sessionStorage.removeItem('shuma_rutas_session');
     localStorage.removeItem('shuma_auth');
+    localStorage.removeItem('shuma-rutas-font-scale');
+    document.documentElement.style.setProperty('--font-scale', '1');
+    document.documentElement.removeAttribute('data-font-scale');
+    document.documentElement.style.removeProperty('font-size');
     document.cookie = "shuma_auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     window.location.href = '/';
   };
@@ -710,7 +716,7 @@ export default function DispatcherPage() {
                       padding: '5px 10px', background: isMoreMenuOpen ? 'rgba(33,150,243,0.10)' : 'transparent',
                       border: `1px solid ${isMoreMenuOpen ? '#2196F3' : '#112040'}`,
                       borderRadius: 6, color: isMoreMenuOpen ? '#2196F3' : '#5B7BA0',
-                      fontSize: 11, fontFamily: "'Exo 2', sans-serif",
+                      fontSize: fs(11), fontFamily: "'Exo 2', sans-serif",
                       cursor: 'pointer', transition: 'all 0.2s',
                     }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = '#2196F3'; e.currentTarget.style.color = '#2196F3'; }}
@@ -721,7 +727,7 @@ export default function DispatcherPage() {
                       }
                     }}
                   >
-                    <span style={{ fontSize: 13 }}>☰</span>
+                    <span style={{ fontSize: fs(13) }}>☰</span>
                     <span className="hidden-mobile">Menú</span>
                   </button>
 
@@ -756,7 +762,7 @@ export default function DispatcherPage() {
                             style={{
                               width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                               padding: '10px 14px', background: 'none', border: 'none',
-                              color: '#94a3b8', fontSize: 12, cursor: 'pointer',
+                              color: '#94a3b8', fontSize: fs(12), cursor: 'pointer',
                               fontFamily: "'Exo 2', sans-serif", textAlign: 'left',
                               borderBottom: '1px solid rgba(255,255,255,0.04)',
                               transition: 'all 0.15s',
@@ -764,7 +770,7 @@ export default function DispatcherPage() {
                             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(33,150,243,0.08)'; e.currentTarget.style.color = '#e2e8f0'; }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94a3b8'; }}
                           >
-                            <span style={{ fontSize: 14 }}>{item.icon}</span>
+                            <span style={{ fontSize: fs(14) }}>{item.icon}</span>
                             {item.label}
                           </button>
                         ))}
@@ -795,7 +801,7 @@ export default function DispatcherPage() {
             flex: 1,
             textAlign: 'center',
             fontFamily: "'Exo 2', sans-serif",
-            fontSize: 13,
+            fontSize: fs(13),
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
             background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
@@ -814,7 +820,7 @@ export default function DispatcherPage() {
           {/* ── Right: User info + Logout ── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {userName && (
-              <span className="hidden-mobile" style={{ fontSize: 12, color: '#E8EFF8', fontWeight: 500 }}>
+              <span className="hidden-mobile" style={{ fontSize: fs(12), color: '#E8EFF8', fontWeight: 500 }}>
                 {userName}
               </span>
             )}
@@ -826,7 +832,7 @@ export default function DispatcherPage() {
                   border: '1px solid rgba(33,150,243,0.25)',
                   borderRadius: 20,
                   padding: '2px 8px',
-                  fontSize: 9,
+                  fontSize: fs(9),
                   color: '#4a90d9',
                   fontFamily: "'Exo 2', sans-serif",
                   letterSpacing: '0.12em',
@@ -849,7 +855,7 @@ export default function DispatcherPage() {
                 border: '1px solid #112040',
                 borderRadius: 6,
                 color: '#5B7BA0',
-                fontSize: 11,
+                fontSize: fs(11),
                 cursor: 'pointer',
                 transition: 'all 0.2s',
               }}
@@ -936,6 +942,14 @@ export default function DispatcherPage() {
                 95%  { opacity: 1; }
                 100% { offset-distance: 100%; opacity: 0; }
               }
+              @keyframes fab-pulse {
+                0%, 100% {
+                  box-shadow: 0 0 0 0 rgba(33,150,243,0.5), 0 4px 20px rgba(0,71,171,0.5);
+                }
+                50% {
+                  box-shadow: 0 0 0 12px rgba(33,150,243,0), 0 4px 30px rgba(0,71,171,0.7);
+                }
+              }
             `}</style>
 
             {/* ── SVG overlay épico ── */}
@@ -961,8 +975,8 @@ export default function DispatcherPage() {
                 const p3x = W * 0.70, p3y = H * 0.50;
 
                 // Destino: botón Configuración
-                const dx = W - 100;
-                const dy = H - 36;
+                const dx = W - 20 - 65;
+                const dy = H - 20 - 20;
 
                 // Path de la ruta principal (curva natural)
                 const routePath = `M ${ox} ${oy} C ${ox+60} ${oy+80}, ${p1x-40} ${p1y-40}, ${p1x} ${p1y} C ${p1x+50} ${p1y+20}, ${p2x-50} ${p2y+20}, ${p2x} ${p2y} C ${p2x+40} ${p2y-20}, ${p3x-40} ${p3y-40}, ${p3x} ${p3y} C ${p3x+60} ${p3y+30}, ${dx-60} ${dy-40}, ${dx} ${dy}`;
@@ -1271,28 +1285,43 @@ export default function DispatcherPage() {
               alignItems: 'center',
               gap: 6,
               padding: '10px 16px',
-              background: '#0047AB',
-              border: 'none',
+              background: state.addresses.length === 0 && !welcomeDismissed
+                ? 'linear-gradient(135deg, #0047AB, #1565C0)'
+                : '#0047AB',
+              border: state.addresses.length === 0 && !welcomeDismissed
+                ? '2px solid rgba(33,150,243,0.6)'
+                : 'none',
               borderRadius: 10,
               color: '#fff',
               fontSize: 12,
               fontWeight: 600,
               fontFamily: "'Exo 2', sans-serif",
               letterSpacing: '0.08em',
-              boxShadow: '0 4px 20px rgba(0,71,171,0.4)',
+              boxShadow: state.addresses.length === 0 && !welcomeDismissed
+                ? '0 0 0 0 rgba(33,150,243,0.6), 0 4px 20px rgba(0,71,171,0.5)'
+                : '0 4px 20px rgba(0,71,171,0.4)',
               cursor: 'pointer',
               transition: 'all 0.2s',
+              animation: state.addresses.length === 0 && !welcomeDismissed
+                ? 'fab-pulse 2s ease-in-out infinite'
+                : 'none',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#1565C0';
-              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, #1565C0, #1976D2)';
+              e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+              e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,71,171,0.6)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#0047AB';
-              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.background = state.addresses.length === 0 && !welcomeDismissed
+                ? 'linear-gradient(135deg, #0047AB, #1565C0)'
+                : '#0047AB';
+              e.currentTarget.style.transform = 'translateY(0) scale(1)';
+              e.currentTarget.style.boxShadow = state.addresses.length === 0 && !welcomeDismissed
+                ? '0 0 0 0 rgba(33,150,243,0.6), 0 4px 20px rgba(0,71,171,0.5)'
+                : '0 4px 20px rgba(0,71,171,0.4)';
             }}
           >
-            <span>⚙</span>
+            <span style={{ fontSize: 14 }}>⚙</span>
             Configuración
           </button>
         )}
@@ -1499,7 +1528,7 @@ export default function DispatcherPage() {
                   border: isActive ? '1px solid rgba(33,150,243,0.3)' : '1px solid transparent',
                   borderRadius: 8,
                   color: isActive ? '#2196F3' : isDone ? '#10B981' : '#5B7BA0',
-                  fontSize: 12,
+                  fontSize: fs(12),
                   cursor: 'pointer',
                   fontFamily: "'Exo 2', sans-serif",
                   letterSpacing: '0.06em',
@@ -1508,10 +1537,10 @@ export default function DispatcherPage() {
                 }}
               >
                 <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <span style={{ fontSize: 14, lineHeight: 1 }}>
+                  <span style={{ fontSize: fs(14), lineHeight: 1 }}>
                     {isDone && !isActive ? '✅' : icon}
                   </span>
-                  <span style={{ fontSize: 10 }}>{label}</span>
+                  <span style={{ fontSize: fs(10) }}>{label}</span>
                 </span>
               </button>
             );

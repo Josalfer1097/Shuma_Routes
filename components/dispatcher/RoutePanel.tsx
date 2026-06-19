@@ -7,6 +7,7 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, KeyboardSensor, 
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import SortableStop from './SortableStop';
 import ConfirmationModal from './ConfirmationModal';
+import { useFontSize } from '@/lib/fontScaleContext';
 
 interface Props {
   routes: Route[];
@@ -54,6 +55,7 @@ export default function RoutePanel({
   deadlineTime = '17:45',
   unloadConfig
 }: Props) {
+  const fs = useFontSize();
   const [expandedRoute, setExpandedRoute] = useState<string | null>(routes[0]?.vehicleId ?? null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedRoutes, setEditedRoutes] = useState<Route[]>([]);
@@ -330,7 +332,7 @@ export default function RoutePanel({
 
       {hasUnsavedEdits && isEditing && (
         <div style={{ borderBottom: '1px solid rgba(245,158,11,0.2)', padding: '10px 12px', background: 'rgba(245,158,11,0.05)' }}>
-          <p style={{ fontSize: 11, color: '#fbbf24', marginBottom: 8, lineHeight: 1.4 }}>
+          <p style={{ fontSize: fs(11), color: '#fbbf24', marginBottom: 8, lineHeight: 1.4 }}>
             ⚠️ Tienes cambios sin aplicar. Elige cómo confirmar el orden:
           </p>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -355,7 +357,7 @@ export default function RoutePanel({
                 flex: 1, padding: '7px 4px', borderRadius: 8, cursor: 'pointer',
                 background: 'rgba(34,197,94,0.12)',
                 border: '2px solid rgba(34,197,94,0.4)',
-                color: '#22c55e', fontSize: 11, fontWeight: 700,
+                color: '#22c55e', fontSize: fs(11), fontWeight: 700,
                 fontFamily: "'Exo 2', sans-serif",
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                 transition: 'all 0.15s',
@@ -363,9 +365,9 @@ export default function RoutePanel({
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,197,94,0.22)'; e.currentTarget.style.borderColor = 'rgba(34,197,94,0.7)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(34,197,94,0.12)'; e.currentTarget.style.borderColor = 'rgba(34,197,94,0.4)'; }}
             >
-              <span style={{ fontSize: 14 }}>✋</span>
+              <span style={{ fontSize: fs(14) }}>✋</span>
               <span>Mi orden</span>
-              <span style={{ fontSize: 9, color: '#86efac', fontWeight: 400 }}>Sin Google</span>
+              <span style={{ fontSize: fs(9), color: '#86efac', fontWeight: 400 }}>Sin Google</span>
             </button>
 
             {/* GOOGLE OPTIMIZA — llama a la API */}
@@ -380,7 +382,7 @@ export default function RoutePanel({
                 flex: 1, padding: '7px 4px', borderRadius: 8, cursor: 'pointer',
                 background: 'rgba(33,150,243,0.12)',
                 border: '2px solid rgba(33,150,243,0.4)',
-                color: '#60a5fa', fontSize: 11, fontWeight: 700,
+                color: '#60a5fa', fontSize: fs(11), fontWeight: 700,
                 fontFamily: "'Exo 2', sans-serif",
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                 transition: 'all 0.15s',
@@ -388,9 +390,9 @@ export default function RoutePanel({
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(33,150,243,0.22)'; e.currentTarget.style.borderColor = 'rgba(33,150,243,0.7)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(33,150,243,0.12)'; e.currentTarget.style.borderColor = 'rgba(33,150,243,0.4)'; }}
             >
-              <span style={{ fontSize: 14 }}>⚡</span>
+              <span style={{ fontSize: fs(14) }}>⚡</span>
               <span>Google</span>
-              <span style={{ fontSize: 9, color: '#93c5fd', fontWeight: 400 }}>Reordena</span>
+              <span style={{ fontSize: fs(9), color: '#93c5fd', fontWeight: 400 }}>Reordena</span>
             </button>
           </div>
         </div>
@@ -554,7 +556,7 @@ export default function RoutePanel({
                             borderRadius: 8,
                             cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 15,
+                            fontSize: fs(15),
                             flexShrink: 0
                           }}
                         >
@@ -571,13 +573,13 @@ export default function RoutePanel({
                           borderRadius: 8,
                           cursor: 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 15,
+                          fontSize: fs(15),
                           flexShrink: 0
                         }}
                       >
                         📊
                       </button>
-                      <span style={{ color:'#5B7BA0', fontSize:12, flexShrink:0, transition:'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+                      <span style={{ color:'#5B7BA0', fontSize:fs(12), flexShrink:0, transition:'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
                     </div>
                   </div>
 
@@ -745,7 +747,7 @@ export default function RoutePanel({
 
                 {/* Detalle por parada */}
                 <div style={{ marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 8,
+                  <p style={{ fontSize: fs(11), fontWeight: 700, color: '#94a3b8', marginBottom: 8,
                     textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     Detalle de paradas
                   </p>
@@ -765,27 +767,27 @@ export default function RoutePanel({
                             width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
                             background: route.color, display: 'flex',
                             alignItems: 'center', justifyContent: 'center',
-                            fontSize: 9, fontWeight: 700, color: '#fff',
+                            fontSize: fs(9), fontWeight: 700, color: '#fff',
                           }}>{idx + 1}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: 11, fontWeight: 600, color: '#e2e8f0', margin: 0,
+                            <p style={{ fontSize: fs(11), fontWeight: 600, color: '#e2e8f0', margin: 0,
                               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {stop.address.clientName || stop.address.name}
                             </p>
                             {stop.address.invoice && (
-                              <p style={{ fontSize: 10, color: '#5B7BA0', margin: '1px 0 0' }}>
+                              <p style={{ fontSize: fs(10), color: '#5B7BA0', margin: '1px 0 0' }}>
                                 Factura: {stop.address.invoice}
                               </p>
                             )}
                             <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
                               {etaMin !== null && (
-                                <span style={{ fontSize: 10, color: '#94a3b8' }}>⏱ ~{etaMin} min desde depósito</span>
+                                <span style={{ fontSize: fs(10), color: '#94a3b8' }}>⏱ ~{etaMin} min desde depósito</span>
                               )}
                               {stop.distance && (
-                                <span style={{ fontSize: 10, color: '#94a3b8' }}>📍 {distKm} km acumulado</span>
+                                <span style={{ fontSize: fs(10), color: '#94a3b8' }}>📍 {distKm} km acumulado</span>
                               )}
                               {valor !== undefined && valor > 0 && (
-                                <span style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600 }}>
+                                <span style={{ fontSize: fs(10), color: '#f59e0b', fontWeight: 600 }}>
                                   💰 ${valor.toLocaleString('es-MX')}
                                 </span>
                               )}
@@ -804,8 +806,8 @@ export default function RoutePanel({
                     background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   }}>
-                    <span style={{ fontSize: 11, color: '#f59e0b' }}>Valor total en ruta</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>
+                    <span style={{ fontSize: fs(11), color: '#f59e0b' }}>Valor total en ruta</span>
+                    <span style={{ fontSize: fs(13), fontWeight: 700, color: '#fbbf24' }}>
                       ${route.stops.reduce((acc, s) => acc + (s.address.merchandiseValue || 0), 0)
                         .toLocaleString('es-MX')}
                     </span>
