@@ -974,12 +974,15 @@ export default function DispatcherPage() {
               }
             `}</style>
 
-            {/* ── SVG overlay épico ── */}
+            {/* SVG — ruta desde card hacia botón Configuración */}
             <svg
               style={{
-                position: 'absolute', inset: 0,
-                width: '100%', height: '100%',
-                zIndex: 9, pointerEvents: 'none',
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 9,
+                pointerEvents: 'none',
                 overflow: 'visible',
               }}
             >
@@ -987,128 +990,109 @@ export default function DispatcherPage() {
                 const W = mapSize.w;
                 const H = mapSize.h;
 
-                // Bodega origen — esquina superior izquierda del área útil
-                const ox = W * 0.18;
-                const oy = H * 0.22;
+                // ── Origen: debajo de la card (centrada en 50%, 42% del alto) ──
+                // La card tiene ~160px de alto, el origen sale desde su borde inferior
+                const ox = W * 0.5;
+                const oy = H * 0.42 + 90; // centro de la card + mitad del alto de card
 
-                // Paradas intermedias
-                const p1x = W * 0.38, p1y = H * 0.42;
-                const p2x = W * 0.55, p2y = H * 0.30;
-                const p3x = W * 0.70, p3y = H * 0.50;
-
-                // Destino: botón Configuración
+                // ── Destino: centro del botón Configuración ──
+                // FAB: position absolute, bottom:20, right:20
+                // Ancho botón ~130px, alto ~40px
                 const dx = fabPos.x > 0 ? fabPos.x : mapSize.w - 85;
                 const dy = fabPos.y > 0 ? fabPos.y : mapSize.h - 40;
 
-                // Path de la ruta principal (curva natural)
-                const routePath = `M ${ox} ${oy} C ${ox+60} ${oy+80}, ${p1x-40} ${p1y-40}, ${p1x} ${p1y} C ${p1x+50} ${p1y+20}, ${p2x-50} ${p2y+20}, ${p2x} ${p2y} C ${p2x+40} ${p2y-20}, ${p3x-40} ${p3y-40}, ${p3x} ${p3y} C ${p3x+60} ${p3y+30}, ${dx-60} ${dy-40}, ${dx} ${dy}`;
+                // ── Puntos decorativos en el mapa (intermedios en la ruta visual) ──
+                const p1x = W * 0.52, p1y = H * 0.58;
+                const p2x = W * 0.65, p2y = H * 0.65;
+                const p3x = W * 0.78, p3y = H * 0.72;
+
+                // ── Path: curva suave de card a FAB ──
+                // C1: control point saliendo hacia abajo de la card
+                // C2: control point llegando al FAB
+                const c1x = ox;
+                const c1y = oy + (dy - oy) * 0.4;
+                const c2x = dx - (dx - ox) * 0.15;
+                const c2y = dy - (dy - oy) * 0.2;
+
+                const path = `M ${ox} ${oy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${dx} ${dy}`;
 
                 return (
                   <>
-                    {/* ── Cuadrícula de ciudad sutil ── */}
                     <defs>
-                      <pattern id="city-grid" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
-                        <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(33,150,243,0.06)" strokeWidth="0.5"/>
-                      </pattern>
-                      <linearGradient id="route-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#1565C0" />
-                        <stop offset="50%" stopColor="#2196F3" />
+                      <linearGradient id="line-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%"   stopColor="#1565C0" />
+                        <stop offset="60%"  stopColor="#2196F3" />
                         <stop offset="100%" stopColor="#42A5F5" />
                       </linearGradient>
                     </defs>
-                    <rect width="100%" height="100%" fill="url(#city-grid)" />
 
-                    {/* ── Sombra de la ruta (más gruesa, desplazada) ── */}
-                    <path
-                      d={routePath}
-                      fill="none"
-                      stroke="rgba(0,30,80,0.5)"
-                      strokeWidth="7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeDasharray="1200"
-                      strokeDashoffset="1200"
-                    >
-                      <animate attributeName="stroke-dashoffset" from="1200" to="0"
-                        dur="2.8s" begin="0.2s" fill="freeze"
-                        calcMode="spline" keyTimes="0;1" keySplines="0.25 0.1 0.25 1" />
+                    {/* ── Sombra de la línea ── */}
+                    <path d={path} fill="none"
+                      stroke="rgba(0,20,60,0.5)" strokeWidth="6"
+                      strokeLinecap="round" strokeDasharray="1000" strokeDashoffset="1000">
+                      <animate attributeName="stroke-dashoffset"
+                        from="1000" to="0" dur="2s" begin="0.3s"
+                        fill="freeze" calcMode="spline"
+                        keyTimes="0;1" keySplines="0.4 0 0.2 1" />
                     </path>
 
-                    {/* ── Ruta principal azul ── */}
-                    <path
-                      d={routePath}
-                      fill="none"
-                      stroke="url(#route-gradient)"
-                      strokeWidth="4.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeDasharray="1200"
-                      strokeDashoffset="1200"
-                    >
-                      <animate attributeName="stroke-dashoffset" from="1200" to="0"
-                        dur="2.8s" begin="0.2s" fill="freeze"
-                        calcMode="spline" keyTimes="0;1" keySplines="0.25 0.1 0.25 1" />
+                    {/* ── Línea principal azul ── */}
+                    <path d={path} fill="none"
+                      stroke="url(#line-grad)" strokeWidth="3.5"
+                      strokeLinecap="round" strokeDasharray="1000" strokeDashoffset="1000">
+                      <animate attributeName="stroke-dashoffset"
+                        from="1000" to="0" dur="2s" begin="0.3s"
+                        fill="freeze" calcMode="spline"
+                        keyTimes="0;1" keySplines="0.4 0 0.2 1" />
                     </path>
 
-                    {/* ── Brillo sobre la ruta ── */}
-                    <path
-                      d={routePath}
-                      fill="none"
-                      stroke="rgba(255,255,255,0.25)"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeDasharray="1200"
-                      strokeDashoffset="1200"
-                    >
-                      <animate attributeName="stroke-dashoffset" from="1200" to="0"
-                        dur="2.8s" begin="0.2s" fill="freeze"
-                        calcMode="spline" keyTimes="0;1" keySplines="0.25 0.1 0.25 1" />
+                    {/* ── Brillo encima ── */}
+                    <path d={path} fill="none"
+                      stroke="rgba(255,255,255,0.2)" strokeWidth="1.2"
+                      strokeLinecap="round" strokeDasharray="1000" strokeDashoffset="1000">
+                      <animate attributeName="stroke-dashoffset"
+                        from="1000" to="0" dur="2s" begin="0.3s"
+                        fill="freeze" calcMode="spline"
+                        keyTimes="0;1" keySplines="0.4 0 0.2 1" />
                     </path>
 
-                    {/* ── Pin BODEGA (origen) ── */}
-                    <g opacity="0" style={{ animation: 'aparece-pin-3 3s ease-out 0.1s forwards' }}>
-                      <circle cx={ox} cy={oy} r="12" fill="#0047AB" stroke="#2196F3" strokeWidth="2" />
-                      <text x={ox} y={oy+4} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">🏭</text>
-                    </g>
-
-                    {/* ── Pin PARADA 1 ── */}
-                    <g opacity="0" style={{ animation: 'aparece-pin-3 0.5s ease-out 1.2s forwards' }}>
-                      <circle cx={p1x} cy={p1y} r="9" fill="#1565C0" stroke="#42A5F5" strokeWidth="1.5" />
-                      <text x={p1x} y={p1y+3} textAnchor="middle" fill="white" fontSize="8" fontWeight="bold">1</text>
-                    </g>
-
-                    {/* ── Pin PARADA 2 ── */}
-                    <g opacity="0" style={{ animation: 'aparece-pin-3 0.5s ease-out 1.8s forwards' }}>
-                      <circle cx={p2x} cy={p2y} r="9" fill="#1565C0" stroke="#42A5F5" strokeWidth="1.5" />
-                      <text x={p2x} y={p2y+3} textAnchor="middle" fill="white" fontSize="8" fontWeight="bold">2</text>
-                    </g>
-
-                    {/* ── Pin PARADA 3 ── */}
-                    <g opacity="0" style={{ animation: 'aparece-pin-3 0.5s ease-out 2.4s forwards' }}>
-                      <circle cx={p3x} cy={p3y} r="9" fill="#1565C0" stroke="#42A5F5" strokeWidth="1.5" />
-                      <text x={p3x} y={p3y+3} textAnchor="middle" fill="white" fontSize="8" fontWeight="bold">3</text>
-                    </g>
-
-                    {/* ── Pin DESTINO (botón Configuración) con pulso ── */}
-                    <g opacity="0">
-                      <animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.9s" fill="freeze" />
-                      {/* Halo expansivo */}
-                      <circle cx={dx} cy={dy} r="10" fill="none" stroke="#2196F3" strokeWidth="1.5" opacity="0">
-                        <animate attributeName="r" values="10;35" dur="1s" begin="2.9s" repeatCount="indefinite" />
-                        <animate attributeName="opacity" values="0.6;0" dur="1s" begin="2.9s" repeatCount="indefinite" />
-                      </circle>
-                      {/* Pin destino */}
-                      <circle cx={dx} cy={dy} r="0" fill="#0047AB" stroke="#42A5F5" strokeWidth="2">
-                        <animate attributeName="r" values="0;14;10" dur="0.4s" begin="2.9s" fill="freeze" />
-                      </circle>
-                      <text x={dx} y={dy+4} textAnchor="middle" fill="white" fontSize="10">⚙</text>
-                    </g>
-
-                    {/* ── Punto origen pulsante ── */}
+                    {/* ── Punto origen bajo la card — pulsa ── */}
                     <circle cx={ox} cy={oy} r="5" fill="#2196F3">
-                      <animate attributeName="r" values="5;9;5" dur="1.5s" repeatCount="indefinite" />
-                      <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite" />
+                      <animate attributeName="r" values="5;9;5" dur="1.4s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="1;0.3;1" dur="1.4s" repeatCount="indefinite" />
                     </circle>
+                    <circle cx={ox} cy={oy} r="12" fill="none" stroke="#2196F3" strokeWidth="1" opacity="0.2">
+                      <animate attributeName="r" values="8;20;8" dur="1.4s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.3;0;0.3" dur="1.4s" repeatCount="indefinite" />
+                    </circle>
+
+                    {/* ── Pines decorativos que aparecen a lo largo ── */}
+                    {[
+                      { cx: p1x, cy: p1y, label: '1', delay: '1.0s' },
+                      { cx: p2x, cy: p2y, label: '2', delay: '1.5s' },
+                      { cx: p3x, cy: p3y, label: '3', delay: '2.0s' },
+                    ].map(({ cx, cy, label, delay }) => (
+                      <g key={label} opacity="0">
+                        <animate attributeName="opacity" values="0;1" dur="0.4s" begin={delay} fill="freeze" />
+                        <circle cx={cx} cy={cy} r="9" fill="#1565C0" stroke="#42A5F5" strokeWidth="1.5" />
+                        <text x={cx} y={cy + 3.5} textAnchor="middle"
+                          fill="white" fontSize="8" fontWeight="bold">{label}</text>
+                      </g>
+                    ))}
+
+                    {/* ── Destino: halo expansivo + pin al llegar ── */}
+                    <circle cx={dx} cy={dy} r="0" fill="none" stroke="#2196F3" strokeWidth="1.5" opacity="0">
+                      <animate attributeName="r"       values="0;25"   dur="0.8s" begin="2.2s" fill="freeze" />
+                      <animate attributeName="opacity" values="0.6;0"  dur="0.8s" begin="2.2s" fill="freeze" />
+                    </circle>
+                    <circle cx={dx} cy={dy} r="0" fill="#0047AB" stroke="#42A5F5" strokeWidth="2" opacity="0">
+                      <animate attributeName="r"       values="0;10;7" dur="0.4s" begin="2.2s" fill="freeze" />
+                      <animate attributeName="opacity" values="0;1"    dur="0.2s" begin="2.2s" fill="freeze" />
+                    </circle>
+                    <text x={dx} y={dy + 4} textAnchor="middle" fill="white" fontSize="10" opacity="0">
+                      <animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.4s" fill="freeze" />
+                      ⚙
+                    </text>
                   </>
                 );
               })()}
