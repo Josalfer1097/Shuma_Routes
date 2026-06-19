@@ -228,6 +228,8 @@ export default function DispatcherPage() {
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapSize, setMapSize] = useState({ w: 0, h: 0 });
+  const fabRef = useRef<HTMLButtonElement>(null);
+  const [fabPos, setFabPos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const measure = () => {
@@ -250,6 +252,26 @@ export default function DispatcherPage() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [fleetMode, setFleetMode] = useState<'auto' | 'manual'>('auto');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const updateFabPos = () => {
+      if (!fabRef.current || !mapContainerRef.current) return;
+      const mapRect = mapContainerRef.current.getBoundingClientRect();
+      const fabRect = fabRef.current.getBoundingClientRect();
+      // Centro del FAB en coordenadas relativas al contenedor del mapa
+      setFabPos({
+        x: fabRect.left - mapRect.left + fabRect.width / 2,
+        y: fabRect.top  - mapRect.top  + fabRect.height / 2,
+      });
+    };
+    // Medir después de que el DOM renderice
+    const timer = setTimeout(updateFabPos, 100);
+    window.addEventListener('resize', updateFabPos);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateFabPos);
+    };
+  }, [mapSize, isMapFullscreen, isSlideOverOpen]);
 
 
   // ── Session data (client-only) ──
@@ -897,7 +919,7 @@ export default function DispatcherPage() {
         )}
 
         {/* ── Bienvenida GPS ── */}
-        {state.step === 'config' && state.addresses.length === 0 && !isSlideOverOpen && !welcomeDismissed && mapSize.w > 0 && (
+        {state.step === 'config' && state.addresses.length === 0 && !isSlideOverOpen && !welcomeDismissed && mapSize.w > 0 && fabPos.x > 0 && (
           <>
             <style>{`
               @keyframes traza-ruta {
@@ -975,8 +997,8 @@ export default function DispatcherPage() {
                 const p3x = W * 0.70, p3y = H * 0.50;
 
                 // Destino: botón Configuración
-                const dx = W - 20 - 65;
-                const dy = H - 20 - 20;
+                const dx = fabPos.x > 0 ? fabPos.x : mapSize.w - 85;
+                const dy = fabPos.y > 0 ? fabPos.y : mapSize.h - 40;
 
                 // Path de la ruta principal (curva natural)
                 const routePath = `M ${ox} ${oy} C ${ox+60} ${oy+80}, ${p1x-40} ${p1y-40}, ${p1x} ${p1y} C ${p1x+50} ${p1y+20}, ${p2x-50} ${p2y+20}, ${p2x} ${p2y} C ${p2x+40} ${p2y-20}, ${p3x-40} ${p3y-40}, ${p3x} ${p3y} C ${p3x+60} ${p3y+30}, ${dx-60} ${dy-40}, ${dx} ${dy}`;
@@ -1269,6 +1291,7 @@ export default function DispatcherPage() {
         {/* ── FAB (bottom-right) — always visible including fullscreen ── */}
         {FAB_CONFIG[activeTab] && (
           <button
+            ref={fabRef}
             onClick={() => {
               if (activeTab === 'routes' && state.routes.length === 0) {
                 setActiveTab('config');
