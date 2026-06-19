@@ -249,6 +249,10 @@ export default function DispatcherPage() {
   // ── New layout states ──
   const [isSlideOverOpen, setIsSlideOverOpen] = useState(false);
   const [isActiveRoutesOpen, setIsActiveRoutesOpen] = useState(false);
+  const [activeRoutesData, setActiveRoutesData] = useState<any[]>([]);
+  const [loadingActiveRoutes, setLoadingActiveRoutes] = useState(false);
+  const [editingAlias, setEditingAlias] = useState<string | null>(null);
+  const [aliasValue, setAliasValue] = useState('');
   const [toast, setToast] = useState<{ msg: string; type: 'warn' | 'error' | 'ok' } | null>(null);
 
   const showToast = (msg: string, type: 'warn' | 'error' | 'ok' = 'warn') => {
@@ -285,6 +289,33 @@ export default function DispatcherPage() {
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('');
   const [liveDeliveryStatus, setLiveDeliveryStatus] = useState<Record<string, string>>({});
+
+  const fetchActiveRoutes = useCallback(async () => {
+    setLoadingActiveRoutes(true);
+    try {
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+      const res   = await fetch(`/api/routes/active?date=${today}`);
+      const json  = await res.json();
+      if (json.ok) setActiveRoutesData(json.routes || []);
+    } catch (e) {
+      console.error('Error fetching active routes:', e);
+    } finally {
+      setLoadingActiveRoutes(false);
+    }
+  }, []);
+
+  const saveAlias = async (routeId: string) => {
+    await fetch('/api/routes/alias', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ routeId, alias: aliasValue }),
+    });
+    setActiveRoutesData(prev =>
+      prev.map(r => r.id === routeId ? { ...r, route_alias: aliasValue } : r)
+    );
+    setEditingAlias(null);
+    setAliasValue('');
+  };
   const [sessionToRestore, setSessionToRestore] = useState<null | {
     savedAt: string;
     vehicleCount: number;
@@ -816,7 +847,7 @@ export default function DispatcherPage() {
                           { icon: '📊', label: 'Dashboard', href: '/dashboard' },
                           { icon: '📜', label: 'Histórico', href: '/history' },
                           { icon: '🔍', label: 'Bitácora', action: () => { setIsAuditModalOpen(true); setIsMoreMenuOpen(false); } },
-                          { icon: '🚚', label: 'Rutas Activas', action: () => { setIsActiveRoutesOpen(true); setIsMoreMenuOpen(false); } },
+                          { icon: '🚚', label: 'Rutas Activas', action: () => { fetchActiveRoutes(); setIsActiveRoutesOpen(true); setIsMoreMenuOpen(false); } },
                         ].map(item => (
                           <button
                             key={item.label}
@@ -1967,6 +1998,193 @@ export default function DispatcherPage() {
               {/* Footer */}
               <div className="px-5 py-3 border-t border-shuma-border text-xs text-shuma-muted shrink-0">
                 {state.routes.length} ruta(s) · Click en una ruta para destacarla en el mapa
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Modal: Rutas Activas ── */}
+      {isActiveRoutesOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            style={{ zIndex: 9998 }}
+            onClick={() => setIsActiveRoutesOpen(false)}
+          />
+          <div
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ zIndex: 9999, pointerEvents: 'none' }}
+          >
+            <div
+              className="pointer-events-auto bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col"
+              style={{ maxHeight: 'min(85vh, 640px)' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-shuma-border shrink-0">
+                <div>
+                  <h2 className="text-lg font-bold text-shuma-text">🚚 Rutas Activas</h2>
+                  <p className="text-xs text-shuma-muted mt-0.5">
+                    {new Date().toLocaleDateString('es-MX', {
+                      weekday: 'long', day: 'numeric', month: 'long',
+                      timeZone: 'America/Mexico_City'
+                    })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={fetchActiveRoutes}
+                    className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-colors"
+                  >
+                    ↻ Actualizar
+                  </button>
+                  <button
+                    onClick={() => setIsActiveRoutesOpen(false)}
+                    className="p-2 hover:bg-shuma-surface rounded-lg transition-colors text-shuma-muted hover:text-shuma-text"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {loadingActiveRoutes ? (
+                  <div className="flex items-center justify-center h-40">
+                    <p className="text-shuma-muted text-sm">Cargando rutas...</p>
+                  </div>
+                ) : activeRoutesData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-40 gap-2">
+                    <p className="text-shuma-muted text-sm">No hay rutas para hoy</p>
+                    <p className="text-xs text-shuma-muted opacity-50">Acepta una ruta para verla aquí</p>
+                  </div>
+                ) : (
+                  activeRoutesData.map(route => {
+                    const { total, delivered, partial, failed, pending } = route.stats;
+                    const processed = delivered + partial + failed;
+                    const pct       = total > 0 ? Math.round((processed / total) * 100) : 0;
+                    const isDone    = pending === 0 && total > 0;
+                    const hasFails  = failed > 0 || partial > 0;
+
+                    return (
+                      <div key={route.id}
+                        className="p-4 rounded-xl border border-shuma-border bg-shuma-surface/30 space-y-3">
+
+                        {/* Cabecera de ruta */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="w-3 h-3 rounded-full shrink-0"
+                              style={{ backgroundColor: route.color }} />
+                            <div className="min-w-0">
+                              {/* Alias editable */}
+                              {editingAlias === route.id ? (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    value={aliasValue}
+                                    onChange={e => setAliasValue(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') saveAlias(route.id); if (e.key === 'Escape') setEditingAlias(null); }}
+                                    placeholder="Nombre corto de ruta..."
+                                    autoFocus
+                                    className="bg-shuma-surface border border-blue-500/50 rounded-lg px-2 py-1 text-sm text-shuma-text outline-none w-40"
+                                  />
+                                  <button onClick={() => saveAlias(route.id)}
+                                    className="text-xs text-blue-400 font-semibold hover:text-blue-300">
+                                    ✓
+                                  </button>
+                                  <button onClick={() => setEditingAlias(null)}
+                                    className="text-xs text-shuma-muted hover:text-shuma-text">
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5">
+                                  <h3 className="font-semibold text-sm text-shuma-text truncate">
+                                    {route.route_alias || route.route_code || 'Sin nombre'}
+                                  </h3>
+                                  <button
+                                    onClick={() => { setEditingAlias(route.id); setAliasValue(route.route_alias || ''); }}
+                                    className="text-shuma-muted hover:text-blue-400 transition-colors shrink-0"
+                                    title="Editar nombre corto"
+                                  >
+                                    <span style={{ fontSize: 11 }}>✏️</span>
+                                  </button>
+                                </div>
+                              )}
+                              <p className="text-xs text-shuma-muted mt-0.5">
+                                {route.driver_name || 'Sin chofer asignado'}
+                                {route.route_code && route.route_alias && (
+                                  <span className="ml-1.5 opacity-40">· {route.route_code}</span>
+                                )}
+                                {route.total_km > 0 && ` · ${route.total_km.toFixed(1)} km`}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Badge de status */}
+                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 border ${
+                            isDone && !hasFails
+                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                              : isDone && hasFails
+                                ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                : hasFails
+                                  ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                  : 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                          }`}>
+                            {isDone && !hasFails ? '✓ Completada'
+                              : isDone ? '⚠ Con incidencias'
+                              : pending > 0 ? `● ${pending} pendientes`
+                              : '● En curso'}
+                          </span>
+                        </div>
+
+                        {/* Barra de progreso */}
+                        <div>
+                          <div className="flex justify-between text-xs text-shuma-muted mb-1.5">
+                            <div className="flex gap-3">
+                              <span className="text-emerald-400">✓ {delivered}</span>
+                              {partial > 0 && <span className="text-amber-400">◑ {partial}</span>}
+                              {failed > 0  && <span className="text-red-400">✗ {failed}</span>}
+                              {pending > 0 && <span className="opacity-50">○ {pending}</span>}
+                            </div>
+                            <span>{pct}% · {processed}/{total}</span>
+                          </div>
+                          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                            <div className="h-1.5 rounded-full transition-all"
+                              style={{ width: `${pct}%`, backgroundColor: route.color }} />
+                          </div>
+                        </div>
+
+                        {/* Acción: ver en mapa */}
+                        <button
+                          onClick={() => {
+                            setIsActiveRoutesOpen(false);
+                            // Si hay rutas en estado en memoria, destacar la del mismo chofer
+                            if (state.routes.length > 0) {
+                              const match = state.routes.find(r => r.driverName === route.driver_name);
+                              if (match) {
+                                setHiddenRouteIds(
+                                  state.routes
+                                    .filter(r => r.vehicleId !== match.vehicleId)
+                                    .map(r => r.vehicleId)
+                                );
+                              }
+                            }
+                          }}
+                          className="w-full text-xs text-blue-400 hover:text-blue-300 py-1.5 rounded-lg hover:bg-blue-500/5 transition-colors text-center border border-transparent hover:border-blue-500/20"
+                        >
+                          Ver en mapa →
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-3 border-t border-shuma-border text-xs text-shuma-muted shrink-0 flex justify-between">
+                <span>{activeRoutesData.length} ruta(s) hoy</span>
+                <span className="opacity-50">✏️ Click en el ícono para editar nombre</span>
               </div>
             </div>
           </div>
