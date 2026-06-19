@@ -249,6 +249,12 @@ export default function DispatcherPage() {
   // ── New layout states ──
   const [isSlideOverOpen, setIsSlideOverOpen] = useState(false);
   const [isActiveRoutesOpen, setIsActiveRoutesOpen] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: 'warn' | 'error' | 'ok' } | null>(null);
+
+  const showToast = (msg: string, type: 'warn' | 'error' | 'ok' = 'warn') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [fleetMode, setFleetMode] = useState<'auto' | 'manual'>('auto');
@@ -478,6 +484,14 @@ export default function DispatcherPage() {
       dispatch({ type: 'SET_ERROR', payload: 'No hay choferes registrados.' });
       return;
     }
+    if (state.addresses.length === 0) {
+      showToast('Primero carga un archivo CSV con las direcciones');
+      return;
+    }
+    if (state.addresses.some(a => !a.geocoded)) {
+      showToast('Espera a que terminen de geocodificarse las direcciones');
+      return;
+    }
 
     setIsOptimizing(true);
     dispatch({ type: 'SET_ERROR', payload: null });
@@ -697,6 +711,33 @@ export default function DispatcherPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#050C1A', overflow: 'hidden' }}>
+      {toast && (
+        <div style={{
+          position: 'absolute', top: 16, left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 20,
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 18px', borderRadius: 20,
+          background: toast.type === 'ok'    ? 'rgba(16,185,129,0.15)'
+                    : toast.type === 'error' ? 'rgba(239,68,68,0.15)'
+                                             : 'rgba(245,158,11,0.15)',
+          border: `1px solid ${
+            toast.type === 'ok' ? 'rgba(16,185,129,0.4)'
+            : toast.type === 'error' ? 'rgba(239,68,68,0.4)'
+            : 'rgba(245,158,11,0.4)'}`,
+          backdropFilter: 'blur(8px)',
+          color: toast.type === 'ok' ? '#10B981' : toast.type === 'error' ? '#ef4444' : '#f59e0b',
+          fontSize: 12, fontWeight: 600,
+          fontFamily: "'Exo 2', sans-serif",
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          animation: 'fadeInDown 0.3s ease-out',
+          whiteSpace: 'nowrap', maxWidth: '90vw',
+          pointerEvents: 'none',
+        }}>
+          <span>{toast.type === 'ok' ? '✅' : toast.type === 'error' ? '🚫' : '⚠️'}</span>
+          <span>{toast.msg}</span>
+        </div>
+      )}
       {/* ═══════════════════════════════════════════════ */}
       {/* BANNER RGB Y HEADER                            */}
       {/* ═══════════════════════════════════════════════ */}
@@ -1460,6 +1501,10 @@ export default function DispatcherPage() {
                 disabled={state.addresses.length === 0}
                 onClick={() => {
                   if (state.addresses.length > 0) {
+                    if (state.vehicles.length === 0) {
+                      showToast('Agrega al menos un chofer antes de continuar');
+                      return;
+                    }
                     setActiveTab('zones');
                   }
                 }}
@@ -1517,6 +1562,10 @@ export default function DispatcherPage() {
             return (
               <button key={s}
                 onClick={() => {
+                  if (s === 'zones' && state.vehicles.length === 0) {
+                    showToast('Agrega al menos un chofer antes de continuar');
+                    return;
+                  }
                   setActiveTab(s);
                   if (s === 'config') dispatch({ type: 'SET_STEP', payload: 'config' });
                   if (s === 'upload') dispatch({ type: 'SET_STEP', payload: 'upload' });

@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
-    const { deliveryId, status, notes, driverName } = await req.json();
+    const { deliveryId, status, notes, partialQuantity, photoUrl, driverName } = await req.json();
 
     if (!deliveryId || !status) {
       return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
@@ -26,7 +26,9 @@ export async function POST(req: NextRequest) {
       .single() : { data: null };
 
     // 3. Actualizar status de la entrega
-    const newStatus = status === 'completed' ? 'delivered' : 'failed';
+    const newStatus = status === 'completed' ? 'delivered'
+                    : status === 'partial'   ? 'partial'
+                    : 'failed';
     const { error: updateErr } = await supabaseAdmin
       .from('deliveries')
       .update({
@@ -41,14 +43,17 @@ export async function POST(req: NextRequest) {
     // 4. Registrar en delivery_events
     await supabaseAdmin.from('delivery_events').insert({
       delivery_id: deliveryId,
-      event_type:  status === 'completed' ? 'delivered' : 'failed',
+      event_type:  newStatus,
       notes:       notes || null,
+      photo_url:   photoUrl || null,
       created_at:  new Date().toISOString(),
     });
 
     // 5. Bitácora DETALLADA
     await supabaseAdmin.from('audit_log').insert({
-      action:    status === 'completed' ? 'Entrega completada' : 'Entrega fallida',
+      action:    status === 'completed' ? 'Entrega completada' 
+               : status === 'partial'   ? 'Entrega parcial'
+               : 'Entrega fallida',
       entity:    'entrega',
       entity_id: deliveryId,
       user_name: driverName || 'chofer',
@@ -66,6 +71,9 @@ export async function POST(req: NextRequest) {
         ruta_fecha:        (route as any)?.date || null,
         valor_mercancia:   delivery?.merchandise_value || null,
         motivo_fallo:      status === 'failed' ? (notes || 'Sin motivo') : null,
+        entrega_parcial:   status === 'partial',
+        cantidad_parcial:  partialQuantity || null,
+        foto_evidencia:    photoUrl ? 'Sí' : 'No',
         estado_anterior:   'pending',
         estado_nuevo:      newStatus,
       },
