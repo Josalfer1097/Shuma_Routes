@@ -248,6 +248,7 @@ export default function DispatcherPage() {
 
   // ── New layout states ──
   const [isSlideOverOpen, setIsSlideOverOpen] = useState(false);
+  const [isActiveRoutesOpen, setIsActiveRoutesOpen] = useState(false);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [fleetMode, setFleetMode] = useState<'auto' | 'manual'>('auto');
@@ -774,6 +775,7 @@ export default function DispatcherPage() {
                           { icon: '📊', label: 'Dashboard', href: '/dashboard' },
                           { icon: '📜', label: 'Histórico', href: '/history' },
                           { icon: '🔍', label: 'Bitácora', action: () => { setIsAuditModalOpen(true); setIsMoreMenuOpen(false); } },
+                          { icon: '🚚', label: 'Rutas Activas', action: () => { setIsActiveRoutesOpen(true); setIsMoreMenuOpen(false); } },
                         ].map(item => (
                           <button
                             key={item.label}
@@ -990,30 +992,23 @@ export default function DispatcherPage() {
                 const W = mapSize.w;
                 const H = mapSize.h;
 
-                // ── Origen: debajo de la card (centrada en 50%, 42% del alto) ──
-                // La card tiene ~160px de alto, el origen sale desde su borde inferior
+                // Origen: debajo de la card (card está en top:42%, ~160px alto)
                 const ox = W * 0.5;
-                const oy = H * 0.42 + 90; // centro de la card + mitad del alto de card
+                const oy = H * 0.42 + 100;
 
-                // ── Destino: centro del botón Configuración ──
-                // FAB: position absolute, bottom:20, right:20
-                // Ancho botón ~130px, alto ~40px
-                const dx = fabPos.x > 0 ? fabPos.x : mapSize.w - 85;
-                const dy = fabPos.y > 0 ? fabPos.y : mapSize.h - 40;
+                // Destino: centro del botón Configuración
+                // FAB: bottom:20 right:20, ancho ~130px, alto ~40px
+                const dx = W - 20 - 65;
+                const dy = H - 20 - 20;
 
-                // ── Puntos decorativos en el mapa (intermedios en la ruta visual) ──
-                const p1x = W * 0.52, p1y = H * 0.58;
-                const p2x = W * 0.65, p2y = H * 0.65;
-                const p3x = W * 0.78, p3y = H * 0.72;
+                // Paradas intermedias — entre card y FAB
+                const p1x = ox + (dx - ox) * 0.25, p1y = oy + (dy - oy) * 0.35;
+                const p2x = ox + (dx - ox) * 0.55, p2y = oy + (dy - oy) * 0.60;
+                const p3x = ox + (dx - ox) * 0.80, p3y = oy + (dy - oy) * 0.80;
 
-                // ── Path: curva suave de card a FAB ──
-                // C1: control point saliendo hacia abajo de la card
-                // C2: control point llegando al FAB
-                const c1x = ox;
-                const c1y = oy + (dy - oy) * 0.4;
-                const c2x = dx - (dx - ox) * 0.15;
-                const c2y = dy - (dy - oy) * 0.2;
-
+                // Path: curva Bézier desde card hasta FAB
+                const c1x = ox, c1y = oy + (dy - oy) * 0.45;
+                const c2x = dx - (dx - ox) * 0.1, c2y = dy - (dy - oy) * 0.15;
                 const path = `M ${ox} ${oy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${dx} ${dy}`;
 
                 return (
@@ -1804,6 +1799,130 @@ export default function DispatcherPage() {
           }
         }
       `}</style>
+
+      {/* ── Modal Rutas Activas ── */}
+      {isActiveRoutesOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            style={{ zIndex: 9998 }}
+            onClick={() => setIsActiveRoutesOpen(false)}
+          />
+          <div
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ zIndex: 9999, pointerEvents: 'none' }}
+          >
+            <div
+              className="pointer-events-auto bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col"
+              style={{ maxHeight: 'min(85vh, 600px)' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-shuma-border shrink-0">
+                <div>
+                  <h2 className="text-lg font-bold text-shuma-text">🚚 Rutas Activas</h2>
+                  <p className="text-xs text-shuma-muted mt-0.5">
+                    {new Date().toLocaleDateString('es-MX', {
+                      weekday: 'long', day: 'numeric', month: 'long',
+                      timeZone: 'America/Mexico_City'
+                    })}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsActiveRoutesOpen(false)}
+                  className="p-2 hover:bg-shuma-surface rounded-lg transition-colors"
+                >
+                  <span style={{ fontSize: 16, color: '#5B7BA0' }}>✕</span>
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                {state.routes.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-32 gap-2">
+                    <p className="text-shuma-muted text-sm">No hay rutas activas hoy</p>
+                    <p className="text-xs text-shuma-muted opacity-50">Optimiza una ruta para verla aquí</p>
+                  </div>
+                ) : (
+                  state.routes.map((route, i) => {
+                    const totalStops     = route.stops.length;
+                    const delivered      = route.stops.filter(s => (s as any).status === 'delivered' || (s as any).status === 'completed').length;
+                    const failed         = route.stops.filter(s => (s as any).status === 'failed').length;
+                    const pending        = totalStops - delivered - failed;
+                    const pct            = Math.round((delivered / totalStops) * 100);
+                    const isComplete     = pending === 0;
+
+                    return (
+                      <div
+                        key={route.vehicleId}
+                        className="p-4 rounded-xl border border-shuma-border bg-shuma-surface/30 cursor-pointer
+                                   hover:border-blue-500/40 hover:bg-blue-500/5 transition-all"
+                        onClick={() => {
+                          setIsActiveRoutesOpen(false);
+                          // Mostrar esta ruta en el mapa
+                          const hiddenSet = hiddenRouteIds.filter(id => id !== route.vehicleId);
+                          setHiddenRouteIds(
+                            state.routes
+                              .filter(r => r.vehicleId !== route.vehicleId)
+                              .map(r => r.vehicleId)
+                          );
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full shrink-0"
+                              style={{ backgroundColor: route.color }} />
+                            <span className="font-semibold text-shuma-text text-sm">
+                              {route.driverName}
+                            </span>
+                            <span className="text-xs text-shuma-muted">
+                              · {route.matricula} · {((route.totalDistance || 0)/1000).toFixed(1)} km
+                            </span>
+                          </div>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            isComplete
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              : failed > 0
+                                ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                          }`}>
+                            {isComplete ? '✓ Completada' : failed > 0 ? '⚠ Con fallos' : '● En curso'}
+                          </span>
+                        </div>
+
+                        {/* Barra de progreso */}
+                        <div className="w-full bg-slate-800 rounded-full h-1.5 mb-2">
+                          <div
+                            className="h-1.5 rounded-full transition-all"
+                            style={{ width: `${pct}%`, backgroundColor: route.color }}
+                          />
+                        </div>
+
+                        {/* Stats */}
+                        <div className="flex gap-4 text-xs">
+                          <span className="text-emerald-400">✓ {delivered} entregadas</span>
+                          {failed > 0 && <span className="text-red-400">✗ {failed} fallidas</span>}
+                          {pending > 0 && <span className="text-shuma-muted">○ {pending} pendientes</span>}
+                          <span className="text-shuma-muted ml-auto">{pct}%</span>
+                        </div>
+
+                        <p className="text-xs text-blue-400 mt-2 opacity-70">
+                          Click para ver en el mapa →
+                        </p>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-3 border-t border-shuma-border text-xs text-shuma-muted shrink-0">
+                {state.routes.length} ruta(s) · Click en una ruta para destacarla en el mapa
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       <AuditLogModal 
         isOpen={isAuditModalOpen}
