@@ -189,6 +189,7 @@ export default function DriverPage() {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('deliveryId', selectedStop.stop.id);
+            formData.append('invoice', selectedStop.stop.address.invoice || selectedStop.stop.id);
             const photoRes = await fetch('/api/driver/upload-photo', {
               method: 'POST', body: formData,
             });
