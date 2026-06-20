@@ -19,7 +19,7 @@ import { clusterDeliveries } from '@/lib/clustering';
 import type { Cluster, GlobalConfig, ClusteringConfig, Stop } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { BarChart2, History, LogOut, Maximize2, Minimize2 } from 'lucide-react';
+import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import WeatherIntelPanel from '@/components/dispatcher/WeatherIntelPanel';
 import AuditLogModal from '@/components/dispatcher/AuditLogModal';
@@ -428,6 +428,26 @@ export default function DispatcherPage() {
     
     return () => clearInterval(interval);
   }, [state.globalConfig?.departureDepot]);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshAll = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchActiveRoutes();
+      const res = await fetch('/api/deliveries/status');
+      const json = await res.json();
+      if (json.ok && json.statuses) {
+        setLiveDeliveryStatus(json.statuses);
+      }
+      const lat = state.globalConfig?.departureDepot?.lat || 19.4326;
+      const lng = state.globalConfig?.departureDepot?.lng || -99.1332;
+      getWeatherCDMX(lat, lng).then(setWeather).catch(console.error);
+    } catch (err) {
+      console.error('Error refreshing all data:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [fetchActiveRoutes, state.globalConfig?.departureDepot]);
 
   // Carga de CSV → geocodificación automática
   const handleAddressesLoaded = useCallback(async (addresses: Address[]) => {
@@ -948,6 +968,41 @@ export default function DispatcherPage() {
                 {ROLE_LABELS[userRole] || userRole}
               </span>
             )}
+
+            <button
+              onClick={refreshAll}
+              disabled={isRefreshing}
+              title="Actualizar datos"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '5px 10px',
+                background: 'rgba(33,150,243,0.1)',
+                border: '1px solid rgba(33,150,243,0.3)',
+                borderRadius: 6,
+                color: '#2196F3',
+                fontSize: fs(11),
+                cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                opacity: isRefreshing ? 0.6 : 1,
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                if (!isRefreshing) {
+                  e.currentTarget.style.background = 'rgba(33,150,243,0.2)';
+                  e.currentTarget.style.borderColor = '#2196F3';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isRefreshing) {
+                  e.currentTarget.style.background = 'rgba(33,150,243,0.1)';
+                  e.currentTarget.style.borderColor = 'rgba(33,150,243,0.3)';
+                }
+              }}
+            >
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+              <span className="hidden-mobile">Actualizar</span>
+            </button>
 
             <button
               onClick={handleLogout}
