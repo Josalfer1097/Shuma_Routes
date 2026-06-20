@@ -227,22 +227,6 @@ export default function DispatcherPage() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [geocodingDone, setGeocodingDone] = useState(false);
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const [mapSize, setMapSize] = useState({ w: 0, h: 0 });
-  const fabRef = useRef<HTMLButtonElement>(null);
-  const [fabPos, setFabPos] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const measure = () => {
-      if (mapContainerRef.current) {
-        const rect = mapContainerRef.current.getBoundingClientRect();
-        setMapSize({ w: rect.width, h: rect.height });
-      }
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, []);
 
   const { logout } = useAuth();
   const router = useRouter();
@@ -264,37 +248,6 @@ export default function DispatcherPage() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [fleetMode, setFleetMode] = useState<'auto' | 'manual'>('auto');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const updateFabPos = () => {
-      if (!fabRef.current || !mapContainerRef.current) return;
-      const mapRect = mapContainerRef.current.getBoundingClientRect();
-      const fabRect = fabRef.current.getBoundingClientRect();
-      setFabPos({
-        x: fabRect.left - mapRect.left + fabRect.width / 2,
-        y: fabRect.top  - mapRect.top  + fabRect.height / 2,
-      });
-    };
-
-    updateFabPos();
-    window.addEventListener('resize', updateFabPos);
-
-    let ro: ResizeObserver | null = null;
-    if (fabRef.current && mapContainerRef.current) {
-      ro = new ResizeObserver(() => updateFabPos());
-      ro.observe(fabRef.current);
-      ro.observe(mapContainerRef.current);
-    }
-
-    const retries = [50, 150, 300, 600].map(ms => setTimeout(updateFabPos, ms));
-
-    return () => {
-      window.removeEventListener('resize', updateFabPos);
-      ro?.disconnect();
-      retries.forEach(clearTimeout);
-    };
-  }, [mapSize, isMapFullscreen, isSlideOverOpen, activeTab]);
-
 
   // ── Session data (client-only) ──
   const [userName, setUserName] = useState('');
@@ -1043,7 +996,7 @@ export default function DispatcherPage() {
       {/* ═══════════════════════════════════════════════ */}
       {/* MAP AREA — full width                          */}
       {/* ═══════════════════════════════════════════════ */}
-      <main ref={mapContainerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', height: mapHeight }}>
+      <main style={{ flex: 1, position: 'relative', overflow: 'hidden', height: mapHeight }}>
         {/* Map */}
         <MapView
           addresses={state.addresses}
@@ -1060,111 +1013,193 @@ export default function DispatcherPage() {
           </div>
         )}
 
-        {/* ── Bienvenida (card centrada, sin trazo) ── */}
+        {/* ── Bienvenida premium (sin trazo, capas de profundidad) ── */}
         {state.step === 'config' && state.addresses.length === 0 && !isSlideOverOpen && !welcomeDismissed && (
           <>
             <style>{`
-              @keyframes fade-card-v2 {
+              @keyframes orb-breathe-v3 {
+                0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+                50%      { opacity: 1;   transform: translate(-50%, -50%) scale(1.08); }
+              }
+              @keyframes fade-card-v3 {
                 from { opacity: 0; transform: translate(-50%,-46%); }
                 to   { opacity: 1; transform: translate(-50%,-50%); }
               }
-              @keyframes ring-pulse-v2 {
-                0%, 100% { transform: scale(1); opacity: 0.6; }
-                50%      { transform: scale(1.15); opacity: 0; }
+              @keyframes ring-rotate-v3 {
+                from { transform: rotate(0deg); }
+                to   { transform: rotate(360deg); }
               }
-              @keyframes cta-breathe-v2 {
-                0%, 100% { box-shadow: 0 4px 24px rgba(33,150,243,0.35); transform: scale(1); }
-                50%      { box-shadow: 0 6px 34px rgba(33,150,243,0.55); transform: scale(1.015); }
+              @keyframes pulse-out-v3 {
+                0%   { transform: scale(0.78); opacity: 0; }
+                40%  { opacity: 0.7; }
+                100% { transform: scale(1.5); opacity: 0; }
               }
-              @keyframes arrow-nudge-v2 {
+              @keyframes sheen-sweep-v3 {
+                0%   { left: -60%; }
+                50%  { left: 130%; }
+                100% { left: 130%; }
+              }
+              @keyframes arrow-nudge-v3 {
                 0%, 100% { transform: translateX(0); }
-                50%      { transform: translateX(3px); }
+                50%      { transform: translateX(4px); }
               }
             `}</style>
+
+            {/* Capa de fondo: glow orb detrás de la card */}
+            <div style={{
+              position: 'absolute', width: 420, height: 420,
+              left: '50%', top: '48%', transform: 'translate(-50%, -50%)',
+              background: 'radial-gradient(circle, rgba(33,150,243,0.16) 0%, transparent 65%)',
+              pointerEvents: 'none',
+              animation: 'orb-breathe-v3 5s ease-in-out infinite',
+              zIndex: 9,
+            }} />
 
             <div style={{
               position: 'absolute', top: '50%', left: '50%',
               transform: 'translate(-50%, -50%)',
               zIndex: 10,
-              animation: 'fade-card-v2 0.4s ease-out',
+              animation: 'fade-card-v3 0.4s ease-out',
             }}>
               <div style={{
-                background: 'rgba(17,32,64,0.92)',
-                border: '0.5px solid rgba(33,150,243,0.35)',
-                borderRadius: 18,
-                padding: '26px 26px 22px',
-                width: 290,
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                boxShadow: '0 24px 70px rgba(0,0,0,0.55)',
-                textAlign: 'center',
                 position: 'relative',
+                width: 304,
+                background: 'linear-gradient(165deg, rgba(22,40,74,0.94) 0%, rgba(13,25,48,0.96) 100%)',
+                border: '0.5px solid rgba(86,140,220,0.28)',
+                borderRadius: 20,
+                padding: '30px 28px 26px',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                boxShadow: '0 32px 90px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.06) inset, 0 0 0 1px rgba(0,0,0,0.3)',
+                textAlign: 'center',
               }}>
+                {/* Sheen superior */}
+                <div style={{
+                  position: 'absolute', top: 0, left: '14%', right: '14%', height: 1,
+                  background: 'linear-gradient(90deg, transparent, rgba(120,180,255,0.5), transparent)',
+                }} />
+
                 {/* Botón X */}
                 <button
                   onClick={() => setWelcomeDismissed(true)}
                   style={{
-                    position: 'absolute', top: 12, right: 12,
-                    width: 22, height: 22,
-                    background: 'rgba(91,123,160,0.18)',
-                    border: '0.5px solid rgba(91,123,160,0.3)',
+                    position: 'absolute', top: 14, right: 14,
+                    width: 24, height: 24,
+                    background: 'rgba(120,160,210,0.1)',
+                    border: '0.5px solid rgba(120,160,210,0.22)',
                     borderRadius: '50%',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: '#5B7BA0', fontSize: 10, lineHeight: 1,
-                    padding: 0, transition: 'all 0.15s',
+                    cursor: 'pointer', color: '#6E8AAE', fontSize: 10, lineHeight: 1,
+                    padding: 0, transition: 'all 0.18s',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.color = '#E8EFF8'; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = '#5B7BA0'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#6E8AAE'; }}
                 >✕</button>
 
-                {/* Ícono con anillo pulsante */}
-                <div style={{
-                  width: 56, height: 56, margin: '0 auto 16px',
-                  borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(33,150,243,0.22), rgba(33,150,243,0.04))',
-                  border: '0.5px solid rgba(33,150,243,0.4)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  position: 'relative',
-                }}>
+                {/* Stack de ícono con anillo orbital + pulso radar */}
+                <div style={{ position: 'relative', width: 64, height: 64, margin: '2px auto 18px' }}>
                   <div style={{
-                    position: 'absolute', inset: -6,
-                    borderRadius: '50%',
-                    border: '1px solid rgba(33,150,243,0.25)',
-                    animation: 'ring-pulse-v2 2.4s ease-in-out infinite',
+                    position: 'absolute', inset: 0, borderRadius: '50%',
+                    border: '1px solid rgba(91,168,255,0.35)',
+                    animation: 'pulse-out-v3 2.6s cubic-bezier(0.4,0,0.2,1) infinite',
                   }} />
-                  <span style={{ fontSize: 24 }}>📍</span>
+                  <div style={{
+                    position: 'absolute', inset: 0, borderRadius: '50%',
+                    border: '0.5px solid rgba(33,150,243,0.18)',
+                    animation: 'ring-rotate-v3 12s linear infinite',
+                  }}>
+                    <div style={{
+                      position: 'absolute', top: -1.5, left: '50%', width: 4, height: 4,
+                      marginLeft: -2, background: '#5BA8FF', borderRadius: '50%',
+                      boxShadow: '0 0 8px 2px rgba(91,168,255,0.7)',
+                    }} />
+                  </div>
+                  <div style={{
+                    position: 'absolute', inset: 8, borderRadius: '50%',
+                    background: 'radial-gradient(circle at 35% 30%, rgba(70,140,230,0.45), rgba(20,45,90,0.55) 70%)',
+                    border: '0.5px solid rgba(120,180,255,0.4)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 8px 24px rgba(33,100,200,0.35), 0 0 0 1px rgba(255,255,255,0.04) inset',
+                  }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#BFDBFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                      <circle cx="12" cy="9" r="2.5"/>
+                    </svg>
+                  </div>
                 </div>
 
-                <p style={{ fontSize: 17, fontWeight: 600, color: '#E8EFF8',
-                  fontFamily: "'Exo 2', sans-serif", margin: '0 0 6px', letterSpacing: '0.01em' }}>
-                  Bienvenido a Shuma Rutas
-                </p>
-                <p style={{ fontSize: 12, color: '#5B7BA0', lineHeight: 1.55, margin: '0 0 22px',
+                <p style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.16em',
+                  color: '#4A7FC4', textTransform: 'uppercase', margin: '0 0 8px',
                   fontFamily: "'DM Sans', sans-serif" }}>
-                  Optimiza las rutas de entrega de tu flota en minutos.
+                  Grupo Shuma
                 </p>
 
-                {/* CTA — dispara la misma acción que el FAB real */}
+                <p style={{ fontSize: 19, fontWeight: 700, color: '#F2F6FC',
+                  margin: '0 0 8px', letterSpacing: '-0.01em',
+                  fontFamily: "'Exo 2', sans-serif" }}>
+                  Bienvenido a Shuma Rutas
+                </p>
+
+                <p style={{ fontSize: 12.5, color: '#7C9AC2', lineHeight: 1.6,
+                  margin: '0 0 24px', padding: '0 6px',
+                  fontFamily: "'DM Sans', sans-serif" }}>
+                  Optimiza las rutas de entrega de tu flota en minutos, con seguimiento en tiempo real.
+                </p>
+
+                <div style={{
+                  height: 1, margin: '0 0 22px',
+                  background: 'linear-gradient(90deg, transparent, rgba(91,168,255,0.18), transparent)',
+                }} />
+
+                {/* CTA con sheen animado */}
                 <button
                   onClick={() => setIsSlideOverOpen(true)}
                   style={{
-                    width: '100%', padding: '13px 18px',
-                    background: 'linear-gradient(135deg, #1565C0, #2196F3)',
-                    border: 'none', borderRadius: 12,
+                    position: 'relative', width: '100%', padding: '14px 20px',
+                    background: 'linear-gradient(135deg, #1976D2 0%, #2196F3 50%, #42A5F5 100%)',
+                    border: 'none', borderRadius: 13,
                     color: 'white', fontFamily: "'Exo 2', sans-serif",
-                    fontSize: 13, fontWeight: 700, letterSpacing: '0.04em',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    cursor: 'pointer',
-                    animation: 'cta-breathe-v2 2.2s ease-in-out infinite',
-                    transition: 'transform 0.15s',
+                    fontSize: 13.5, fontWeight: 700, letterSpacing: '0.03em',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+                    cursor: 'pointer', overflow: 'hidden',
+                    boxShadow: '0 8px 28px rgba(33,150,243,0.4), 0 1px 0 rgba(255,255,255,0.25) inset',
+                    transition: 'transform 0.18s ease, box-shadow 0.18s ease',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 12px 36px rgba(33,150,243,0.55), 0 1px 0 rgba(255,255,255,0.3) inset';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 8px 28px rgba(33,150,243,0.4), 0 1px 0 rgba(255,255,255,0.25) inset';
+                  }}
                 >
-                  <span>⚙</span>
-                  Crear Rutas
-                  <span style={{ animation: 'arrow-nudge-v2 1.4s ease-in-out infinite' }}>→</span>
+                  <span style={{
+                    position: 'absolute', top: 0, left: '-60%', width: '40%', height: '100%',
+                    background: 'linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent)',
+                    transform: 'skewX(-20deg)',
+                    animation: 'sheen-sweep-v3 3.2s ease-in-out infinite',
+                    pointerEvents: 'none',
+                  }} />
+                  <span style={{ fontSize: 15 }}>⚙</span>
+                  Crear rutas
+                  <span style={{ display: 'inline-flex', animation: 'arrow-nudge-v3 1.5s ease-in-out infinite' }}>→</span>
                 </button>
+
+                {/* Meta-row con datos reales del sistema */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 16 }}>
+                  <div style={{ fontSize: 10, color: '#4A6B95', display: 'flex', alignItems: 'center', gap: 5,
+                    fontFamily: "'DM Sans', sans-serif" }}>
+                    <span style={{
+                      width: 5, height: 5, borderRadius: '50%', background: '#2EBD6B',
+                      boxShadow: '0 0 6px 1px rgba(46,189,107,0.6)',
+                    }} />
+                    {state.vehicles?.length || 3} choferes activos
+                  </div>
+                  <div style={{ fontSize: 10, color: '#4A6B95', fontFamily: "'DM Sans', sans-serif" }}>
+                    2 bodegas
+                  </div>
+                </div>
               </div>
             </div>
           </>
@@ -1356,7 +1391,6 @@ export default function DispatcherPage() {
         {/* ── FAB (bottom-right) — always visible including fullscreen ── */}
         {FAB_CONFIG[activeTab] && (
           <button
-            ref={fabRef}
             onClick={() => {
               if (activeTab === 'routes' && state.routes.length === 0) {
                 setActiveTab('config');
