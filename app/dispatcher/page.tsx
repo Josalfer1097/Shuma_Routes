@@ -2115,6 +2115,7 @@ export default function DispatcherPage() {
                                 stops: r.deliveries,
                                 invoices: '',
                                 totalDistance: r.total_km,
+                                polyline: r.polyline || [],
                                 metrics: {
                                   totalDistanceKm: r.total_km || 0,
                                   totalDurationMin: r.total_minutes || 0,
