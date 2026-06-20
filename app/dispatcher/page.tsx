@@ -1002,248 +1002,111 @@ export default function DispatcherPage() {
           </div>
         )}
 
-        {/* ── Bienvenida GPS ── */}
-        {state.step === 'config' && state.addresses.length === 0 && !isSlideOverOpen && !welcomeDismissed && mapSize.w > 0 && fabPos.x > 0 && (
+        {/* ── Bienvenida (card centrada, sin trazo) ── */}
+        {state.step === 'config' && state.addresses.length === 0 && !isSlideOverOpen && !welcomeDismissed && (
           <>
             <style>{`
-              @keyframes traza-ruta {
-                0%   { stroke-dashoffset: 1200; opacity: 0; }
-                5%   { opacity: 1; }
-                100% { stroke-dashoffset: 0; opacity: 1; }
-              }
-              @keyframes aparece-pin {
-                0%,89% { opacity: 0; transform: translateY(-12px) scale(0.5); }
-                90%    { opacity: 1; transform: translateY(2px) scale(1.1); }
-                100%   { opacity: 1; transform: translateY(0) scale(1); }
-              }
-              @keyframes aparece-pin-2 {
-                0%,70% { opacity: 0; transform: translateY(-12px) scale(0.5); }
-                80%    { opacity: 1; transform: translateY(2px) scale(1.1); }
-                100%   { opacity: 1; transform: translateY(0) scale(1); }
-              }
-              @keyframes aparece-pin-3 {
-                0%,50% { opacity: 0; transform: translateY(-12px) scale(0.5); }
-                65%    { opacity: 1; transform: translateY(2px) scale(1.1); }
-                100%   { opacity: 1; transform: translateY(0) scale(1); }
-              }
-              @keyframes pulso-origen {
-                0%,100% { transform: scale(1); opacity: 1; }
-                50%     { transform: scale(1.6); opacity: 0.3; }
-              }
-              @keyframes pulso-destino {
-                0%,100% { r: 8; opacity: 0.9; }
-                50%     { r: 13; opacity: 0.4; }
-              }
-              @keyframes halo-destino {
-                0%   { r: 10; opacity: 0.4; }
-                100% { r: 30; opacity: 0; }
-              }
-              @keyframes fade-card {
+              @keyframes fade-card-v2 {
                 from { opacity: 0; transform: translate(-50%,-46%); }
                 to   { opacity: 1; transform: translate(-50%,-50%); }
               }
-              @keyframes camion-move {
-                0%   { offset-distance: 0%; opacity: 0; }
-                5%   { opacity: 1; }
-                95%  { opacity: 1; }
-                100% { offset-distance: 100%; opacity: 0; }
+              @keyframes ring-pulse-v2 {
+                0%, 100% { transform: scale(1); opacity: 0.6; }
+                50%      { transform: scale(1.15); opacity: 0; }
               }
-              @keyframes fab-pulse {
-                0%, 100% {
-                  box-shadow: 0 0 0 0 rgba(33,150,243,0.5), 0 4px 20px rgba(0,71,171,0.5);
-                }
-                50% {
-                  box-shadow: 0 0 0 12px rgba(33,150,243,0), 0 4px 30px rgba(0,71,171,0.7);
-                }
+              @keyframes cta-breathe-v2 {
+                0%, 100% { box-shadow: 0 4px 24px rgba(33,150,243,0.35); transform: scale(1); }
+                50%      { box-shadow: 0 6px 34px rgba(33,150,243,0.55); transform: scale(1.015); }
+              }
+              @keyframes arrow-nudge-v2 {
+                0%, 100% { transform: translateX(0); }
+                50%      { transform: translateX(3px); }
               }
             `}</style>
 
-            {/* SVG — ruta desde card hacia botón Configuración */}
-            <svg
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                zIndex: 9,
-                pointerEvents: 'none',
-                overflow: 'visible',
-              }}
-            >
-              {(() => {
-                const W = mapSize.w;
-                const H = mapSize.h;
-
-                // Origen: debajo de la card (card está en top:42%, ~160px alto)
-                const ox = W * 0.5;
-                const oy = H * 0.42 + 100;
-
-                // Destino: centro REAL del botón Configuración (medido con getBoundingClientRect)
-                const dx = fabPos.x;
-                const dy = fabPos.y;
-
-                // Paradas intermedias — entre card y FAB
-                const p1x = ox + (dx - ox) * 0.25, p1y = oy + (dy - oy) * 0.35;
-                const p2x = ox + (dx - ox) * 0.55, p2y = oy + (dy - oy) * 0.60;
-                const p3x = ox + (dx - ox) * 0.80, p3y = oy + (dy - oy) * 0.80;
-
-                // Path: curva Bézier desde card hasta FAB
-                const c1x = ox, c1y = oy + (dy - oy) * 0.45;
-                const c2x = dx - (dx - ox) * 0.1, c2y = dy - (dy - oy) * 0.15;
-                const path = `M ${ox} ${oy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${dx} ${dy}`;
-
-                return (
-                  <>
-                    <defs>
-                      <linearGradient id="line-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%"   stopColor="#1565C0" />
-                        <stop offset="60%"  stopColor="#2196F3" />
-                        <stop offset="100%" stopColor="#42A5F5" />
-                      </linearGradient>
-                    </defs>
-
-                    {/* ── Sombra de la línea ── */}
-                    <path d={path} fill="none"
-                      stroke="rgba(0,20,60,0.5)" strokeWidth="6"
-                      strokeLinecap="round" strokeDasharray="1000" strokeDashoffset="1000">
-                      <animate attributeName="stroke-dashoffset"
-                        from="1000" to="0" dur="2s" begin="0.3s"
-                        fill="freeze" calcMode="spline"
-                        keyTimes="0;1" keySplines="0.4 0 0.2 1" />
-                    </path>
-
-                    {/* ── Línea principal azul ── */}
-                    <path d={path} fill="none"
-                      stroke="url(#line-grad)" strokeWidth="3.5"
-                      strokeLinecap="round" strokeDasharray="1000" strokeDashoffset="1000">
-                      <animate attributeName="stroke-dashoffset"
-                        from="1000" to="0" dur="2s" begin="0.3s"
-                        fill="freeze" calcMode="spline"
-                        keyTimes="0;1" keySplines="0.4 0 0.2 1" />
-                    </path>
-
-                    {/* ── Brillo encima ── */}
-                    <path d={path} fill="none"
-                      stroke="rgba(255,255,255,0.2)" strokeWidth="1.2"
-                      strokeLinecap="round" strokeDasharray="1000" strokeDashoffset="1000">
-                      <animate attributeName="stroke-dashoffset"
-                        from="1000" to="0" dur="2s" begin="0.3s"
-                        fill="freeze" calcMode="spline"
-                        keyTimes="0;1" keySplines="0.4 0 0.2 1" />
-                    </path>
-
-                    {/* ── Punto origen bajo la card — pulsa ── */}
-                    <circle cx={ox} cy={oy} r="5" fill="#2196F3">
-                      <animate attributeName="r" values="5;9;5" dur="1.4s" repeatCount="indefinite" />
-                      <animate attributeName="opacity" values="1;0.3;1" dur="1.4s" repeatCount="indefinite" />
-                    </circle>
-                    <circle cx={ox} cy={oy} r="12" fill="none" stroke="#2196F3" strokeWidth="1" opacity="0.2">
-                      <animate attributeName="r" values="8;20;8" dur="1.4s" repeatCount="indefinite" />
-                      <animate attributeName="opacity" values="0.3;0;0.3" dur="1.4s" repeatCount="indefinite" />
-                    </circle>
-
-                    {/* ── Pines decorativos que aparecen a lo largo ── */}
-                    {[
-                      { cx: p1x, cy: p1y, label: '1', delay: '1.0s' },
-                      { cx: p2x, cy: p2y, label: '2', delay: '1.5s' },
-                      { cx: p3x, cy: p3y, label: '3', delay: '2.0s' },
-                    ].map(({ cx, cy, label, delay }) => (
-                      <g key={label} opacity="0">
-                        <animate attributeName="opacity" values="0;1" dur="0.4s" begin={delay} fill="freeze" />
-                        <circle cx={cx} cy={cy} r="9" fill="#1565C0" stroke="#42A5F5" strokeWidth="1.5" />
-                        <text x={cx} y={cy + 3.5} textAnchor="middle"
-                          fill="white" fontSize="8" fontWeight="bold">{label}</text>
-                      </g>
-                    ))}
-
-                    {/* ── Destino: halo expansivo + pin al llegar ── */}
-                    <circle cx={dx} cy={dy} r="0" fill="none" stroke="#2196F3" strokeWidth="1.5" opacity="0">
-                      <animate attributeName="r"       values="0;25"   dur="0.8s" begin="2.2s" fill="freeze" />
-                      <animate attributeName="opacity" values="0.6;0"  dur="0.8s" begin="2.2s" fill="freeze" />
-                    </circle>
-                    <circle cx={dx} cy={dy} r="0" fill="#0047AB" stroke="#42A5F5" strokeWidth="2" opacity="0">
-                      <animate attributeName="r"       values="0;10;7" dur="0.4s" begin="2.2s" fill="freeze" />
-                      <animate attributeName="opacity" values="0;1"    dur="0.2s" begin="2.2s" fill="freeze" />
-                    </circle>
-                    <text x={dx} y={dy + 4} textAnchor="middle" fill="white" fontSize="10" opacity="0">
-                      <animate attributeName="opacity" values="0;1" dur="0.3s" begin="2.4s" fill="freeze" />
-                      ⚙
-                    </text>
-                  </>
-                );
-              })()}
-            </svg>
-
-            {/* ── Card de bienvenida ── */}
             <div style={{
-              position: 'absolute', top: '38%', left: '50%',
+              position: 'absolute', top: '50%', left: '50%',
               transform: 'translate(-50%, -50%)',
-              zIndex: 10, textAlign: 'left',
-              animation: 'fade-card 0.4s ease-out',
+              zIndex: 10,
+              animation: 'fade-card-v2 0.4s ease-out',
             }}>
               <div style={{
-                background: 'rgba(17,32,64,0.82)',
+                background: 'rgba(17,32,64,0.92)',
                 border: '0.5px solid rgba(33,150,243,0.35)',
-                borderRadius: 12,
-                padding: '18px 18px 16px',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.45), inset 0 0.5px 0 rgba(255,255,255,0.06)',
-                width: 230, position: 'relative',
+                borderRadius: 18,
+                padding: '26px 26px 22px',
+                width: 290,
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                boxShadow: '0 24px 70px rgba(0,0,0,0.55)',
+                textAlign: 'center',
+                position: 'relative',
               }}>
                 {/* Botón X */}
                 <button
                   onClick={() => setWelcomeDismissed(true)}
                   style={{
-                    position: 'absolute', top: 10, right: 10,
-                    width: 20, height: 20,
-                    background: 'rgba(91,123,160,0.2)',
+                    position: 'absolute', top: 12, right: 12,
+                    width: 22, height: 22,
+                    background: 'rgba(91,123,160,0.18)',
                     border: '0.5px solid rgba(91,123,160,0.3)',
                     borderRadius: '50%',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', color: '#5B7BA0', fontSize: 10, lineHeight: 1,
                     padding: 0, transition: 'all 0.15s',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.color = '#E8EFF8'; e.currentTarget.style.background = 'rgba(91,123,160,0.35)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = '#5B7BA0'; e.currentTarget.style.background = 'rgba(91,123,160,0.2)'; }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#E8EFF8'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#5B7BA0'; }}
                 >✕</button>
 
-                {/* Ícono tile */}
+                {/* Ícono con anillo pulsante */}
                 <div style={{
-                  width: 38, height: 38,
-                  background: 'rgba(33,150,243,0.15)',
+                  width: 56, height: 56, margin: '0 auto 16px',
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(33,150,243,0.22), rgba(33,150,243,0.04))',
                   border: '0.5px solid rgba(33,150,243,0.4)',
-                  borderRadius: 10,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  marginBottom: 12,
+                  position: 'relative',
                 }}>
-                  <span style={{ fontSize: 18 }}>📍</span>
+                  <div style={{
+                    position: 'absolute', inset: -6,
+                    borderRadius: '50%',
+                    border: '1px solid rgba(33,150,243,0.25)',
+                    animation: 'ring-pulse-v2 2.4s ease-in-out infinite',
+                  }} />
+                  <span style={{ fontSize: 24 }}>📍</span>
                 </div>
 
-                <p style={{ fontSize: 15, fontWeight: 600, color: '#E8EFF8',
-                  fontFamily: "'Exo 2', sans-serif", margin: '0 0 5px', letterSpacing: '0.01em' }}>
+                <p style={{ fontSize: 17, fontWeight: 600, color: '#E8EFF8',
+                  fontFamily: "'Exo 2', sans-serif", margin: '0 0 6px', letterSpacing: '0.01em' }}>
                   Bienvenido a Shuma Rutas
                 </p>
-                <p style={{ fontSize: 11.5, color: '#5B7BA0', lineHeight: 1.5, margin: '0 0 14px',
+                <p style={{ fontSize: 12, color: '#5B7BA0', lineHeight: 1.55, margin: '0 0 22px',
                   fontFamily: "'DM Sans', sans-serif" }}>
                   Optimiza las rutas de entrega de tu flota en minutos.
                 </p>
 
-                <div style={{ height: 0.5, background: 'rgba(33,150,243,0.15)', margin: '0 0 12px' }} />
-
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  fontSize: 11.5, color: '#2196F3',
-                  fontFamily: "'DM Sans', sans-serif", fontWeight: 500,
-                }}>
-                  <span style={{
-                    width: 6, height: 6, borderRadius: '50%',
-                    background: '#2196F3',
-                    animation: 'pulso-origen 1.8s ease-in-out infinite',
-                    flexShrink: 0,
-                  }} />
-                  Toca Crear Rutas para comenzar
-                </div>
+                {/* CTA — dispara la misma acción que el FAB real */}
+                <button
+                  onClick={() => setIsSlideOverOpen(true)}
+                  style={{
+                    width: '100%', padding: '13px 18px',
+                    background: 'linear-gradient(135deg, #1565C0, #2196F3)',
+                    border: 'none', borderRadius: 12,
+                    color: 'white', fontFamily: "'Exo 2', sans-serif",
+                    fontSize: 13, fontWeight: 700, letterSpacing: '0.04em',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    cursor: 'pointer',
+                    animation: 'cta-breathe-v2 2.2s ease-in-out infinite',
+                    transition: 'transform 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+                >
+                  <span>⚙</span>
+                  Crear Rutas
+                  <span style={{ animation: 'arrow-nudge-v2 1.4s ease-in-out infinite' }}>→</span>
+                </button>
               </div>
             </div>
           </>
@@ -1451,7 +1314,7 @@ export default function DispatcherPage() {
               display: 'flex',
               alignItems: 'center',
               gap: 6,
-              padding: '10px 16px',
+              padding: state.addresses.length === 0 && !welcomeDismissed ? '14px 22px' : '10px 16px',
               background: state.addresses.length === 0 && !welcomeDismissed
                 ? 'linear-gradient(135deg, #0047AB, #1565C0)'
                 : '#0047AB',
@@ -1460,7 +1323,7 @@ export default function DispatcherPage() {
                 : 'none',
               borderRadius: 10,
               color: '#fff',
-              fontSize: 12,
+              fontSize: state.addresses.length === 0 && !welcomeDismissed ? 14 : 12,
               fontWeight: 600,
               fontFamily: "'Exo 2', sans-serif",
               letterSpacing: '0.08em',
