@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
-    const { deliveryId, status, notes, partialQuantity, photoUrl, driverName } = await req.json();
+    const { deliveryId, status, notes, partialQuantity, photoUrls = [], driverName } = await req.json();
 
     if (!deliveryId || !status) {
       return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
@@ -40,12 +40,14 @@ export async function POST(req: NextRequest) {
 
     if (updateErr) throw updateErr;
 
+    const serializedPhotos = photoUrls.length > 0 ? JSON.stringify(photoUrls) : null;
+
     // 4. Registrar en delivery_events
     await supabaseAdmin.from('delivery_events').insert({
       delivery_id: deliveryId,
       event_type:  newStatus,
       notes:       notes || null,
-      photo_url:   photoUrl || null,
+      photo_url:   serializedPhotos,
       created_at:  new Date().toISOString(),
     });
 
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
         motivo_fallo:      status === 'failed' ? (notes || 'Sin motivo') : null,
         entrega_parcial:   status === 'partial',
         cantidad_parcial:  partialQuantity || null,
-        foto_evidencia:    photoUrl ? 'Sí' : 'No',
+        fotos_evidencia:   photoUrls.length > 0 ? `${photoUrls.length} fotos` : 'No',
         estado_anterior:   'pending',
         estado_nuevo:      newStatus,
       },

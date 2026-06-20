@@ -7,6 +7,45 @@ import {
   CheckCircle, XCircle, Navigation, Package,
   LogOut, Truck, AlertTriangle, Camera, ChevronDown, ChevronUp
 } from 'lucide-react';
+import { compressImage } from '@/lib/imageCompress';
+
+function PhotoPicker({ photoPreviews, onAdd, onRemove, fileInputRef, isCompressing, onChange }: {
+  photoPreviews: string[],
+  onAdd: () => void,
+  onRemove: (index: number) => void,
+  fileInputRef: React.RefObject<HTMLInputElement>,
+  isCompressing: boolean,
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+}) {
+  return (
+    <div className="mt-4">
+      <p className="text-xs text-shuma-muted mb-2">
+        📸 Foto de evidencia ({photoPreviews.length}/4)
+      </p>
+      <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+        multiple className="hidden" onChange={onChange} />
+      <div className="grid grid-cols-4 gap-2">
+        {photoPreviews.map((src, i) => (
+          <div key={i} className="relative aspect-square">
+            <img src={src} alt={`evidencia-${i}`} className="w-full h-full object-cover rounded-lg" />
+            <button onClick={() => onRemove(i)}
+              className="absolute -top-1.5 -right-1.5 bg-black/70 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px]">✕</button>
+          </div>
+        ))}
+        {photoPreviews.length < 4 && (
+          <button onClick={onAdd} disabled={isCompressing}
+            className="aspect-square border border-dashed border-shuma-border rounded-lg flex flex-col items-center justify-center gap-1 text-shuma-muted active:bg-shuma-surface touch-manipulation disabled:opacity-50">
+            {isCompressing ? (
+              <span className="text-[10px]">…</span>
+            ) : (
+              <><Camera size={16} /><span className="text-[9px]">Agregar</span></>
+            )}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface DeliveryStop {
   id: string;
@@ -51,8 +90,9 @@ export default function DriverPage() {
   const [selectedStop, setSelectedStop]           = useState<{ stop: DeliveryStop; index: number } | null>(null);
   const [notes, setNotes]                         = useState('');
   const [partialQuantity, setPartialQuantity]     = useState('');
-  const [photoFile, setPhotoFile]                 = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview]           = useState<string | null>(null);
+  const [photoFiles, setPhotoFiles]               = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews]         = useState<string[]>([]);
+  const [isCompressing, setIsCompressing]         = useState(false);
   const [isSubmitting, setIsSubmitting]           = useState(false);
   const [expandedStops, setExpandedStops]         = useState<Set<string>>(new Set());
   const fileInputRef                              = useRef<HTMLInputElement>(null);
@@ -86,8 +126,8 @@ export default function DriverPage() {
     setSelectedStop({ stop, index });
     setNotes('');
     setPartialQuantity('');
-    setPhotoFile(null);
-    setPhotoPreview(null);
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
   };
 
   const closeModal = () => {
@@ -95,17 +135,44 @@ export default function DriverPage() {
     setSelectedStop(null);
     setNotes('');
     setPartialQuantity('');
-    setPhotoFile(null);
-    setPhotoPreview(null);
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPhotoFile(file);
-    const reader = new FileReader();
-    reader.onload = ev => setPhotoPreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
+  const MAX_PHOTOS = 4;
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const remaining = MAX_PHOTOS - photoFiles.length;
+    if (remaining <= 0) {
+      e.target.value = '';
+      return;
+    }
+    const toAdd = files.slice(0, remaining);
+    e.target.value = '';
+
+    setIsCompressing(true);
+    try {
+      const compressed = await Promise.all(toAdd.map(f => compressImage(f)));
+      setPhotoFiles(prev => [...prev, ...compressed]);
+
+      compressed.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          setPhotoPreviews(prev => [...prev, ev.target?.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+    } finally {
+      setIsCompressing(false);
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotoFiles(prev => prev.filter((_, i) => i !== index));
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleAction = async (status: 'completed' | 'partial' | 'failed') => {
@@ -115,17 +182,25 @@ export default function DriverPage() {
     setIsSubmitting(true);
 
     try {
-      // Subir foto si hay
-      let photoUrl: string | null = null;
-      if (photoFile) {
-        const formData = new FormData();
-        formData.append('file', photoFile);
-        formData.append('deliveryId', selectedStop.stop.id);
-        const photoRes = await fetch('/api/driver/upload-photo', {
-          method: 'POST', body: formData,
-        });
-        const photoJson = await photoRes.json();
-        photoUrl = photoJson.url || null;
+      let photoUrls: string[] = [];
+      if (photoFiles.length > 0) {
+        const uploads = await Promise.all(
+          photoFiles.map(async (file) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('deliveryId', selectedStop.stop.id);
+            const photoRes = await fetch('/api/driver/upload-photo', {
+              method: 'POST', body: formData,
+            });
+            if (!photoRes.ok) {
+              const errJson = await photoRes.json().catch(() => ({}));
+              throw new Error(`Foto: ${errJson.error || photoRes.statusText}`);
+            }
+            const photoJson = await photoRes.json();
+            return photoJson.url as string;
+          })
+        );
+        photoUrls = uploads.filter(Boolean);
       }
 
       // Marcar entrega
@@ -137,7 +212,7 @@ export default function DriverPage() {
           status,
           notes:           notes || '',
           partialQuantity: status === 'partial' ? partialQuantity : null,
-          photoUrl,
+          photoUrls,
           driverName,
         }),
       });
@@ -151,8 +226,9 @@ export default function DriverPage() {
       );
       setRoute({ ...route, stops: newStops });
       closeModal();
-    } catch {
-      alert('Error al guardar. Intenta de nuevo.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      alert(`Error al guardar: ${msg}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -332,35 +408,39 @@ export default function DriverPage() {
                     </p>
 
                     {isPending && (
-                      <div className="flex gap-2 mt-3">
-                        {/* Navegar */}
+                      <div className="mt-3 space-y-2">
+                        {/* Navegar — fila propia, ancho completo */}
                         <button
                           onClick={() => window.open(`https://maps.google.com/?q=${stop.address.lat},${stop.address.lng}`, '_blank')}
-                          className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl text-xs font-semibold touch-manipulation active:bg-blue-500/20 transition-colors"
+                          className="w-full flex items-center justify-center gap-1.5 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl text-xs font-semibold touch-manipulation active:bg-blue-500/20 transition-colors"
                         >
-                          <Navigation size={13} /> Ir
+                          <Navigation size={13} /> Ir a la dirección
                         </button>
-                        {/* Entregado */}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openModal('deliver', stop, idx); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-semibold touch-manipulation active:bg-emerald-500/20 transition-colors"
-                        >
-                          <CheckCircle size={13} /> Entregado
-                        </button>
-                        {/* Parcial */}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openModal('partial', stop, idx); }}
-                          className="flex items-center justify-center gap-1 px-2.5 py-2.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-xl text-xs font-semibold touch-manipulation active:bg-amber-500/20 transition-colors"
-                        >
-                          <span style={{ fontSize: 13 }}>◑</span>
-                        </button>
-                        {/* No entregado */}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openModal('failed', stop, idx); }}
-                          className="flex items-center justify-center px-2.5 py-2.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl text-xs font-semibold touch-manipulation active:bg-red-500/20 transition-colors"
-                        >
-                          <XCircle size={13} />
-                        </button>
+
+                        {/* 3 acciones de estado — mismo peso visual */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openModal('deliver', stop, idx); }}
+                            className="flex flex-col items-center justify-center gap-1 py-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 rounded-xl text-[11px] font-semibold touch-manipulation active:bg-emerald-500/20 transition-colors"
+                          >
+                            <CheckCircle size={18} />
+                            Entregado
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openModal('partial', stop, idx); }}
+                            className="flex flex-col items-center justify-center gap-1 py-2.5 bg-amber-500/10 text-amber-400 border border-amber-500/25 rounded-xl text-[11px] font-semibold touch-manipulation active:bg-amber-500/20 transition-colors"
+                          >
+                            <span style={{ fontSize: 18, lineHeight: 1 }}>◑</span>
+                            Parcial
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openModal('failed', stop, idx); }}
+                            className="flex flex-col items-center justify-center gap-1 py-2.5 bg-red-500/10 text-red-400 border border-red-500/25 rounded-xl text-[11px] font-semibold touch-manipulation active:bg-red-500/20 transition-colors"
+                          >
+                            <XCircle size={18} />
+                            No entregado
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -396,24 +476,27 @@ export default function DriverPage() {
                     📄 {selectedStop.stop.address.invoice}
                   </p>
                 )}
-                {/* Foto evidencia opcional */}
+                {/* Comentarios opcionales */}
                 <div className="mt-4">
-                  <p className="text-xs text-shuma-muted mb-2">📸 Foto de evidencia (opcional)</p>
-                  <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
-                    className="hidden" onChange={handlePhotoChange} />
-                  {photoPreview ? (
-                    <div className="relative">
-                      <img src={photoPreview} alt="preview" className="w-full h-32 object-cover rounded-xl" />
-                      <button onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}
-                        className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button>
-                    </div>
-                  ) : (
-                    <button onClick={() => fileInputRef.current?.click()}
-                      className="w-full py-2.5 border border-dashed border-shuma-border rounded-xl text-xs text-shuma-muted flex items-center justify-center gap-2 active:bg-shuma-surface touch-manipulation">
-                      <Camera size={14} /> Tomar foto
-                    </button>
-                  )}
+                  <label className="text-xs text-shuma-muted mb-1.5 block">
+                    💬 Comentarios (opcional)
+                  </label>
+                  <textarea
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="Ej: Recibió el guardia, todo en orden"
+                    rows={2}
+                    className="w-full px-3 py-2 bg-shuma-bg border border-shuma-border rounded-xl text-sm text-shuma-text placeholder:text-shuma-muted/60 focus:outline-none focus:border-blue-500 resize-none"
+                  />
                 </div>
+                <PhotoPicker 
+                  photoPreviews={photoPreviews}
+                  onAdd={() => fileInputRef.current?.click()}
+                  onRemove={removePhoto}
+                  fileInputRef={fileInputRef}
+                  isCompressing={isCompressing}
+                  onChange={handlePhotoChange}
+                />
               </div>
               <div className="flex gap-3 p-4 pt-0">
                 <button onClick={closeModal} disabled={isSubmitting}
@@ -444,23 +527,14 @@ export default function DriverPage() {
                       className="w-full h-20 bg-slate-900 border border-shuma-border rounded-xl p-3 text-sm text-slate-200 outline-none focus:border-amber-500 resize-none" />
                   </div>
                   {/* Foto */}
-                  <div>
-                    <p className="text-xs text-shuma-muted mb-1.5">📸 Foto de evidencia (recomendado)</p>
-                    <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
-                      className="hidden" onChange={handlePhotoChange} />
-                    {photoPreview ? (
-                      <div className="relative">
-                        <img src={photoPreview} alt="preview" className="w-full h-28 object-cover rounded-xl" />
-                        <button onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}
-                          className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => fileInputRef.current?.click()}
-                        className="w-full py-2.5 border border-dashed border-shuma-border rounded-xl text-xs text-shuma-muted flex items-center justify-center gap-2 touch-manipulation">
-                        <Camera size={14} /> Tomar foto de evidencia
-                      </button>
-                    )}
-                  </div>
+                  <PhotoPicker 
+                    photoPreviews={photoPreviews}
+                    onAdd={() => fileInputRef.current?.click()}
+                    onRemove={removePhoto}
+                    fileInputRef={fileInputRef}
+                    isCompressing={isCompressing}
+                    onChange={handlePhotoChange}
+                  />
                 </div>
               </div>
               <div className="flex gap-3 p-4 pt-0">
@@ -505,23 +579,14 @@ export default function DriverPage() {
                     )}
                   </div>
                   {/* Foto */}
-                  <div>
-                    <p className="text-xs text-shuma-muted mb-1.5">📸 Foto de evidencia (opcional)</p>
-                    <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
-                      className="hidden" onChange={handlePhotoChange} />
-                    {photoPreview ? (
-                      <div className="relative">
-                        <img src={photoPreview} alt="preview" className="w-full h-28 object-cover rounded-xl" />
-                        <button onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}
-                          className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => fileInputRef.current?.click()}
-                        className="w-full py-2.5 border border-dashed border-shuma-border rounded-xl text-xs text-shuma-muted flex items-center justify-center gap-2 touch-manipulation">
-                        <Camera size={14} /> Foto de evidencia
-                      </button>
-                    )}
-                  </div>
+                  <PhotoPicker 
+                    photoPreviews={photoPreviews}
+                    onAdd={() => fileInputRef.current?.click()}
+                    onRemove={removePhoto}
+                    fileInputRef={fileInputRef}
+                    isCompressing={isCompressing}
+                    onChange={handlePhotoChange}
+                  />
                 </div>
               </div>
               <div className="flex gap-3 p-4 pt-0">
