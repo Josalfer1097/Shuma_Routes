@@ -9,16 +9,18 @@
   export interface GoogleRouteResult {
     /** Polyline principal [lat, lng][] */
     polyline: [number, number][];
+    /** Polyline original codificada */
+    polylineEncoded?: string;
     /** Rutas alternativas (hasta 2) */
     alternatives: [number, number][][];
     distanceMeters: number;
     durationSeconds: number;
   }
-  
+
   /**
    * Decodifica una Google encoded polyline (precisión 5) en [lat, lng][].
    */
-  function decodeGooglePolyline(encoded: string): [number, number][] {
+  export function decodeGooglePolyline(encoded: string): [number, number][] {
     const points: [number, number][] = [];
     let index = 0, len = encoded.length;
     let lat = 0, lng = 0;
@@ -119,7 +121,8 @@
     }
   
     // Decodificar ruta principal (índice 0)
-    const mainPolyline = decodeGooglePolyline(googleRoutes[0].polyline.encodedPolyline);
+    const encodedPolyline = googleRoutes[0].polyline.encodedPolyline;
+    const mainPolyline = decodeGooglePolyline(encodedPolyline);
   
     // Decodificar alternativas (índices 1, 2)
     const alternatives: [number, number][][] = [];
@@ -134,5 +137,5 @@
     const distanceMeters = mainRoute.distanceMeters || 0;
     const durationSeconds = parseInt(mainRoute.duration || '0s') || 0;
 
-    return { polyline: mainPolyline, alternatives, distanceMeters, durationSeconds };
+    return { polyline: mainPolyline, polylineEncoded: encodedPolyline, alternatives, distanceMeters, durationSeconds };
   }

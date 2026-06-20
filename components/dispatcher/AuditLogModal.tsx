@@ -133,11 +133,9 @@ export default function AuditLogModal({ isOpen, onClose, userRole }: Props) {
               className="px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text focus:outline-none focus:border-blue-500"
             >
               <option value="">Módulo</option>
-              <option value="route">Ruta</option>
-              <option value="delivery">Entrega</option>
-              <option value="auth">Auth</option>
-              <option value="pdf">PDF</option>
-              <option value="csv">CSV</option>
+              <option value="Rutas">Rutas</option>
+              <option value="Entregas">Entregas</option>
+              <option value="Autenticación">Autenticación</option>
             </select>
             <input
               type="date"

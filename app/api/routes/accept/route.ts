@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
           status: 'optimized',
           total_deliveries: route.stops.length,
           total_drivers: 1,
+          polyline_encoded: route.polylineEncoded || null,
           created_by: userName,
           version: 1,
           is_latest: true,

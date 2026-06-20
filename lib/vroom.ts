@@ -152,6 +152,7 @@ async function fallbackOptimizeRoutes(
           return {
             ...route,
             polyline: hereResult.polyline,
+            polylineEncoded: hereResult.polylineEncoded,
             alternatives: hereResult.alternatives,
           };
         } catch (e) {
@@ -291,6 +292,7 @@ export async function optimizeSingleVehicle(
   const totalDuration = accumulatedDuration + finalDuration;
 
   let polyline: [number, number][] = [];
+  let polylineEncoded: string | undefined = undefined;
   let alternatives: [number, number][][] = [];
   if (stops.length > 0) {
     const waypoints: [number, number][] = [
@@ -302,6 +304,7 @@ export async function optimizeSingleVehicle(
     try {
       const routesResult = await getRouteGoogle(waypoints);
       polyline = routesResult.polyline;
+      polylineEncoded = routesResult.polylineEncoded;
       alternatives = routesResult.alternatives;
     } catch (e) {
       console.warn(`[Google Routes] Falló al trazar polilínea para ${vehicle.driverName}:`, e);
@@ -319,6 +322,7 @@ export async function optimizeSingleVehicle(
     stops,
     invoices: vehicle.invoices,
     polyline,
+    polylineEncoded,
     alternatives,
     totalDistance,
     totalDuration,
@@ -483,7 +487,9 @@ export async function optimizeRoutes(
         try {
           const routesResult = await getRouteGoogle(waypoints);
           polyline = routesResult.polyline;
+          const polylineEncoded = routesResult.polylineEncoded;
           alternatives = routesResult.alternatives;
+          (alternatives as any)._polylineEncoded = polylineEncoded;
         } catch (e) {
           console.warn(`[Google Routes] Falló al trazar polilínea para ${vehicle.driverName}:`, e);
         }
@@ -500,6 +506,7 @@ export async function optimizeRoutes(
         stops,
         invoices: vehicle.invoices,
         polyline,
+        polylineEncoded: (alternatives as any)._polylineEncoded,
         alternatives,
         totalDistance,
         totalDuration,
@@ -568,6 +575,7 @@ export async function redrawPolylineForRoute(route: Route): Promise<Route> {
       ...route,
       stops: updatedStops,
       polyline: result.polyline,
+      polylineEncoded: result.polylineEncoded,
       totalDistance: result.distanceMeters,
       totalDuration: result.durationSeconds,
     };

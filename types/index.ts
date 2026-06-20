@@ -101,6 +101,7 @@ export interface Route {
   /** Hora de salida individual para este vehículo (ISO string) */
   departureTime?: string;
   polyline?: [number, number][];
+  polylineEncoded?: string;
   /** Rutas alternativas devueltas por HERE (hasta 2) */
   alternatives?: [number, number][][];
   totalDistance?: number;

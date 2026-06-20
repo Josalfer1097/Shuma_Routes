@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+import { decodeGooglePolyline } from '@/lib/here';
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -10,7 +12,7 @@ export async function GET(req: NextRequest) {
     // 1. Obtener rutas del día
     const { data: routes, error: rErr } = await supabaseAdmin
       .from('routes')
-      .select('id, route_code, route_alias, date, status, total_deliveries, departure_time, created_by')
+      .select('id, route_code, route_alias, date, status, total_deliveries, departure_time, created_by, polyline_encoded')
       .eq('date', date)
       .eq('is_latest', true)
       .order('created_at', { ascending: true });
@@ -65,6 +67,7 @@ export async function GET(req: NextRequest) {
         stats: { total, delivered, partial, failed, pending },
         depot: DEPOTS.san_pablo,
         endDepot: DEPOTS.san_pablo,
+        polyline: route.polyline_encoded ? decodeGooglePolyline(route.polyline_encoded) : [],
         deliveries: dels
           .filter(d => d.lat != null && d.lng != null)
           .map(d => ({
