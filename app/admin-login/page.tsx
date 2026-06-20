@@ -19,7 +19,35 @@ export default function AdminLoginPage() {
   const [scanningEye, setScanningEye] = useState(false);
   const [eyeRevealed, setEyeRevealed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const savedAttempts = parseInt(sessionStorage.getItem('shuma_login_attempts') || '0');
+    const savedBlockUntil = parseInt(sessionStorage.getItem('shuma_login_block_until') || '0');
+    const now = Date.now();
+
+    if (savedBlockUntil > now) {
+      setIsBlocked(true);
+      setBlockCountdown(Math.ceil((savedBlockUntil - now) / 1000));
+      setAttempts(savedAttempts);
+      const interval = setInterval(() => {
+        setBlockCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setIsBlocked(false);
+            setAttempts(0);
+            sessionStorage.removeItem('shuma_login_attempts');
+            sessionStorage.removeItem('shuma_login_block_until');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else if (savedAttempts > 0) {
+      setAttempts(savedAttempts);
+    }
+  }, []);
 
   const handleSubmit = async () => {
     if (isBlocked) return;
@@ -43,17 +71,25 @@ export default function AdminLoginPage() {
         sessionStorage.setItem('shuma_role', data.role);
         sessionStorage.setItem('shuma_user', data.username);
         sessionStorage.setItem('shuma_name', data.full_name);
-        setAccessGranted(true);
+        
+        // Scan de verificación breve antes del estado de éxito
+        setScanningEye(true);
         setTimeout(() => {
-          router.push('/dispatcher');
-        }, 1400);
+          setScanningEye(false);
+          setAccessGranted(true);
+          setTimeout(() => {
+            router.push('/dispatcher');
+          }, 1400);
+        }, 500);
       } else {
         const newAttempts = Math.min(attempts + 1, 5);
         setAttempts(newAttempts);
+        sessionStorage.setItem('shuma_login_attempts', String(newAttempts));
 
         if (newAttempts >= 3) {
           setIsBlocked(true);
           setBlockCountdown(30);
+          sessionStorage.setItem('shuma_login_block_until', String(Date.now() + 30000));
           fetch('/api/audit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -74,6 +110,8 @@ export default function AdminLoginPage() {
                 clearInterval(interval);
                 setIsBlocked(false);
                 setAttempts(0);
+                sessionStorage.removeItem('shuma_login_attempts');
+                sessionStorage.removeItem('shuma_login_block_until');
                 return 0;
               }
               return prev - 1;
@@ -93,10 +131,12 @@ export default function AdminLoginPage() {
     } catch {
       const newAttempts = Math.min(attempts + 1, 5);
       setAttempts(newAttempts);
+      sessionStorage.setItem('shuma_login_attempts', String(newAttempts));
 
       if (newAttempts >= 3) {
         setIsBlocked(true);
         setBlockCountdown(30);
+        sessionStorage.setItem('shuma_login_block_until', String(Date.now() + 30000));
         fetch('/api/audit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -117,6 +157,8 @@ export default function AdminLoginPage() {
               clearInterval(interval);
               setIsBlocked(false);
               setAttempts(0);
+              sessionStorage.removeItem('shuma_login_attempts');
+              sessionStorage.removeItem('shuma_login_block_until');
               return 0;
             }
             return prev - 1;
@@ -399,24 +441,24 @@ export default function AdminLoginPage() {
 
         @keyframes lsPageGlitch {
           0%  { transform: translate(0,0); filter: none; }
-          8%  { transform: translate(-4px,0); filter: hue-rotate(90deg) saturate(2); }
-          16% { transform: translate(4px,1px); filter: hue-rotate(-90deg); }
-          24% { transform: translate(-2px,-1px); filter: none; }
-          32% { transform: translate(3px,0) skewX(-2deg); filter: brightness(1.3); }
-          40% { transform: translate(0,2px) skewX(1deg); filter: none; }
-          50% { transform: translate(-3px,0); filter: hue-rotate(180deg); }
-          60% { transform: translate(2px,-1px); filter: none; }
-          70% { transform: translate(4px,0); filter: brightness(1.4) hue-rotate(270deg); }
-          80% { transform: translate(-2px,1px); filter: none; }
-          90% { transform: translate(1px,-1px); filter: hue-rotate(45deg); }
+          8%  { transform: translate(calc(-4px * var(--glitch-intensity, 1)),0); filter: hue-rotate(90deg) saturate(2); }
+          16% { transform: translate(calc(4px * var(--glitch-intensity, 1)),calc(1px * var(--glitch-intensity, 1))); filter: hue-rotate(-90deg); }
+          24% { transform: translate(calc(-2px * var(--glitch-intensity, 1)),calc(-1px * var(--glitch-intensity, 1))); filter: none; }
+          32% { transform: translate(calc(3px * var(--glitch-intensity, 1)),0) skewX(-2deg); filter: brightness(1.3); }
+          40% { transform: translate(0,calc(2px * var(--glitch-intensity, 1))) skewX(1deg); filter: none; }
+          50% { transform: translate(calc(-3px * var(--glitch-intensity, 1)),0); filter: hue-rotate(180deg); }
+          60% { transform: translate(calc(2px * var(--glitch-intensity, 1)),calc(-1px * var(--glitch-intensity, 1))); filter: none; }
+          70% { transform: translate(calc(4px * var(--glitch-intensity, 1)),0); filter: brightness(1.4) hue-rotate(270deg); }
+          80% { transform: translate(calc(-2px * var(--glitch-intensity, 1)),calc(1px * var(--glitch-intensity, 1))); filter: none; }
+          90% { transform: translate(calc(1px * var(--glitch-intensity, 1)),calc(-1px * var(--glitch-intensity, 1))); filter: hue-rotate(45deg); }
           100%{ transform: translate(0,0); filter: none; }
         }
         @keyframes lsLogoGlitch {
           0%  { color: #1a6fd4; text-shadow: none; }
-          15% { color: #ff003c; text-shadow: -3px 0 #00ffff, 3px 0 #ff00ff; }
-          30% { color: #1a6fd4; text-shadow: 3px 0 #ff003c, -3px 0 #00ffff; }
+          15% { color: #ff003c; text-shadow: calc(-3px * var(--glitch-intensity, 1)) 0 #00ffff, calc(3px * var(--glitch-intensity, 1)) 0 #ff00ff; }
+          30% { color: #1a6fd4; text-shadow: calc(3px * var(--glitch-intensity, 1)) 0 #ff003c, calc(-3px * var(--glitch-intensity, 1)) 0 #00ffff; }
           50% { color: #ffffff; text-shadow: none; }
-          65% { color: #ff003c; text-shadow: -2px 0 #00ffff; }
+          65% { color: #ff003c; text-shadow: calc(-2px * var(--glitch-intensity, 1)) 0 #00ffff; }
           100%{ color: #1a6fd4; text-shadow: none; }
         }
 
@@ -557,7 +599,7 @@ export default function AdminLoginPage() {
         .ls-back-link svg { width: 14px; height: 14px; }
       `}</style>
 
-      <div className={`ls-root${glitching ? ' glitching' : ''}${accessGranted ? ' ls-granted' : ''}`} style={{ position:'fixed', inset:0, zIndex:99999 }}>
+      <div className={`ls-root${glitching ? ' glitching' : ''}${accessGranted ? ' ls-granted' : ''}`} style={{ position:'fixed', inset:0, zIndex:99999, '--glitch-intensity': Math.min(attempts / 3, 1) } as React.CSSProperties}>
         <div className="ls-glitch-r" />
         <div className="ls-glitch-c" />
         <div className="ls-glitch-lines" />
@@ -632,6 +674,9 @@ export default function AdminLoginPage() {
                   onFocus={() => setFocusP(true)}
                   onBlur={() => setFocusP(false)}
                   onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                  onKeyUp={(e) => {
+                    setCapsLockOn(e.getModifierState && e.getModifierState('CapsLock'));
+                  }}
                   autoComplete="off"
                 />
                 <button className="ls-eye-btn" onClick={toggleEye} type="button" aria-label="Mostrar contraseña">
@@ -641,43 +686,68 @@ export default function AdminLoginPage() {
                   }
                 </button>
               </div>
+              {capsLockOn && (
+                <p style={{
+                  fontSize: 10.5, color: '#fbbf24', marginTop: 4,
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}>
+                  <span>⇪</span> Mayúsculas activadas
+                </p>
+              )}
             </div>
 
-            <button
-              className={`ls-btn${accessGranted ? " success" : ""}`}
-              onClick={handleSubmit}
-              disabled={loading || accessGranted || isBlocked || !user.trim() || !pass.trim()}
-            >
-              {loading ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
-                  <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="2" x2="12" y2="6"></line>
-                    <line x1="12" y1="18" x2="12" y2="22"></line>
-                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-                    <line x1="2" y1="12" x2="6" y2="12"></line>
-                    <line x1="18" y1="12" x2="22" y2="12"></line>
-                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-                    <line x1="16.24" y1="4.93" x2="19.07" y2="7.76"></line>
-                  </svg>
-                  Autenticando
-                  <span style={{ display: 'inline-flex', gap: 2 }}>
-                    {[0,1,2].map(i => (
-                      <span key={i} style={{
-                        width: 4, height: 4, borderRadius: '50%', background: 'currentColor',
-                        animation: 'bounce-dot 1s ease-in-out infinite',
-                        animationDelay: `${i * 0.15}s`,
-                        display: 'inline-block',
-                      }} />
-                    ))}
-                  </span>
-                </span>
-              ) : accessGranted ? (
-                <span>✓ Acceso concedido</span>
-              ) : (
-                <span>Acceder</span>
+            <div style={{ position: 'relative' }}>
+              {isBlocked && (
+                <svg
+                  style={{ position: 'absolute', top: -4, left: -4, width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', pointerEvents: 'none', zIndex: 10 }}
+                  viewBox="0 0 100 100"
+                >
+                  <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(239,68,68,0.15)" strokeWidth="3" />
+                  <circle
+                    cx="50" cy="50" r="46" fill="none" stroke="#ef4444" strokeWidth="3"
+                    strokeDasharray={2 * Math.PI * 46}
+                    strokeDashoffset={2 * Math.PI * 46 * (1 - blockCountdown / 30)}
+                    strokeLinecap="round"
+                    style={{ transition: 'stroke-dashoffset 1s linear', transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+                  />
+                </svg>
               )}
-            </button>
+              <button
+                className={`ls-btn${accessGranted ? " success" : ""}`}
+                onClick={handleSubmit}
+                disabled={loading || accessGranted || isBlocked || !user.trim() || !pass.trim()}
+              >
+                {loading ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                    <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="2" x2="12" y2="6"></line>
+                      <line x1="12" y1="18" x2="12" y2="22"></line>
+                      <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                      <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                      <line x1="2" y1="12" x2="6" y2="12"></line>
+                      <line x1="18" y1="12" x2="22" y2="12"></line>
+                      <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                      <line x1="16.24" y1="4.93" x2="19.07" y2="7.76"></line>
+                    </svg>
+                    Autenticando
+                    <span style={{ display: 'inline-flex', gap: 2 }}>
+                      {[0,1,2].map(i => (
+                        <span key={i} style={{
+                          width: 4, height: 4, borderRadius: '50%', background: 'currentColor',
+                          animation: 'bounce-dot 1s ease-in-out infinite',
+                          animationDelay: `${i * 0.15}s`,
+                          display: 'inline-block',
+                        }} />
+                      ))}
+                    </span>
+                  </span>
+                ) : accessGranted ? (
+                  <span>✓ Acceso concedido</span>
+                ) : (
+                  <span>Acceder</span>
+                )}
+              </button>
+            </div>
 
             <div className={`ls-error ${error ? "show" : ""} ${shaking ? "shake" : ""}`}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -707,19 +777,6 @@ export default function AdminLoginPage() {
                 <p style={{ fontSize: 11, color: '#fca5a5' }}>
                   Espera <strong>{blockCountdown}s</strong> antes de intentar de nuevo
                 </p>
-                <div style={{
-                  marginTop: 8, height: 3, borderRadius: 2,
-                  background: 'rgba(239,68,68,0.2)',
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    height: '100%',
-                    background: '#ef4444',
-                    width: `${(blockCountdown / 30) * 100}%`,
-                    transition: 'width 1s linear',
-                    borderRadius: 2,
-                  }} />
-                </div>
               </div>
             )}
 

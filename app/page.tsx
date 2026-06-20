@@ -2,12 +2,24 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import ParticleField from '@/components/ParticleField';
 
 export default function HomePage() {
   const [ready, setReady] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     setReady(true);
+    const auth = sessionStorage.getItem('shuma_auth');
+    const role = sessionStorage.getItem('shuma_role');
+    if (auth === '1' && role) {
+      if (role === 'driver') {
+        router.push('/driver');
+      } else {
+        router.push('/dispatcher');
+      }
+    }
   }, []);
 
   if (!ready) return (
@@ -21,6 +33,8 @@ export default function HomePage() {
         {/* Gradientes de fondo */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl" />
+
+        <ParticleField />
 
         {/* SVG de rutas animadas */}
         <svg
@@ -68,6 +82,10 @@ export default function HomePage() {
                 0%,100% { r: 4; opacity: 0.8; }
                 50%      { r: 6; opacity: 0.4; }
               }
+              @keyframes logo-glow-pulse {
+                0%, 100% { filter: drop-shadow(0 0 12px rgba(33,150,243,0.4)); }
+                50%      { filter: drop-shadow(0 0 20px rgba(33,150,243,0.65)); }
+              }
             `}</style>
           </defs>
 
@@ -102,11 +120,13 @@ export default function HomePage() {
               width={320}
               height={100}
               priority
-              style={{ filter: 'drop-shadow(0 0 12px rgba(33,150,243,0.4))' }}
+              style={{ animation: 'logo-glow-pulse 2s ease-in-out infinite' }}
             />
           </div>
-          <h1 className="text-3xl font-exo font-bold text-shuma-text mb-2">
-            Rutas <span className="text-gradient">Logística</span>
+          <h1 className="text-3xl font-exo mb-2">
+            <span className="font-bold text-shuma-text">Rutas</span>
+            {' '}
+            <span className="font-medium text-gradient">Logística</span>
           </h1>
           <p className="text-shuma-muted text-sm">
             Sistema de optimización de rutas de entrega
@@ -147,9 +167,9 @@ export default function HomePage() {
             <div style={{
               position: 'absolute', bottom: 8, right: 48,
               fontSize: 18, opacity: 0,
-              transition: 'all 0.3s ease',
+              transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
             }}
-              className="group-hover:opacity-30 group-hover:translate-x-2"
+              className="group-hover:opacity-60 group-hover:scale-110 group-hover:translate-x-2"
             >🗺️</div>
           </Link>
           <Link
@@ -182,9 +202,9 @@ export default function HomePage() {
             <div style={{
               position: 'absolute', bottom: 8, right: 48,
               fontSize: 18, opacity: 0,
-              transition: 'all 0.3s ease',
+              transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
             }}
-              className="group-hover:opacity-30 group-hover:translate-x-2"
+              className="group-hover:opacity-60 group-hover:scale-110 group-hover:translate-x-2"
             >🚛</div>
           </Link>
         </div>
@@ -204,6 +224,13 @@ export default function HomePage() {
           opacity: 0.8
         }}>
           Design &amp; Developed by Shuma Sistemas IT
+        </p>
+        <p style={{
+          textAlign: 'center', fontSize: 10, color: '#3B5270',
+          marginTop: 6, fontFamily: "'DM Sans', sans-serif",
+          letterSpacing: '0.04em',
+        }}>
+          v7.23.6
         </p>
         <style>{`
           @keyframes rgbRoll {
