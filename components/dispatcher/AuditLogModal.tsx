@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { X, Download } from 'lucide-react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
+import { X, Download, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface AuditLogEntry {
   id: string;
@@ -30,6 +30,16 @@ export default function AuditLogModal({ isOpen, onClose, userRole }: Props) {
   const [filterModule, setFilterModule] = useState('');
   const [filterUser, setFilterUser]     = useState('');
   const [dateFrom, setDateFrom]         = useState('');
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -168,16 +178,76 @@ export default function AuditLogModal({ isOpen, onClose, userRole }: Props) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-shuma-border/50">
-                  {logs.map(log => (
-                    <tr key={log.id} className="hover:bg-shuma-surface/50 transition-colors">
-                      <td className="px-4 py-2 text-shuma-text">{formatDate(log.created_at)}</td>
-                      <td className="px-4 py-2 text-blue-400 font-medium">{log.user_name}</td>
-                      <td className="px-4 py-2 text-amber-400">{log.user_role}</td>
-                      <td className="px-4 py-2 text-cyan-400">{log.module}</td>
-                      <td className="px-4 py-2 text-shuma-text">{log.action}</td>
-                      <td className="px-4 py-2 text-shuma-muted">{log.ip_address}</td>
-                    </tr>
-                  ))}
+                  {logs.map(log => {
+                    const isExpanded = expandedRows.has(log.id);
+                    const hasMetadata = log.metadata && Object.keys(log.metadata).length > 0;
+                    
+                    return (
+                      <Fragment key={log.id}>
+                        <tr 
+                          onClick={() => hasMetadata && toggleExpand(log.id)}
+                          className={`hover:bg-shuma-surface/50 transition-colors ${hasMetadata ? 'cursor-pointer' : ''}`}
+                        >
+                          <td className="px-4 py-2 text-shuma-text">
+                            <div className="flex items-center gap-2">
+                              {hasMetadata ? (
+                                <span className="text-shuma-muted shrink-0">
+                                  {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                </span>
+                              ) : <span className="w-[14px]"></span>}
+                              {formatDate(log.created_at)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 text-blue-400 font-medium">{log.user_name}</td>
+                          <td className="px-4 py-2 text-amber-400">{log.user_role}</td>
+                          <td className="px-4 py-2 text-cyan-400">{log.module}</td>
+                          <td className="px-4 py-2 text-shuma-text">{log.action}</td>
+                          <td className="px-4 py-2 text-shuma-muted">{log.ip_address}</td>
+                        </tr>
+                        {isExpanded && hasMetadata && (
+                          <tr className="bg-slate-900/40 border-b border-shuma-border/50">
+                            <td colSpan={6} className="px-10 py-4">
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-4 gap-x-6">
+                                {Object.entries(log.metadata!).map(([key, value]) => {
+                                  // Manejo de fotos
+                                  if (key === 'foto_evidencia' || key === 'fotos_evidencia') {
+                                    let urls: string[] = [];
+                                    if (typeof value === 'string' && value.startsWith('[')) {
+                                      try { urls = JSON.parse(value); } catch(e) {}
+                                    } else if (typeof value === 'string' && value.startsWith('http')) {
+                                      urls = [value];
+                                    }
+                                    if (urls.length > 0) {
+                                      return (
+                                        <div key={key} className="col-span-2 sm:col-span-4 mt-2">
+                                          <p className="text-[10px] text-shuma-muted font-bold uppercase tracking-wider mb-2">{key.replace(/_/g, ' ')}</p>
+                                          <div className="flex gap-3 overflow-x-auto pb-2">
+                                            {urls.map((u, i) => (
+                                              <a key={i} href={u} target="_blank" rel="noreferrer" className="shrink-0">
+                                                <img src={u} alt="Evidencia" className="h-32 object-cover rounded-xl border border-shuma-border hover:opacity-80 transition-opacity" />
+                                              </a>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                  }
+                                  
+                                  // Valores normales
+                                  return (
+                                    <div key={key}>
+                                      <p className="text-[10px] text-shuma-muted font-bold uppercase tracking-wider">{key.replace(/_/g, ' ')}</p>
+                                      <p className="text-sm text-shuma-text mt-0.5 font-medium">{String(value)}</p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
