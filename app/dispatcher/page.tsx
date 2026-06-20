@@ -1068,10 +1068,9 @@ export default function DispatcherPage() {
                 const ox = W * 0.5;
                 const oy = H * 0.42 + 100;
 
-                // Destino: centro del botón Configuración
-                // FAB: bottom:20 right:20, ancho ~130px, alto ~40px
-                const dx = W - 20 - 65;
-                const dy = H - 20 - 20;
+                // Destino: centro REAL del botón Configuración (medido con getBoundingClientRect)
+                const dx = fabPos.x;
+                const dy = fabPos.y;
 
                 // Paradas intermedias — entre card y FAB
                 const p1x = ox + (dx - ox) * 0.25, p1y = oy + (dy - oy) * 0.35;
@@ -1169,46 +1168,71 @@ export default function DispatcherPage() {
             <div style={{
               position: 'absolute', top: '38%', left: '50%',
               transform: 'translate(-50%, -50%)',
-              zIndex: 10, textAlign: 'center',
+              zIndex: 10, textAlign: 'left',
               animation: 'fade-card 0.4s ease-out',
             }}>
               <div style={{
-                background: 'rgba(5,15,35,0.95)',
-                border: '1px solid rgba(33,150,243,0.3)',
-                borderRadius: 20,
-                padding: '24px 32px 20px',
-                backdropFilter: 'blur(16px)',
-                boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 40px rgba(33,150,243,0.08)',
-                maxWidth: 290, position: 'relative',
+                background: 'rgba(17,32,64,0.82)',
+                border: '0.5px solid rgba(33,150,243,0.35)',
+                borderRadius: 12,
+                padding: '18px 18px 16px',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.45), inset 0 0.5px 0 rgba(255,255,255,0.06)',
+                width: 230, position: 'relative',
               }}>
                 {/* Botón X */}
                 <button
                   onClick={() => setWelcomeDismissed(true)}
                   style={{
-                    position: 'absolute', top: 10, right: 12,
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: '#3B5270', fontSize: 16, lineHeight: 1,
-                    padding: 4, transition: 'color 0.15s',
+                    position: 'absolute', top: 10, right: 10,
+                    width: 20, height: 20,
+                    background: 'rgba(91,123,160,0.2)',
+                    border: '0.5px solid rgba(91,123,160,0.3)',
+                    borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: '#5B7BA0', fontSize: 10, lineHeight: 1,
+                    padding: 0, transition: 'all 0.15s',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.color = '#E8EFF8'; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = '#3B5270'; }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#E8EFF8'; e.currentTarget.style.background = 'rgba(91,123,160,0.35)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#5B7BA0'; e.currentTarget.style.background = 'rgba(91,123,160,0.2)'; }}
                 >✕</button>
 
-                <div style={{ fontSize: 34, marginBottom: 8 }}>🗺️</div>
-                <p style={{ fontSize: 15, fontWeight: 700, color: '#E8EFF8',
-                  fontFamily: "'Exo 2', sans-serif", margin: '0 0 6px' }}>
+                {/* Ícono tile */}
+                <div style={{
+                  width: 38, height: 38,
+                  background: 'rgba(33,150,243,0.15)',
+                  border: '0.5px solid rgba(33,150,243,0.4)',
+                  borderRadius: 10,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 12,
+                }}>
+                  <span style={{ fontSize: 18 }}>📍</span>
+                </div>
+
+                <p style={{ fontSize: 15, fontWeight: 600, color: '#E8EFF8',
+                  fontFamily: "'Exo 2', sans-serif", margin: '0 0 5px', letterSpacing: '0.01em' }}>
                   Bienvenido a Shuma Rutas
                 </p>
-                <p style={{ fontSize: 11, color: '#5B7BA0', lineHeight: 1.5, margin: '0 0 14px' }}>
+                <p style={{ fontSize: 11.5, color: '#5B7BA0', lineHeight: 1.5, margin: '0 0 14px',
+                  fontFamily: "'DM Sans', sans-serif" }}>
                   Optimiza las rutas de entrega de tu flota en minutos.
                 </p>
+
+                <div style={{ height: 0.5, background: 'rgba(33,150,243,0.15)', margin: '0 0 12px' }} />
+
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 6,
-                  justifyContent: 'center', fontSize: 11,
-                  color: '#2196F3', fontFamily: "'Exo 2', sans-serif",
+                  fontSize: 11.5, color: '#2196F3',
+                  fontFamily: "'DM Sans', sans-serif", fontWeight: 500,
                 }}>
-                  <span style={{ fontSize: 13 }}>⚙️</span>
-                  <span>Toca <strong>Configuración</strong> para comenzar</span>
+                  <span style={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    background: '#2196F3',
+                    animation: 'pulso-origen 1.8s ease-in-out infinite',
+                    flexShrink: 0,
+                  }} />
+                  Toca Configuración para comenzar
                 </div>
               </div>
             </div>

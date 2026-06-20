@@ -31,8 +31,14 @@ export async function GET(req: NextRequest) {
     // 3. Conteo de entregas por status para cada ruta
     const { data: deliveries } = await supabaseAdmin
       .from('deliveries')
-      .select('id, route_id, status')
-      .in('route_id', routeIds);
+      .select('id, route_id, route_driver_id, client_name, address, lat, lng, stop_order, status, invoice, merchandise_value')
+      .in('route_id', routeIds)
+      .order('stop_order', { ascending: true });
+
+    const DEPOTS: Record<string, { id: string; name: string; lat: number; lng: number }> = {
+      san_pablo: { id: 'san_pablo', name: 'San Pablo', lat: 19.3550675, lng: -99.0939998 },
+      division_norte: { id: 'division_norte', name: 'División del Norte', lat: 19.3464401, lng: -99.1501142 },
+    };
 
     // 4. Construir respuesta enriquecida
     const result = routes.map(route => {
@@ -57,6 +63,25 @@ export async function GET(req: NextRequest) {
         total_km:     rd?.total_km || 0,
         total_minutes: rd?.total_time_min || 0,
         stats: { total, delivered, partial, failed, pending },
+        depot: DEPOTS.san_pablo,
+        endDepot: DEPOTS.san_pablo,
+        deliveries: dels
+          .filter(d => d.lat != null && d.lng != null)
+          .map(d => ({
+            sequence: d.stop_order ?? 0,
+            status: d.status,
+            address: {
+              id: d.id,
+              name: d.client_name || 'Cliente',
+              clientName: d.client_name,
+              invoice: d.invoice,
+              merchandiseValue: d.merchandise_value,
+              lat: d.lat,
+              lng: d.lng,
+              label: d.address || '',
+              geocoded: true,
+            },
+          })),
       };
     });
 
