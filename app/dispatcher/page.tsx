@@ -202,7 +202,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 // ─── Helper: FAB config per tab ────────────────────────────
 const FAB_CONFIG: Record<string, { icon: string; label: string }> = {
-  config: { icon: '⚙', label: 'Configurar ruta' },
+  config: { icon: '⚙', label: 'Crear Rutas' },
   upload: { icon: '📂', label: 'Cargar CSV' },
   zones:  { icon: '🗺', label: 'Ver zonas' },
   routes: { icon: '🚗', label: 'Ver rutas' },
@@ -1242,7 +1242,7 @@ export default function DispatcherPage() {
                     animation: 'pulso-origen 1.8s ease-in-out infinite',
                     flexShrink: 0,
                   }} />
-                  Toca Configuración para comenzar
+                  Toca Crear Rutas para comenzar
                 </div>
               </div>
             </div>
@@ -1430,7 +1430,7 @@ export default function DispatcherPage() {
             }}
           >
             <span style={{ fontSize: 14 }}>⚙</span>
-            Configuración
+            Crear Rutas
           </button>
         )}
 
