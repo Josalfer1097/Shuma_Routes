@@ -269,20 +269,30 @@ export default function DispatcherPage() {
       if (!fabRef.current || !mapContainerRef.current) return;
       const mapRect = mapContainerRef.current.getBoundingClientRect();
       const fabRect = fabRef.current.getBoundingClientRect();
-      // Centro del FAB en coordenadas relativas al contenedor del mapa
       setFabPos({
         x: fabRect.left - mapRect.left + fabRect.width / 2,
         y: fabRect.top  - mapRect.top  + fabRect.height / 2,
       });
     };
-    // Medir después de que el DOM renderice
-    const timer = setTimeout(updateFabPos, 100);
+
+    updateFabPos();
     window.addEventListener('resize', updateFabPos);
+
+    let ro: ResizeObserver | null = null;
+    if (fabRef.current && mapContainerRef.current) {
+      ro = new ResizeObserver(() => updateFabPos());
+      ro.observe(fabRef.current);
+      ro.observe(mapContainerRef.current);
+    }
+
+    const retries = [50, 150, 300, 600].map(ms => setTimeout(updateFabPos, ms));
+
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('resize', updateFabPos);
+      ro?.disconnect();
+      retries.forEach(clearTimeout);
     };
-  }, [mapSize, isMapFullscreen, isSlideOverOpen]);
+  }, [mapSize, isMapFullscreen, isSlideOverOpen, activeTab]);
 
 
   // ── Session data (client-only) ──
