@@ -1249,6 +1249,65 @@ export default function DispatcherPage() {
           </>
         )}
 
+        {/* ── Overlay: progreso de geocoding ── */}
+        {state.step === 'geocoding' && (() => {
+          const total = state.addresses.length;
+          const done  = state.addresses.filter(a => a.geocoded).length;
+          const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+          const errors = state.addresses.filter(a => a.geocoded && a.geocodeError).length;
+
+          return (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 20,
+              background: 'rgba(5,15,35,0.55)',
+              backdropFilter: 'blur(3px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <div style={{
+                background: 'rgba(17,32,64,0.92)',
+                border: '0.5px solid rgba(33,150,243,0.35)',
+                borderRadius: 16,
+                padding: '24px 28px',
+                width: 280,
+                backdropFilter: 'blur(16px)',
+                boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <svg style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }}
+                    fill="none" viewBox="0 0 24 24">
+                    <circle opacity="0.25" cx="12" cy="12" r="10" stroke="#2196F3" strokeWidth="4" />
+                    <path opacity="0.85" fill="#2196F3" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#E8EFF8',
+                    fontFamily: "'Exo 2', sans-serif" }}>
+                    Geocodificando direcciones
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between',
+                  fontSize: 11, color: '#5B7BA0', marginBottom: 6,
+                  fontFamily: "'DM Sans', sans-serif" }}>
+                  <span>{done} de {total}</span>
+                  <span>{pct}%</span>
+                </div>
+                <div style={{ width: '100%', height: 6, borderRadius: 3,
+                  background: 'rgba(33,150,243,0.12)', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${pct}%`, height: '100%',
+                    background: 'linear-gradient(90deg, #1565C0, #2196F3)',
+                    borderRadius: 3, transition: 'width 0.25s ease-out',
+                  }} />
+                </div>
+                {errors > 0 && (
+                  <div style={{ marginTop: 10, fontSize: 10.5, color: '#F59E0B',
+                    fontFamily: "'DM Sans', sans-serif" }}>
+                    ⚠ {errors} dirección(es) sin coincidencia exacta
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── Banner: geocodificación completada ── */}
         {geocodingDone && state.step !== 'geocoding' && (
           <div style={{

@@ -143,3 +143,8 @@
 
 /* Tailwind text-xs y text-sm respetan font-scale via rem */
 :root { font-size: calc(16px * var(--font-scale, 1)); }
+
+@keyframes spin { 
+  from { transform: rotate(0deg); } 
+  to { transform: rotate(360deg); } 
+}
