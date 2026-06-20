@@ -1,0 +1,44 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
+
+export async function POST(req: NextRequest) {
+  try {
+    const { routeId, adminName, reason } = await req.json();
+    if (!routeId || !adminName) return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
+
+    const { error } = await supabaseAdmin
+      .from('routes')
+      .update({
+        closure_status: 'rejected',
+        closure_resolved_at: new Date().toISOString(),
+        closure_resolved_by: adminName,
+        closure_reject_reason: reason || null,
+      })
+      .eq('id', routeId);
+
+    if (error) throw error;
+
+    // Obtener info para notificar al chofer
+    const { data: routeData } = await supabaseAdmin
+      .from('routes')
+      .select('route_code, route_alias, closure_requested_by')
+      .eq('id', routeId)
+      .single();
+
+    if (routeData?.closure_requested_by) {
+      const routeName = routeData.route_alias || routeData.route_code || 'Ruta';
+      await supabaseAdmin.from('notifications').insert({
+        type: 'route_closure_resolved',
+        title: 'Cierre Rechazado',
+        body: `Tu solicitud de cierre para ${routeName} fue rechazada. Motivo: ${reason || 'Sin detalles'}`,
+        entity_id: routeId,
+        target_role: routeData.closure_requested_by, // driverId
+      });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error('[close-reject]', err);
+    return NextResponse.json({ ok: false, error: 'Error interno' }, { status: 500 });
+  }
+}

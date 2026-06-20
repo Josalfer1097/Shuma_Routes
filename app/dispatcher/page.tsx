@@ -25,6 +25,7 @@ import WeatherIntelPanel from '@/components/dispatcher/WeatherIntelPanel';
 import AuditLogModal from '@/components/dispatcher/AuditLogModal';
 import FontScaleButton from '@/components/dispatcher/FontScaleButton';
 import { useFontSize } from '@/lib/fontScaleContext';
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 // Leaflet NO es compatible con SSR → dynamic import
 const MapView = dynamic(() => import('@/components/dispatcher/MapView'), {
@@ -1003,6 +1004,8 @@ export default function DispatcherPage() {
               <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
               <span className="hidden-mobile">Actualizar</span>
             </button>
+
+            <NotificationBell targetRole="admin" />
 
             <button
               onClick={handleLogout}

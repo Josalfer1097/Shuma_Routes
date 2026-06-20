@@ -8,6 +8,7 @@ import {
   LogOut, Truck, AlertTriangle, Camera, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { compressImage } from '@/lib/imageCompress';
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 function PhotoPicker({ photoPreviews, onAdd, onRemove, fileInputRef, isCompressing, onChange }: {
   photoPreviews: string[],
@@ -72,10 +73,11 @@ interface DriverRoute {
   totalMinutes: number;
   departureTime: string;
   routeCode: string | null;
+  closureStatus: string | null;
   stops: DeliveryStop[];
 }
 
-type ModalType = 'deliver' | 'partial' | 'failed' | null;
+type ModalType = 'deliver' | 'partial' | 'failed' | 'reopen' | 'closeRoute' | null;
 
 export default function DriverPage() {
   const router = useRouter();
@@ -235,6 +237,52 @@ export default function DriverPage() {
     }
   };
 
+  const handleReopenRequest = async () => {
+    if (!selectedStop || !route) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/driver/deliver/reopen-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deliveryId: selectedStop.stop.id,
+          driverId,
+          reason: notes || '',
+        }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error('Error al solicitar reapertura');
+      alert('Solicitud de reapertura enviada al administrador.');
+      closeModal();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      alert(`Error al enviar: ${msg}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCloseRouteRequest = async () => {
+    if (!route) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/driver/route/close-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ routeId: route.routeId, driverId }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error('Error al solicitar cierre');
+      setRoute({ ...route, closureStatus: 'requested' });
+      closeModal();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      alert(`Error al enviar: ${msg}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const toggleExpand = (id: string) => {
     setExpandedStops(prev => {
       const next = new Set(prev);
@@ -310,9 +358,12 @@ export default function DriverPage() {
                 {driverName} · {route.totalKm?.toFixed(1)} km · {Math.floor((route.totalMinutes || 0) / 60)}h {(route.totalMinutes || 0) % 60}m
               </p>
             </div>
-            <button onClick={handleLogout} className="p-2 text-shuma-muted active:text-white transition-colors touch-manipulation">
-              <LogOut size={18} />
-            </button>
+            <div className="flex items-center gap-2">
+              <NotificationBell targetRole={driverId} />
+              <button onClick={handleLogout} className="p-2 text-shuma-muted active:text-white transition-colors touch-manipulation">
+                <LogOut size={18} />
+              </button>
+            </div>
           </div>
 
           {/* Barra de progreso */}
@@ -334,12 +385,34 @@ export default function DriverPage() {
             </div>
           </div>
 
-          {/* Banner cuando todas están listas */}
-          {allDone && (
+          {/* Banner cuando todas están listas o para cierre de ruta */}
+          {route.closureStatus === 'approved' ? (
             <div className="mt-3 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center">
               <p className="text-xs font-bold text-emerald-400">
-                🎉 ¡Todas las entregas procesadas! Ruta completada.
+                🔒 Ruta cerrada oficialmente.
               </p>
+            </div>
+          ) : route.closureStatus === 'requested' ? (
+            <div className="mt-3 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center">
+              <p className="text-xs font-bold text-amber-400">
+                ⏳ Solicitud de cierre enviada. Esperando aprobación...
+              </p>
+            </div>
+          ) : (
+            <div className="mt-3">
+              {allDone && (
+                <div className="p-2.5 mb-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center">
+                  <p className="text-xs font-bold text-emerald-400">
+                    🎉 ¡Todas las entregas procesadas!
+                  </p>
+                </div>
+              )}
+              <button
+                onClick={() => openModal('closeRoute', route.stops[0], 0)} // stop index no importa
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm transition-colors"
+              >
+                Solicitar Cierre de Ruta
+              </button>
             </div>
           )}
         </header>
@@ -419,29 +492,42 @@ export default function DriverPage() {
                         </button>
 
                         {/* 3 acciones de estado — mismo peso visual */}
-                        <div className="grid grid-cols-3 gap-2">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openModal('deliver', stop, idx); }}
-                            className="flex flex-col items-center justify-center gap-1 py-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 rounded-xl text-[11px] font-semibold touch-manipulation active:bg-emerald-500/20 transition-colors"
-                          >
-                            <CheckCircle size={18} />
-                            Entregado
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openModal('partial', stop, idx); }}
-                            className="flex flex-col items-center justify-center gap-1 py-2.5 bg-amber-500/10 text-amber-400 border border-amber-500/25 rounded-xl text-[11px] font-semibold touch-manipulation active:bg-amber-500/20 transition-colors"
-                          >
-                            <span style={{ fontSize: 18, lineHeight: 1 }}>◑</span>
-                            Parcial
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openModal('failed', stop, idx); }}
-                            className="flex flex-col items-center justify-center gap-1 py-2.5 bg-red-500/10 text-red-400 border border-red-500/25 rounded-xl text-[11px] font-semibold touch-manipulation active:bg-red-500/20 transition-colors"
-                          >
-                            <XCircle size={18} />
-                            No entregado
-                          </button>
-                        </div>
+                        {route.closureStatus !== 'approved' && route.closureStatus !== 'requested' && (
+                          <div className="grid grid-cols-3 gap-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openModal('deliver', stop, idx); }}
+                              className="flex flex-col items-center justify-center gap-1 py-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 rounded-xl text-[11px] font-semibold touch-manipulation active:bg-emerald-500/20 transition-colors"
+                            >
+                              <CheckCircle size={18} />
+                              Entregado
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openModal('partial', stop, idx); }}
+                              className="flex flex-col items-center justify-center gap-1 py-2.5 bg-amber-500/10 text-amber-400 border border-amber-500/25 rounded-xl text-[11px] font-semibold touch-manipulation active:bg-amber-500/20 transition-colors"
+                            >
+                              <span style={{ fontSize: 18, lineHeight: 1 }}>◑</span>
+                              Parcial
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openModal('failed', stop, idx); }}
+                              className="flex flex-col items-center justify-center gap-1 py-2.5 bg-red-500/10 text-red-400 border border-red-500/25 rounded-xl text-[11px] font-semibold touch-manipulation active:bg-red-500/20 transition-colors"
+                            >
+                              <XCircle size={18} />
+                              No entregado
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {!isPending && route.closureStatus !== 'approved' && route.closureStatus !== 'requested' && (
+                      <div className="mt-3">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openModal('reopen', stop, idx); }}
+                          className="w-full flex items-center justify-center gap-1.5 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-xl text-xs font-semibold touch-manipulation active:bg-amber-500/20 transition-colors"
+                        >
+                          Solicitar Reapertura
+                        </button>
                       </div>
                     )}
                   </div>
@@ -598,6 +684,65 @@ export default function DriverPage() {
                 <button onClick={() => handleAction('failed')} disabled={isSubmitting || !notes.trim()}
                   className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-500 disabled:bg-red-500/50 text-white font-bold text-sm rounded-xl touch-manipulation active:bg-red-600">
                   {isSubmitting ? 'Guardando...' : <><XCircle size={15} /> Confirmar</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MODAL: REABRIR ENTREGA ── */}
+        {activeModal === 'reopen' && selectedStop && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-shuma-surface border border-shuma-border rounded-2xl w-full max-w-sm shadow-2xl">
+              <div className="p-5">
+                <h2 className="text-base font-bold text-white mb-1">Solicitar Reapertura</h2>
+                <p className="text-xs text-shuma-muted mb-4">{selectedStop.stop.address.clientName} · {selectedStop.stop.address.invoice}</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-shuma-muted block mb-1.5">Motivo de reapertura (requerido)</label>
+                    <textarea value={notes} onChange={e => setNotes(e.target.value)}
+                      placeholder="Ej: Me equivoqué de estado, el cliente sí estaba..."
+                      className="w-full h-20 bg-slate-900 border border-shuma-border rounded-xl p-3 text-sm text-slate-200 outline-none focus:border-amber-500 resize-none" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 p-4 pt-0">
+                <button onClick={closeModal} disabled={isSubmitting}
+                  className="flex-1 py-3 bg-slate-800 text-slate-300 font-bold text-sm rounded-xl border border-shuma-border touch-manipulation">
+                  Cancelar
+                </button>
+                <button onClick={handleReopenRequest} disabled={isSubmitting || !notes.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-500 disabled:bg-amber-500/50 text-white font-bold text-sm rounded-xl touch-manipulation active:bg-amber-600">
+                  {isSubmitting ? 'Enviando...' : 'Solicitar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MODAL: CERRAR RUTA ── */}
+        {activeModal === 'closeRoute' && route && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-shuma-surface border border-shuma-border rounded-2xl w-full max-w-sm shadow-2xl">
+              <div className="p-5">
+                <h2 className="text-base font-bold text-white mb-2">Cerrar Ruta</h2>
+                <p className="text-sm text-slate-300 mb-4">
+                  Estás a punto de solicitar el cierre de tu ruta. Una vez aprobado por el administrador, ya no podrás modificar entregas.
+                </p>
+                {pending > 0 && (
+                  <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg">
+                    ⚠️ Tienes {pending} entregas pendientes. El administrador revisará esta solicitud.
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-3 p-4 pt-0">
+                <button onClick={closeModal} disabled={isSubmitting}
+                  className="flex-1 py-3 bg-slate-800 text-slate-300 font-bold text-sm rounded-xl border border-shuma-border touch-manipulation">
+                  Cancelar
+                </button>
+                <button onClick={handleCloseRouteRequest} disabled={isSubmitting}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-bold text-sm rounded-xl touch-manipulation active:bg-blue-700">
+                  {isSubmitting ? 'Enviando...' : 'Solicitar Cierre'}
                 </button>
               </div>
             </div>

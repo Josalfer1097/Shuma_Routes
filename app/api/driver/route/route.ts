@@ -29,7 +29,8 @@ export async function GET(req: NextRequest) {
           route_code,
           depot_id,
           return_depot_id,
-          departure_time
+          departure_time,
+          closure_status
         )
       `)
       .eq('driver_id', driverId)
@@ -60,6 +61,7 @@ export async function GET(req: NextRequest) {
       totalMinutes: routeDrivers.total_time_min,
       departureTime: routeDrivers.departure_time,
       routeCode: (routeDrivers.routes as any)?.route_code || null,
+      closureStatus: (routeDrivers.routes as any)?.closure_status || 'none',
       stops: (deliveries || []).map(d => ({
         id: d.id,
         sequence: d.stop_order,
