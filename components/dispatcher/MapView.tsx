@@ -271,8 +271,9 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [],
           let stopStatusColor: string | undefined = undefined;
           if (stop.address.invoice) {
             const status = liveDeliveryStatus[stop.address.invoice];
-            if (status === 'completed') stopStatusColor = '#22c55e';
-            if (status === 'failed') stopStatusColor = '#ef4444';
+            if (status === 'delivered' || status === 'completed') stopStatusColor = '#10B981';
+            else if (status === 'partial') stopStatusColor = '#F59E0B';
+            else if (status === 'failed') stopStatusColor = '#EF4444';
           }
 
           const marker = new AdvancedMarkerElement({

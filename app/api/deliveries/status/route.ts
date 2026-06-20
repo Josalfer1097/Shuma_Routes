@@ -8,7 +8,7 @@ export async function GET() {
     const { data, error } = await supabaseAdmin
       .from('deliveries')
       .select('invoice, status, stop_order, route_id')
-      .in('status', ['completed', 'failed'])
+      .in('status', ['completed', 'delivered', 'partial', 'failed'])
       .order('id', { ascending: false });
 
     if (error) {
