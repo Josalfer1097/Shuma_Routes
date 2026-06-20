@@ -1214,7 +1214,7 @@ export default function DispatcherPage() {
 
           return (
             <div style={{
-              position: 'absolute', inset: 0, zIndex: 20,
+              position: 'fixed', inset: 0, zIndex: 9999,
               background: 'rgba(5,15,35,0.55)',
               backdropFilter: 'blur(3px)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',

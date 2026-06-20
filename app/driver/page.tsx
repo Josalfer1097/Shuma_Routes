@@ -553,7 +553,7 @@ export default function DriverPage() {
 
         {/* ── MODAL: CONFIRMAR ENTREGA ── */}
         {activeModal === 'deliver' && selectedStop && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-shuma-surface border border-shuma-border rounded-2xl w-full max-w-sm shadow-2xl">
               <div className="p-5">
                 <h2 className="text-base font-bold text-white mb-1">¿Confirmar entrega completa?</h2>
@@ -601,7 +601,7 @@ export default function DriverPage() {
 
         {/* ── MODAL: ENTREGA PARCIAL ── */}
         {activeModal === 'partial' && selectedStop && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-shuma-surface border border-shuma-border rounded-2xl w-full max-w-sm shadow-2xl">
               <div className="p-5">
                 <h2 className="text-base font-bold text-white mb-1">◑ Entrega parcial</h2>
@@ -640,7 +640,7 @@ export default function DriverPage() {
 
         {/* ── MODAL: NO ENTREGADO ── */}
         {activeModal === 'failed' && selectedStop && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-shuma-surface border border-shuma-border rounded-2xl w-full max-w-sm shadow-2xl">
               <div className="p-5">
                 <h2 className="text-base font-bold text-white mb-1">✗ No se pudo entregar</h2>
@@ -692,7 +692,7 @@ export default function DriverPage() {
 
         {/* ── MODAL: REABRIR ENTREGA ── */}
         {activeModal === 'reopen' && selectedStop && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-shuma-surface border border-shuma-border rounded-2xl w-full max-w-sm shadow-2xl">
               <div className="p-5">
                 <h2 className="text-base font-bold text-white mb-1">Solicitar Reapertura</h2>
@@ -722,7 +722,7 @@ export default function DriverPage() {
 
         {/* ── MODAL: CERRAR RUTA ── */}
         {activeModal === 'closeRoute' && route && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-shuma-surface border border-shuma-border rounded-2xl w-full max-w-sm shadow-2xl">
               <div className="p-5">
                 <h2 className="text-base font-bold text-white mb-2">Cerrar Ruta</h2>
