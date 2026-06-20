@@ -2183,7 +2183,9 @@ export default function DispatcherPage() {
                         <button
                           onClick={() => {
                             setIsActiveRoutesOpen(false);
-                            // Si hay rutas en estado en memoria, destacar la del mismo chofer
+
+                            // Caso 1: ya hay rutas optimizadas en memoria en esta sesión
+                            // → solo destacar la del mismo chofer
                             if (state.routes.length > 0) {
                               const match = state.routes.find(r => r.driverName === route.driver_name);
                               if (match) {
@@ -2192,8 +2194,49 @@ export default function DispatcherPage() {
                                     .filter(r => r.vehicleId !== match.vehicleId)
                                     .map(r => r.vehicleId)
                                 );
+                                return;
                               }
                             }
+
+                            // Caso 2: no hay rutas en memoria (entraste directo a Rutas Activas)
+                            // → reconstruir TODAS las rutas del día desde activeRoutesData y
+                            //   cargarlas al mapa
+                            const reconstructed: Route[] = activeRoutesData
+                              .filter(r => r.deliveries && r.deliveries.length > 0)
+                              .map(r => ({
+                                vehicleId: r.id,
+                                driverName: r.driver_name || (r.route_alias || r.route_code || 'Sin chofer'),
+                                matricula: '',
+                                color: r.color || '#2196F3',
+                                depot: r.depot,
+                                endDepot: r.endDepot,
+                                stops: r.deliveries,
+                                invoices: '',
+                                totalDistance: r.total_km,
+                                metrics: {
+                                  totalDistanceKm: r.total_km || 0,
+                                  totalDurationMin: r.total_minutes || 0,
+                                  stopCount: r.deliveries.length,
+                                },
+                              }));
+
+                            if (reconstructed.length === 0) {
+                              showToast('Esta ruta no tiene direcciones geocodificadas para mostrar en el mapa', 'warn');
+                              return;
+                            }
+
+                            dispatch({ 
+                              type: 'SET_DEPOT', 
+                              payload: reconstructed[0].depot ? {
+                                lat: reconstructed[0].depot.lat,
+                                lng: reconstructed[0].depot.lng,
+                                label: reconstructed[0].depot.name
+                              } : null 
+                            });
+                            dispatch({ type: 'SET_ROUTES', payload: reconstructed });
+                            setHiddenRouteIds([]);
+                            setActiveTab('routes');
+                            dispatch({ type: 'SET_STEP', payload: 'results' });
                           }}
                           className="w-full text-xs text-blue-400 hover:text-blue-300 py-1.5 rounded-lg hover:bg-blue-500/5 transition-colors text-center border border-transparent hover:border-blue-500/20"
                         >
