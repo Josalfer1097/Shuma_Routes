@@ -1,36 +1,185 @@
 "use client";
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-interface LoginScreenProps {
-  onLogin: (user: string, pass: string) => boolean;
+export interface LoginScreenProps {
+  role: 'admin' | 'driver';
+  authEndpoint: string;
+  redirectPath: string;
+  accentColor: string;
+  accentColorRgb: string;
+  title: string;
+  icon: React.ReactNode;
 }
 
-export default function LoginScreen({ onLogin }: LoginScreenProps) {
+export default function LoginScreen({ role, authEndpoint, redirectPath, accentColor, accentColorRgb, title, icon }: LoginScreenProps) {
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const [shaking, setShaking] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [focusU, setFocusU] = useState(false);
   const [focusP, setFocusP] = useState(false);
-
   const [attempts, setAttempts] = useState(0);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockCountdown, setBlockCountdown] = useState(0);
   const [glitching, setGlitching] = useState(false);
   const [accessGranted, setAccessGranted] = useState(false);
   const [scanningEye, setScanningEye] = useState(false);
   const [eyeRevealed, setEyeRevealed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
+  const router = useRouter();
 
-  const handleSubmit = () => {
-    if (user === 'root' && pass === '1649') {
-      setAccessGranted(true);
-      setError(false);
-      setTimeout(() => {
-        onLogin(user, pass);
-      }, 1400);
-    } else {
+  useEffect(() => {
+    const savedAttempts = parseInt(sessionStorage.getItem('shuma_login_attempts') || '0');
+    const savedBlockUntil = parseInt(sessionStorage.getItem('shuma_login_block_until') || '0');
+    const now = Date.now();
+
+    if (savedBlockUntil > now) {
+      setIsBlocked(true);
+      setBlockCountdown(Math.ceil((savedBlockUntil - now) / 1000));
+      setAttempts(savedAttempts);
+      const interval = setInterval(() => {
+        setBlockCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setIsBlocked(false);
+            setAttempts(0);
+            sessionStorage.removeItem('shuma_login_attempts');
+            sessionStorage.removeItem('shuma_login_block_until');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else if (savedAttempts > 0) {
+      setAttempts(savedAttempts);
+    }
+  }, []);
+
+  const handleSubmit = async () => {
+    if (isBlocked) return;
+    if (loading || accessGranted) return;
+    if (!user.trim() || !pass.trim()) return;
+
+    setLoading(true);
+    setError(false);
+
+    try {
+      const res = await fetch(authEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass }),
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        sessionStorage.setItem('shuma_auth', '1');
+        sessionStorage.setItem('shuma_role', data.role);
+        sessionStorage.setItem('shuma_user', data.username);
+        sessionStorage.setItem('shuma_name', data.full_name);
+        if (role === 'driver' && data.driver_id) {
+          sessionStorage.setItem('shuma_driver_id', data.driver_id);
+        }
+        
+        // Scan de verificación breve antes del estado de éxito
+        setScanningEye(true);
+        setTimeout(() => {
+          setScanningEye(false);
+          setAccessGranted(true);
+          setTimeout(() => {
+            router.push(redirectPath);
+          }, 1400);
+        }, 500);
+      } else {
+        const newAttempts = Math.min(attempts + 1, 5);
+        setAttempts(newAttempts);
+        sessionStorage.setItem('shuma_login_attempts', String(newAttempts));
+
+        if (newAttempts >= 3) {
+          setIsBlocked(true);
+          setBlockCountdown(30);
+          sessionStorage.setItem('shuma_login_block_until', String(Date.now() + 30000));
+          fetch('/api/audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'Cuenta bloqueada',
+              entity: 'session',
+              entity_id: null,
+              user_name: user.toLowerCase().trim(),
+              user_role: 'unknown',
+              module: 'Autenticación',
+              metadata: { attempts: newAttempts, reason: '3 intentos fallidos' },
+            }),
+          }).catch(console.error);
+
+          const interval = setInterval(() => {
+            setBlockCountdown(prev => {
+              if (prev <= 1) {
+                clearInterval(interval);
+                setIsBlocked(false);
+                setAttempts(0);
+                sessionStorage.removeItem('shuma_login_attempts');
+                sessionStorage.removeItem('shuma_login_block_until');
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        }
+
+        setErrorMsg(data.error || 'Credenciales incorrectas — acceso denegado');
+        setGlitching(true);
+        setTimeout(() => {
+          setGlitching(false);
+          setError(true);
+          setShaking(true);
+          setTimeout(() => setShaking(false), 500);
+        }, 680);
+      }
+    } catch {
       const newAttempts = Math.min(attempts + 1, 5);
       setAttempts(newAttempts);
+      sessionStorage.setItem('shuma_login_attempts', String(newAttempts));
+
+      if (newAttempts >= 3) {
+        setIsBlocked(true);
+        setBlockCountdown(30);
+        sessionStorage.setItem('shuma_login_block_until', String(Date.now() + 30000));
+        fetch('/api/audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'Cuenta bloqueada',
+            entity: 'session',
+            entity_id: null,
+            user_name: user.toLowerCase().trim(),
+            user_role: 'unknown',
+            module: 'Autenticación',
+            metadata: { attempts: newAttempts, reason: '3 intentos fallidos' },
+          }),
+        }).catch(console.error);
+
+        const interval = setInterval(() => {
+          setBlockCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(interval);
+              setIsBlocked(false);
+              setAttempts(0);
+              sessionStorage.removeItem('shuma_login_attempts');
+              sessionStorage.removeItem('shuma_login_block_until');
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+
+      setErrorMsg('Error de conexión — intenta de nuevo');
       setGlitching(true);
       setTimeout(() => {
         setGlitching(false);
@@ -38,6 +187,8 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         setShaking(true);
         setTimeout(() => setShaking(false), 500);
       }, 680);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -90,7 +241,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         }
         .ls-orb2 {
           width: 320px; height: 320px; bottom: -80px; right: -80px;
-          background: radial-gradient(circle, rgba(33,150,243,0.12) 0%, transparent 70%);
+          background: radial-gradient(circle, rgba(${accentColorRgb},0.12) 0%, transparent 70%);
           animation: orbF 10s ease-in-out infinite reverse;
         }
         .ls-scanline {
@@ -112,7 +263,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         }
         .ls-panel {
           background: rgba(8,18,36,0.93);
-          border: 1px solid rgba(33,150,243,0.15);
+          border: 1px solid rgba(${accentColorRgb},0.15);
           border-radius: 16px;
           padding: 40px 36px 32px;
           position: relative; overflow: hidden;
@@ -120,7 +271,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         .ls-panel::before {
           content: '';
           position: absolute; top: 0; left: 0; right: 0; height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(33,150,243,0.7), rgba(0,71,171,0.4), transparent);
+          background: linear-gradient(90deg, transparent, rgba(${accentColorRgb},0.7), rgba(0,71,171,0.4), transparent);
           animation: scanT 3s ease-in-out infinite;
         }
         @keyframes scanT {
@@ -128,10 +279,10 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           50%{ opacity: 1; }
         }
         .ls-corner { position: absolute; width: 16px; height: 16px; }
-        .ls-c-tl { top: 12px; left: 12px; border-top: 1.5px solid rgba(33,150,243,0.5); border-left: 1.5px solid rgba(33,150,243,0.5); }
-        .ls-c-tr { top: 12px; right: 12px; border-top: 1.5px solid rgba(33,150,243,0.5); border-right: 1.5px solid rgba(33,150,243,0.5); }
-        .ls-c-bl { bottom: 12px; left: 12px; border-bottom: 1.5px solid rgba(33,150,243,0.5); border-left: 1.5px solid rgba(33,150,243,0.5); }
-        .ls-c-br { bottom: 12px; right: 12px; border-bottom: 1.5px solid rgba(33,150,243,0.5); border-right: 1.5px solid rgba(33,150,243,0.5); }
+        .ls-c-tl { top: 12px; left: 12px; border-top: 1.5px solid rgba(${accentColorRgb},0.5); border-left: 1.5px solid rgba(${accentColorRgb},0.5); }
+        .ls-c-tr { top: 12px; right: 12px; border-top: 1.5px solid rgba(${accentColorRgb},0.5); border-right: 1.5px solid rgba(${accentColorRgb},0.5); }
+        .ls-c-bl { bottom: 12px; left: 12px; border-bottom: 1.5px solid rgba(${accentColorRgb},0.5); border-left: 1.5px solid rgba(${accentColorRgb},0.5); }
+        .ls-c-br { bottom: 12px; right: 12px; border-bottom: 1.5px solid rgba(${accentColorRgb},0.5); border-right: 1.5px solid rgba(${accentColorRgb},0.5); }
         .ls-status {
           position: absolute; top: 14px; right: 14px;
           display: flex; align-items: center; gap: 5px;
@@ -151,24 +302,24 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         }
         .ls-logo-img {
           height: 80px; width: auto;
-          filter: drop-shadow(0 0 16px rgba(33,150,243,0.6)) brightness(1.1);
+          filter: drop-shadow(0 0 16px rgba(${accentColorRgb},0.6)) brightness(1.1);
           animation: logoPulse 4s ease-in-out infinite;
           margin-bottom: 12px;
         }
         @keyframes logoPulse {
-          0%,100%{ filter: drop-shadow(0 0 12px rgba(33,150,243,0.45)) brightness(1.05); }
-          50%{ filter: drop-shadow(0 0 28px rgba(33,150,243,0.8)) brightness(1.2); }
+          0%,100%{ filter: drop-shadow(0 0 12px rgba(${accentColorRgb},0.45)) brightness(1.05); }
+          50%{ filter: drop-shadow(0 0 28px rgba(${accentColorRgb},0.8)) brightness(1.2); }
         }
         .ls-badge {
           display: flex; align-items: center; gap: 6px;
           background: rgba(0,71,171,0.12);
-          border: 1px solid rgba(33,150,243,0.2);
+          border: 1px solid rgba(${accentColorRgb},0.2);
           border-radius: 20px;
           padding: 4px 14px;
           margin-bottom: 28px;
         }
         .ls-badge-dot {
-          width: 6px; height: 6px; border-radius: 50%; background: #2196F3;
+          width: 6px; height: 6px; border-radius: 50%; background: ${accentColor};
           animation: blink 2s ease-in-out infinite;
         }
         .ls-badge-text {
@@ -189,8 +340,8 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           transition: border-color 0.2s, box-shadow 0.2s;
         }
         .ls-field-row.focused {
-          border-color: #2196F3;
-          box-shadow: 0 0 0 3px rgba(33,150,243,0.1);
+          border-color: ${accentColor};
+          box-shadow: 0 0 0 3px rgba(${accentColorRgb},0.1);
         }
         .ls-field-row.err { border-color: rgba(239,68,68,0.4); }
         .ls-icon-box {
@@ -200,9 +351,9 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           border-right: 1px solid #0d1f3a;
           flex-shrink: 0; transition: background 0.2s;
         }
-        .focused .ls-icon-box { background: rgba(33,150,243,0.12); }
+        .focused .ls-icon-box { background: rgba(${accentColorRgb},0.12); }
         .ls-icon-box svg { width: 16px; height: 16px; color: #3a5a80; transition: color 0.2s; }
-        .focused .ls-icon-box svg { color: #2196F3; }
+        .focused .ls-icon-box svg { color: ${accentColor}; }
         .ls-field-row input {
           flex: 1; height: 48px;
           background: transparent; border: none; outline: none;
@@ -216,7 +367,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           color: #3a5a80; display: flex; align-items: center; justify-content: center;
           transition: color 0.2s; flex-shrink: 0;
         }
-        .ls-eye-btn:hover { color: #2196F3; }
+        .ls-eye-btn:hover { color: ${accentColor}; }
         .ls-eye-btn svg { width: 16px; height: 16px; }
         .ls-btn {
           width: 100%; margin-top: 8px; height: 50px;
@@ -303,31 +454,31 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
         @keyframes lsPageGlitch {
           0%  { transform: translate(0,0); filter: none; }
-          8%  { transform: translate(-4px,0); filter: hue-rotate(90deg) saturate(2); }
-          16% { transform: translate(4px,1px); filter: hue-rotate(-90deg); }
-          24% { transform: translate(-2px,-1px); filter: none; }
-          32% { transform: translate(3px,0) skewX(-2deg); filter: brightness(1.3); }
-          40% { transform: translate(0,2px) skewX(1deg); filter: none; }
-          50% { transform: translate(-3px,0); filter: hue-rotate(180deg); }
-          60% { transform: translate(2px,-1px); filter: none; }
-          70% { transform: translate(4px,0); filter: brightness(1.4) hue-rotate(270deg); }
-          80% { transform: translate(-2px,1px); filter: none; }
-          90% { transform: translate(1px,-1px); filter: hue-rotate(45deg); }
+          8%  { transform: translate(calc(-4px * var(--glitch-intensity, 1)),0); filter: hue-rotate(90deg) saturate(2); }
+          16% { transform: translate(calc(4px * var(--glitch-intensity, 1)),calc(1px * var(--glitch-intensity, 1))); filter: hue-rotate(-90deg); }
+          24% { transform: translate(calc(-2px * var(--glitch-intensity, 1)),calc(-1px * var(--glitch-intensity, 1))); filter: none; }
+          32% { transform: translate(calc(3px * var(--glitch-intensity, 1)),0) skewX(-2deg); filter: brightness(1.3); }
+          40% { transform: translate(0,calc(2px * var(--glitch-intensity, 1))) skewX(1deg); filter: none; }
+          50% { transform: translate(calc(-3px * var(--glitch-intensity, 1)),0); filter: hue-rotate(180deg); }
+          60% { transform: translate(calc(2px * var(--glitch-intensity, 1)),calc(-1px * var(--glitch-intensity, 1))); filter: none; }
+          70% { transform: translate(calc(4px * var(--glitch-intensity, 1)),0); filter: brightness(1.4) hue-rotate(270deg); }
+          80% { transform: translate(calc(-2px * var(--glitch-intensity, 1)),calc(1px * var(--glitch-intensity, 1))); filter: none; }
+          90% { transform: translate(calc(1px * var(--glitch-intensity, 1)),calc(-1px * var(--glitch-intensity, 1))); filter: hue-rotate(45deg); }
           100%{ transform: translate(0,0); filter: none; }
         }
         @keyframes lsLogoGlitch {
           0%  { color: #1a6fd4; text-shadow: none; }
-          15% { color: #ff003c; text-shadow: -3px 0 #00ffff, 3px 0 #ff00ff; }
-          30% { color: #1a6fd4; text-shadow: 3px 0 #ff003c, -3px 0 #00ffff; }
+          15% { color: #ff003c; text-shadow: calc(-3px * var(--glitch-intensity, 1)) 0 #00ffff, calc(3px * var(--glitch-intensity, 1)) 0 #ff00ff; }
+          30% { color: #1a6fd4; text-shadow: calc(3px * var(--glitch-intensity, 1)) 0 #ff003c, calc(-3px * var(--glitch-intensity, 1)) 0 #00ffff; }
           50% { color: #ffffff; text-shadow: none; }
-          65% { color: #ff003c; text-shadow: -2px 0 #00ffff; }
+          65% { color: #ff003c; text-shadow: calc(-2px * var(--glitch-intensity, 1)) 0 #00ffff; }
           100%{ color: #1a6fd4; text-shadow: none; }
         }
 
         /* THERMAL SCAN DEL OJO */
         .ls-scan-line {
           position: absolute; top: 0; width: 3px; height: 100%;
-          background: linear-gradient(180deg, transparent, rgba(33,150,243,0.9), transparent);
+          background: linear-gradient(180deg, transparent, rgba(${accentColorRgb},0.9), transparent);
           border-radius: 2px; opacity: 0; pointer-events: none; left: 42px;
         }
         .ls-frow.ls-scanning .ls-scan-line {
@@ -343,7 +494,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           100%{ left: calc(100% - 42px); opacity: 0; }
         }
         @keyframes lsThermalReveal {
-          0%, 30% { color: transparent; text-shadow: 0 0 10px rgba(33,150,243,0.9); }
+          0%, 30% { color: transparent; text-shadow: 0 0 10px rgba(${accentColorRgb},0.9); }
           100%    { color: #E8EFF8; text-shadow: none; }
         }
 
@@ -431,6 +582,11 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           opacity: 0.08; transition: opacity 0.4s ease 0.2s; pointer-events: none;
         }
 
+        @keyframes bounce-dot {
+          0%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-4px); }
+        }
+
         /* ATTEMPT DOTS */
         .ls-attempt-bar {
           display: flex; gap: 4px; margin-top: 8px; justify-content: center;
@@ -443,9 +599,20 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           background: #EF4444;
           box-shadow: 0 0 6px rgba(239,68,68,0.5);
         }
+
+        .ls-back-link {
+          display: flex; align-items: center; gap: 6px;
+          margin-top: 16px; justify-content: center;
+          font-family: 'Exo 2', sans-serif; font-size: 11px;
+          letter-spacing: 0.08em; color: #2a4060;
+          text-decoration: none; transition: color 0.2s;
+          cursor: pointer; background: none; border: none;
+        }
+        .ls-back-link:hover { color: #4a90d9; }
+        .ls-back-link svg { width: 14px; height: 14px; }
       `}</style>
 
-      <div className={`ls-root${glitching ? ' glitching' : ''}${accessGranted ? ' ls-granted' : ''}`} style={{ position:'fixed', inset:0, zIndex:99999 }}>
+      <div className={`ls-root${glitching ? ' glitching' : ''}${accessGranted ? ' ls-granted' : ''}`} style={{ position:'fixed', inset:0, zIndex:99999, '--glitch-intensity': Math.min(attempts / 3, 1) } as React.CSSProperties}>
         <div className="ls-glitch-r" />
         <div className="ls-glitch-c" />
         <div className="ls-glitch-lines" />
@@ -481,7 +648,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               <img src="/shuma_logo.png" alt="Shuma" className="ls-logo-img" />
               <div className="ls-badge">
                 <div className="ls-badge-dot" />
-                <span className="ls-badge-text">Sistema de Logística</span>
+                <span className="ls-badge-text">Acceso Administrativo</span>
               </div>
             </div>
 
@@ -489,9 +656,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               <div className="ls-field">
               <div className="ls-field-label">Usuario</div>
               <div className={`ls-field-row ${focusU ? "focused" : ""} ${error ? "err" : ""}`}>
-                <div className="ls-icon-box">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                </div>
+                <div className="ls-icon-box">{icon}</div>
                 <input
                   type="text"
                   placeholder="Identificador de acceso"
@@ -520,6 +685,9 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                   onFocus={() => setFocusP(true)}
                   onBlur={() => setFocusP(false)}
                   onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                  onKeyUp={(e) => {
+                    setCapsLockOn(e.getModifierState && e.getModifierState('CapsLock'));
+                  }}
                   autoComplete="off"
                 />
                 <button className="ls-eye-btn" onClick={toggleEye} type="button" aria-label="Mostrar contraseña">
@@ -529,30 +697,107 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                   }
                 </button>
               </div>
+              {capsLockOn && (
+                <p style={{
+                  fontSize: 10.5, color: '#fbbf24', marginTop: 4,
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}>
+                  <span>⇪</span> Mayúsculas activadas
+                </p>
+              )}
             </div>
 
-            <button
-              className={`ls-btn${accessGranted ? " success" : ""}`}
-              onClick={handleSubmit}
-            >
-              {accessGranted ? "Acceso concedido ✓" : "Ingresar"}
-            </button>
+            <div style={{ position: 'relative' }}>
+              {isBlocked && (
+                <svg
+                  style={{ position: 'absolute', top: -4, left: -4, width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', pointerEvents: 'none', zIndex: 10 }}
+                  viewBox="0 0 100 100"
+                >
+                  <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(239,68,68,0.15)" strokeWidth="3" />
+                  <circle
+                    cx="50" cy="50" r="46" fill="none" stroke="#ef4444" strokeWidth="3"
+                    strokeDasharray={2 * Math.PI * 46}
+                    strokeDashoffset={2 * Math.PI * 46 * (1 - blockCountdown / 30)}
+                    strokeLinecap="round"
+                    style={{ transition: 'stroke-dashoffset 1s linear', transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+                  />
+                </svg>
+              )}
+              <button
+                className={`ls-btn${accessGranted ? " success" : ""}`}
+                onClick={handleSubmit}
+                disabled={loading || accessGranted || isBlocked || !user.trim() || !pass.trim()}
+              >
+                {loading ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                    <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="2" x2="12" y2="6"></line>
+                      <line x1="12" y1="18" x2="12" y2="22"></line>
+                      <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                      <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                      <line x1="2" y1="12" x2="6" y2="12"></line>
+                      <line x1="18" y1="12" x2="22" y2="12"></line>
+                      <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                      <line x1="16.24" y1="4.93" x2="19.07" y2="7.76"></line>
+                    </svg>
+                    Autenticando
+                    <span style={{ display: 'inline-flex', gap: 2 }}>
+                      {[0,1,2].map(i => (
+                        <span key={i} style={{
+                          width: 4, height: 4, borderRadius: '50%', background: 'currentColor',
+                          animation: 'bounce-dot 1s ease-in-out infinite',
+                          animationDelay: `${i * 0.15}s`,
+                          display: 'inline-block',
+                        }} />
+                      ))}
+                    </span>
+                  </span>
+                ) : accessGranted ? (
+                  <span>✓ Acceso concedido</span>
+                ) : (
+                  <span>Acceder</span>
+                )}
+              </button>
+            </div>
 
             <div className={`ls-error ${error ? "show" : ""} ${shaking ? "shake" : ""}`}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              Credenciales incorrectas — acceso denegado
+              {errorMsg || 'Credenciales incorrectas — acceso denegado'}
             </div>
-            
-            {attempts > 0 && (
+
+            {attempts > 0 && !isBlocked && (
               <div className="ls-attempt-bar">
                 {[0,1,2,3,4].map(i => (
                   <div key={i} className={`ls-a-dot${i < attempts ? ' used' : ''}`} />
                 ))}
               </div>
             )}
-            
+
+            {isBlocked && (
+              <div style={{
+                marginTop: 12,
+                padding: '10px 16px',
+                borderRadius: 10,
+                background: 'rgba(239,68,68,0.10)',
+                border: '1px solid rgba(239,68,68,0.30)',
+                textAlign: 'center',
+              }}>
+                <p style={{ fontSize: 12, color: '#f87171', fontWeight: 700, marginBottom: 4 }}>
+                  🔒 Acceso bloqueado temporalmente
+                </p>
+                <p style={{ fontSize: 11, color: '#fca5a5' }}>
+                  Espera <strong>{blockCountdown}s</strong> antes de intentar de nuevo
+                </p>
+              </div>
+            )}
+
             </div>
           </div>
+
+          <button className="ls-back-link" onClick={() => window.location.href = '/'}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Volver al inicio
+          </button>
 
           <p className="ls-footer">Design &amp; Developed by Shuma Sistemas IT</p>
         </div>
