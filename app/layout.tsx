@@ -3,6 +3,7 @@ import { Exo_2, DM_Sans } from 'next/font/google';
 import './globals.css';
 import AuthGuard from '@/components/AuthGuard';
 import { FontScaleProvider } from '@/lib/fontScaleContext';
+import PrivacyBanner from '@/components/PrivacyBanner';
 
 const exo2 = Exo_2({ subsets: ['latin'], variable: '--font-exo-2' });
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans' });
@@ -35,6 +36,7 @@ export default function RootLayout({
         <FontScaleProvider>
           <AuthGuard>
             {children}
+            <PrivacyBanner />
           </AuthGuard>
         </FontScaleProvider>
       </body>
