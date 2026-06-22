@@ -22,6 +22,7 @@ interface HistoryRoute {
     failed: number;
     pending: number;
   };
+  deliveries?: any[];
 }
 
 export default function HistoryPage() {
@@ -32,6 +33,12 @@ export default function HistoryPage() {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
   });
   const [error, setError] = useState<string | null>(null);
+  const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
+
+  const handleDownloadPDF = async (route: HistoryRoute) => {
+    const { generatePDFReport } = await import('@/lib/pdfReport');
+    await generatePDFReport([route], null, null, `ruta-${route.driver_name?.replace(/\s+/g, '-') || 'shuma'}`);
+  };
 
   const fetchHistory = async (date: string) => {
     setLoading(true);
@@ -131,75 +138,124 @@ export default function HistoryPage() {
           ) : (
             <div className="grid gap-4">
               {routes.map(route => {
-                const dateObj = new Date(route.date + 'T12:00:00'); // Forzar mediodía para evitar shift de timezone
+                const dateObj = new Date(route.date + 'T12:00:00');
                 const formattedDate = new Intl.DateTimeFormat('es-MX', {
                   weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
                 }).format(dateObj);
                 
-                const completionPct = route.stats.total > 0 
-                  ? Math.round(((route.stats.delivered + route.stats.partial + route.stats.failed) / route.stats.total) * 100) 
-                  : 0;
+                const { total, delivered, partial, failed, pending } = route.stats;
+                const processed = delivered + partial + failed;
+                const pct       = total > 0 ? Math.round((processed / total) * 100) : 0;
+                const isDone    = pending === 0 && total > 0;
+                const hasFails  = failed > 0 || partial > 0;
+                
+                const isExpanded = expandedRoute === route.id;
 
                 return (
-                  <div key={route.id} className="bg-shuma-surface border border-shuma-border rounded-2xl p-5 hover:border-slate-600 transition-colors">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      {/* Info principal */}
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center shrink-0 border border-slate-700">
-                          <Map className="w-6 h-6" style={{ color: route.color || '#2196F3' }} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h2 className="text-base font-bold text-white">
-                              {route.route_alias || route.route_code || 'Ruta sin nombre'}
-                            </h2>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
-                              {route.status}
-                            </span>
+                  <div key={route.id} className="p-4 rounded-xl border border-shuma-border bg-shuma-surface/30 space-y-3 hover:border-slate-600 transition-colors">
+                    
+                    {/* Cabecera de ruta */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: route.color || '#2196F3' }} />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="font-semibold text-sm text-shuma-text truncate">
+                              {route.route_alias || route.route_code || 'Sin nombre'}
+                            </h3>
                           </div>
-                          <p className="text-xs text-shuma-muted capitalize">
-                            {formattedDate}
+                          <p className="text-xs text-shuma-muted mt-0.5">
+                            {route.driver_name || 'Sin chofer asignado'}
+                            {route.route_code && route.route_alias && (
+                              <span className="ml-1.5 opacity-40">· {route.route_code}</span>
+                            )}
+                            <span className="ml-1.5 opacity-40">· {formattedDate}</span>
+                            {route.total_km > 0 && ` · ${route.total_km.toFixed(1)} km`}
                           </p>
-                          <div className="flex items-center gap-4 mt-2">
-                            <div className="flex items-center gap-1.5 text-xs text-slate-300">
-                              <Truck className="w-3.5 h-3.5 text-blue-400" />
-                              {route.driver_name || 'Sin asignar'}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-xs text-slate-300">
-                              <Navigation className="w-3.5 h-3.5 text-emerald-400" />
-                              {route.total_km.toFixed(1)} km
-                            </div>
-                          </div>
                         </div>
                       </div>
 
-                      {/* Stats */}
-                      <div className="flex items-center gap-6 bg-slate-900/50 rounded-xl p-3 border border-shuma-border/50">
-                        <div className="text-center min-w-[3rem]">
-                          <div className="text-xl font-bold text-white leading-none mb-1">{completionPct}%</div>
-                          <div className="text-[10px] text-shuma-muted uppercase tracking-wider">Avance</div>
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 border ${
+                        isDone && !hasFails
+                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                          : isDone && hasFails
+                            ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                            : hasFails
+                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                              : 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                      }`}>
+                        {isDone && !hasFails ? '✓ Completada'
+                          : isDone ? '⚠ Con incidencias'
+                          : pending > 0 ? `● ${pending} pendientes`
+                          : '● En curso'}
+                      </span>
+                    </div>
+
+                    {/* Barra de progreso */}
+                    <div>
+                      <div className="flex justify-between text-xs text-shuma-muted mb-1.5">
+                        <div className="flex gap-3">
+                          <span className="text-emerald-400">✓ {delivered}</span>
+                          {partial > 0 && <span className="text-amber-400">◑ {partial}</span>}
+                          {failed > 0  && <span className="text-red-400">✗ {failed}</span>}
+                          {pending > 0 && <span className="opacity-50">○ {pending}</span>}
                         </div>
-                        <div className="w-px h-8 bg-shuma-border"></div>
-                        <div className="flex gap-4">
-                          <div className="text-center">
-                            <div className="text-sm font-bold text-emerald-400">{route.stats.delivered}</div>
-                            <div className="text-[10px] text-shuma-muted uppercase">Completas</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-sm font-bold text-amber-400">{route.stats.partial}</div>
-                            <div className="text-[10px] text-shuma-muted uppercase">Parciales</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-sm font-bold text-red-400">{route.stats.failed}</div>
-                            <div className="text-[10px] text-shuma-muted uppercase">Fallidas</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-sm font-bold text-slate-400">{route.stats.pending}</div>
-                            <div className="text-[10px] text-shuma-muted uppercase">Pends</div>
-                          </div>
-                        </div>
+                        <span>{pct}% · {processed}/{total}</span>
+                      </div>
+                      <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                        <div className="h-1.5 rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: route.color || '#2196F3' }} />
                       </div>
                     </div>
+
+                    {/* Acciones */}
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => setExpandedRoute(isExpanded ? null : route.id)}
+                        className="flex-1 text-xs text-slate-300 hover:text-white py-1.5 rounded-lg hover:bg-slate-700 transition-colors border border-shuma-border"
+                      >
+                        {isExpanded ? 'Ocultar Paradas' : 'Ver Paradas'}
+                      </button>
+                      <button
+                        onClick={() => handleDownloadPDF(route)}
+                        className="flex-1 text-xs text-blue-400 hover:text-blue-300 py-1.5 rounded-lg hover:bg-blue-500/10 transition-colors border border-blue-500/30"
+                      >
+                        📄 Descargar PDF
+                      </button>
+                    </div>
+
+                    {/* Paradas (Expandible) */}
+                    {isExpanded && route.deliveries && (
+                      <div className="mt-3 pt-3 border-t border-shuma-border/50 space-y-2">
+                        {route.deliveries.length === 0 ? (
+                          <p className="text-xs text-shuma-muted text-center py-2">No hay paradas en esta ruta</p>
+                        ) : (
+                          route.deliveries.map((del, i) => (
+                            <div key={del.address?.id || i} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-300 shrink-0">
+                                  {del.sequence}
+                                </span>
+                                <div className="truncate">
+                                  <p className="font-semibold text-slate-200 truncate">{del.address?.name || 'Cliente'}</p>
+                                  <p className="text-[10px] text-slate-400 truncate">{del.address?.invoice || 'Sin factura'} · {del.address?.label}</p>
+                                </div>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                                del.status === 'delivered' || del.status === 'completed' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                                del.status === 'partial' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' :
+                                del.status === 'failed' ? 'bg-red-500/15 text-red-400 border border-red-500/30' :
+                                'bg-slate-700 text-slate-300 border border-slate-600'
+                              }`}>
+                                {del.status === 'delivered' || del.status === 'completed' ? 'Entregado' :
+                                 del.status === 'partial' ? 'Parcial' :
+                                 del.status === 'failed' ? 'Fallido' : 'Pendiente'}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

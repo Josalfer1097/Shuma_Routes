@@ -38,8 +38,9 @@ export async function GET(req: NextRequest) {
 
     const { data: deliveries } = await supabaseAdmin
       .from('deliveries')
-      .select('route_id, status')
-      .in('route_id', routeIds);
+      .select('id, route_id, route_driver_id, client_name, address, lat, lng, stop_order, status, invoice, merchandise_value')
+      .in('route_id', routeIds)
+      .order('stop_order', { ascending: true });
 
     const result = routes.map(route => {
       const rd = (routeDrivers || []).find(d => d.route_id === route.id);
@@ -63,6 +64,23 @@ export async function GET(req: NextRequest) {
         total_km:     rd?.total_km || 0,
         total_minutes: rd?.total_time_min || 0,
         stats: { total, delivered, partial, failed, pending },
+        deliveries: dels
+          .filter(d => d.lat != null && d.lng != null)
+          .map(d => ({
+            sequence: d.stop_order ?? 0,
+            status: d.status,
+            address: {
+              id: d.id,
+              name: d.client_name || 'Cliente',
+              clientName: d.client_name,
+              invoice: d.invoice,
+              merchandiseValue: d.merchandise_value,
+              lat: d.lat,
+              lng: d.lng,
+              label: d.address || '',
+              geocoded: true,
+            },
+          })),
       };
     });
 
