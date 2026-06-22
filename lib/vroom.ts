@@ -9,7 +9,7 @@ import { getRouteGoogle } from './here';
 
 
 
-/** Colores predeterminados para los choferes (hasta 10) */
+/** Colores predeterminados para los choferes (hasta 12) */
 const DRIVER_COLORS = [
   '#2196F3', // azul
   '#10B981', // esmeralda
@@ -17,6 +17,12 @@ const DRIVER_COLORS = [
   '#EF4444', // rojo
   '#8B5CF6', // violeta
   '#EC4899', // rosa
+  '#06B6D4', // cyan
+  '#84CC16', // lima
+  '#F97316', // naranja
+  '#6366F1', // indigo
+  '#14B8A6', // teal
+  '#D946EF', // fuchsia
 ];
 
 /**

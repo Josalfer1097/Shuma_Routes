@@ -96,10 +96,12 @@ export default function DriverPage() {
   const [photoPreviews, setPhotoPreviews]         = useState<string[]>([]);
   const [isCompressing, setIsCompressing]         = useState(false);
   const [isSubmitting, setIsSubmitting]           = useState(false);
+  const [isRefreshing, setIsRefreshing]           = useState(false);
   const [expandedStops, setExpandedStops]         = useState<Set<string>>(new Set());
   const fileInputRef                              = useRef<HTMLInputElement>(null);
 
-  const fetchRoute = useCallback(async (id: string) => {
+  const fetchRoute = useCallback(async (id: string, refreshing = false) => {
+    if (refreshing) setIsRefreshing(true);
     try {
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
       const res   = await fetch(`/api/driver/route?driver_id=${id}&date=${today}`);
@@ -109,6 +111,7 @@ export default function DriverPage() {
       setError('No se pudo cargar tu ruta.');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -351,8 +354,18 @@ export default function DriverPage() {
         <header className="bg-shuma-surface border-b border-shuma-border p-4 sticky top-0 z-20 shadow-md">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <h1 className="text-base font-bold text-white leading-tight">
+              <h1 className="text-base font-bold text-white leading-tight flex items-center gap-2">
                 {route.routeCode ? `Ruta ${route.routeCode}` : 'Mi Ruta de Hoy'}
+                <button
+                  onClick={() => fetchRoute(driverId, true)}
+                  disabled={isRefreshing}
+                  className="p-1 text-shuma-muted hover:text-white transition-colors disabled:opacity-50"
+                  title="Actualizar ruta"
+                >
+                  <svg className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
               </h1>
               <p className="text-xs text-shuma-muted mt-0.5">
                 {driverName} · {route.totalKm?.toFixed(1)} km · {Math.floor((route.totalMinutes || 0) / 60)}h {(route.totalMinutes || 0) % 60}m
