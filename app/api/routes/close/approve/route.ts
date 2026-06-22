@@ -17,6 +17,13 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
+    // Marcar la notificación original de solicitud de cierre como leída
+    await supabaseAdmin
+      .from('notifications')
+      .update({ read: true, type: 'route_closure_resolved' })
+      .eq('entity_id', routeId)
+      .eq('type', 'route_closure_requested');
+
     // Obtener info para notificar al chofer
     const { data: routeData } = await supabaseAdmin
       .from('routes')

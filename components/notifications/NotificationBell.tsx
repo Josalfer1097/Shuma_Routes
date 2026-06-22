@@ -91,10 +91,9 @@ export default function NotificationBell({ targetRole }: { targetRole: string })
       });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || 'Error en la acción');
-      alert('Acción completada');
       fetchNotifications();
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'Error interno'}`);
+      console.error('Error in action:', e);
     }
   };
 
@@ -145,6 +144,11 @@ export default function NotificationBell({ targetRole }: { targetRole: string })
                       >
                         <XCircle size={12} /> Rechazar
                       </button>
+                    </div>
+                  )}
+                  {targetRole === 'admin' && (notif.type === 'route_closure_resolved' || notif.type === 'reopen_resolved') && (
+                    <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-shuma-border text-shuma-muted">
+                      ✓ Resuelto
                     </div>
                   )}
                   <p className="text-[10px] text-shuma-muted opacity-50 mt-1.5">

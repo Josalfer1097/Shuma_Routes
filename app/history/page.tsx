@@ -28,7 +28,9 @@ export default function HistoryPage() {
   const router = useRouter();
   const [routes, setRoutes] = useState<HistoryRoute[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(''); // vacio = todas < hoy
+  const [selectedDate, setSelectedDate] = useState(() => {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+  });
   const [error, setError] = useState<string | null>(null);
 
   const fetchHistory = async (date: string) => {

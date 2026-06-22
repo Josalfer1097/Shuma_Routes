@@ -19,6 +19,13 @@ export async function POST(req: NextRequest) {
 
     if (reqErr || !request) throw reqErr || new Error('Request not found');
 
+    // Marcar la notificación original de solicitud de reapertura como leída
+    await supabaseAdmin
+      .from('notifications')
+      .update({ read: true, type: 'reopen_resolved' })
+      .eq('entity_id', requestId)
+      .eq('type', 'reopen_requested');
+
     // Cambiar estado de entrega a pendiente
     await supabaseAdmin
       .from('deliveries')
