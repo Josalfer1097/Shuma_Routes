@@ -12,6 +12,7 @@ interface Props {
   userName: string;
   userRole: string;
   onSuccess?: () => void;
+  duplicateWarning?: string | null;
 }
 
 export default function AcceptRouteModal({
@@ -21,6 +22,7 @@ export default function AcceptRouteModal({
   userName,
   userRole,
   onSuccess,
+  duplicateWarning,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -106,6 +108,12 @@ export default function AcceptRouteModal({
                     {routes.reduce((acc, r) => acc + r.stops.length, 0)} entregas
                   </strong>?
                 </p>
+                {duplicateWarning && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                    <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+                    <p className="text-xs text-amber-400 font-medium">{duplicateWarning}</p>
+                  </div>
+                )}
                 <div className="rounded-lg bg-shuma-surface border border-shuma-border overflow-hidden">
                   <div className="overflow-y-auto divide-y divide-shuma-border/50" style={{ maxHeight: 200 }}>
                     {routes.map((route, i) => (

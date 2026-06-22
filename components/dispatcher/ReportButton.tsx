@@ -17,6 +17,36 @@ interface Props {
 
 export default function ReportButton({ routes, weather, globalConfig, userName, userRole, onRouteAccepted }: Props) {
   const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+
+  const handleOpenAcceptModal = async () => {
+    setIsChecking(true);
+    try {
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+      const res = await fetch(`/api/routes/active?date=${today}`);
+      const json = await res.json();
+      if (json.ok && json.routes) {
+        const existingDrivers = [];
+        for (const route of routes) {
+          if (json.routes.some((active: any) => active.driver_name === route.driverName)) {
+            existingDrivers.push(route.driverName);
+          }
+        }
+        if (existingDrivers.length > 0) {
+          setDuplicateWarning(`ATENCIÓN: ${existingDrivers.join(', ')} ya tiene(n) una ruta asignada para hoy. Si guardas, reemplazarás la ruta actual de este(os) chofer(es).`);
+        } else {
+          setDuplicateWarning(null);
+        }
+      }
+    } catch (e) {
+      console.error('Error verificando rutas activas', e);
+      setDuplicateWarning(null);
+    } finally {
+      setIsChecking(false);
+      setIsAcceptModalOpen(true);
+    }
+  };
 
   if (routes.length === 0) return null;
 
@@ -483,18 +513,26 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
   return (
     <div className="space-y-2.5">
       <button
-        onClick={() => setIsAcceptModalOpen(true)}
+        onClick={handleOpenAcceptModal}
+        disabled={isChecking}
         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
                    bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600
                    border border-green-500 hover:border-green-400
                    text-sm font-semibold text-white transition-all duration-200
-                   shadow-lg shadow-green-900/30 hover:shadow-green-800/40"
+                   shadow-lg shadow-green-900/30 hover:shadow-green-800/40 disabled:opacity-50"
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        Aceptar Ruta
+        {isChecking ? (
+          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        ) : (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        {isChecking ? 'Verificando...' : 'Aceptar Ruta'}
       </button>
       
       <button
@@ -518,6 +556,7 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
         userName={userName || 'admin'}
         userRole={userRole || 'admin'}
         onSuccess={onRouteAccepted}
+        duplicateWarning={duplicateWarning}
       />
     </div>
   );

@@ -73,7 +73,8 @@ type Action =
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_DEPOT'; payload: { lat: number; lng: number; label: string } | null }
   | { type: 'SET_GLOBAL_CONFIG'; payload: GlobalConfig }
-  | { type: 'SET_CLUSTERING_CONFIG'; payload: ClusteringConfig };
+  | { type: 'SET_CLUSTERING_CONFIG'; payload: ClusteringConfig }
+  | { type: 'RESET_STATE' };
 
 const initialState: AppState = {
   step: 'config',
@@ -140,6 +141,8 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, globalConfig: action.payload };
     case 'SET_CLUSTERING_CONFIG':
       return { ...state, clusteringConfig: action.payload };
+    case 'RESET_STATE':
+      return { ...initialState };
     default:
       return state;
   }
@@ -1688,6 +1691,12 @@ export default function DispatcherPage() {
               dispatch({ type: 'SET_STEP', payload: 'upload' });
               setActiveTab('upload');
             }}
+            onReset={() => {
+              if (confirm('¿Estás seguro de reiniciar toda la configuración y vaciar los datos actuales?')) {
+                sessionStorage.removeItem('shuma_rutas_session');
+                dispatch({ type: 'RESET_STATE' });
+              }
+            }}
           />
         )}
 
@@ -2177,13 +2186,15 @@ function ConfigPanel({
   vehicles,
   onAddVehicle,
   onRemoveVehicle,
-  onSave 
+  onSave,
+  onReset
 }: { 
   currentConfig: any, 
   vehicles: Vehicle[],
   onAddVehicle: (v: Vehicle) => void,
   onRemoveVehicle: (id: string) => void,
-  onSave: (conf: any) => void 
+  onSave: (conf: any) => void,
+  onReset: () => void 
 }) {
   const DEPOTS = [
     { id: 'san_pablo', name: 'San Pablo', lat: 19.3550675, lng: -99.0939998, address: 'C. San Pablo 7, El Santuario, Iztapalapa, 09836 CDMX' },
@@ -2317,6 +2328,15 @@ function ConfigPanel({
       <div className="so-section">
         <h4 className="so-section-title">Flota asignada</h4>
         <VehicleForm vehicles={vehicles} onAdd={onAddVehicle} onRemove={onRemoveVehicle} />
+      </div>
+
+      <div className="pt-4 border-t border-shuma-border mt-6">
+        <button
+          onClick={onReset}
+          className="w-full py-2.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20 font-semibold text-sm transition-colors"
+        >
+          🗑️ Reiniciar Configuración
+        </button>
       </div>
 
       {/* Hidden trigger button for external save */}
