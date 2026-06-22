@@ -250,10 +250,19 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                                   }
                                   
                                   // Valores normales
+                                  const strVal = String(value);
+                                  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strVal);
+                                  
+                                  if (key === 'ruta_id' && log.metadata?.ruta_code) {
+                                    return null;
+                                  }
+                                  
+                                  const displayValue = isUUID ? `${strVal.substring(0, 8)}...` : strVal;
+
                                   return (
                                     <div key={key}>
                                       <p className="text-[10px] text-shuma-muted font-bold uppercase tracking-wider">{key.replace(/_/g, ' ')}</p>
-                                      <p className="text-sm text-shuma-text mt-0.5 font-medium">{String(value)}</p>
+                                      <p className="text-sm text-shuma-text mt-0.5 font-medium" title={isUUID ? strVal : undefined}>{displayValue}</p>
                                     </div>
                                   );
                                 })}
