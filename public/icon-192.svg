@@ -1,4 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
-  <rect width="192" height="192" fill="#1E3A8A" rx="32" />
-  <text x="50%" y="54%" font-family="system-ui, sans-serif" font-size="80" font-weight="bold" fill="#FFFFFF" text-anchor="middle" dominant-baseline="middle">SR</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32">
+  <defs>
+    <radialGradient id="pg" cx="42%" cy="38%" r="58%">
+      <stop offset="0%" stop-color="#42A5F5"/>
+      <stop offset="100%" stop-color="#1565C0"/>
+    </radialGradient>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#112040"/>
+      <stop offset="100%" stop-color="#0A1628"/>
+    </radialGradient>
+  </defs>
+  <rect width="100" height="100" rx="18" fill="url(#bg)"/>
+  <circle cx="50" cy="42" r="31" fill="url(#pg)"/>
+  <path d="M 34 67 Q 50 97 66 67" fill="url(#pg)"/>
+  <path transform="translate(28.1,67.6) scale(0.05,-0.05)"
+        d="M566 314C683 314 727 279 727 236V186C727 142 683 108 566 108H73C41 108 34 90 34 54C34 18 41 0 73 0H563C760 0 859 61 859 186V236C859 360 760 422 563 422H327C210 422 166 457 166 500V539C166 583 210 617 327 617H430C462 617 469 635 469 671C469 707 462 725 430 725H330C133 725 34 664 34 539V500C34 376 133 314 330 314Z"
+        fill="white"/>
 </svg>

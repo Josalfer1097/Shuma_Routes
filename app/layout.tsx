@@ -13,8 +13,15 @@ export const metadata: Metadata = {
   description: 'Sistema interno de optimización de rutas de entrega para Shuma',
   manifest: '/manifest.json',
   icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+    icon: [
+      { url: '/favicon.ico', sizes: '16x16 32x32 48x64', type: 'image/x-icon' },
+      { url: '/icon-favicon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
   },
 };
 
