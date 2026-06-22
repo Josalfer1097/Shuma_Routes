@@ -249,6 +249,12 @@ export default function DispatcherPage() {
   };
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [auditEntityId, setAuditEntityId] = useState<string | undefined>(undefined);
+
+  const openAuditForRoute = (routeId: string) => {
+    setAuditEntityId(routeId);
+    setIsAuditModalOpen(true);
+  };
   const [fleetMode, setFleetMode] = useState<'auto' | 'manual'>('auto');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
@@ -2057,20 +2063,23 @@ export default function DispatcherPage() {
                           </div>
 
                           {/* Badge de status */}
-                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 border ${
-                            isDone && !hasFails
-                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                              : isDone && hasFails
-                                ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                                : hasFails
-                                  ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                                  : 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-                          }`}>
+                          <button
+                            onClick={() => hasFails ? openAuditForRoute(route.id) : undefined}
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 border ${
+                              isDone && !hasFails
+                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 cursor-default'
+                                : isDone && hasFails
+                                  ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/25 cursor-pointer transition-colors'
+                                  : hasFails
+                                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/25 cursor-pointer transition-colors'
+                                    : 'bg-blue-500/15 text-blue-400 border-blue-500/30 cursor-default'
+                            }`}
+                          >
                             {isDone && !hasFails ? '✓ Completada'
                               : isDone ? '⚠ Con incidencias'
                               : pending > 0 ? `● ${pending} pendientes`
                               : '● En curso'}
-                          </span>
+                          </button>
                         </div>
 
                         {/* Barra de progreso */}
@@ -2172,8 +2181,12 @@ export default function DispatcherPage() {
 
       <AuditLogModal 
         isOpen={isAuditModalOpen}
-        onClose={() => setIsAuditModalOpen(false)}
+        onClose={() => {
+          setIsAuditModalOpen(false);
+          setAuditEntityId(undefined);
+        }}
         userRole={userRole}
+        initialEntityId={auditEntityId}
       />
     </div>
   );

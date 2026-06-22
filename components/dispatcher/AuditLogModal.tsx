@@ -21,16 +21,26 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   userRole?: string;
+  initialEntityId?: string;
 }
 
-export default function AuditLogModal({ isOpen, onClose, userRole }: Props) {
+export default function AuditLogModal({ isOpen, onClose, userRole, initialEntityId }: Props) {
   const [logs, setLogs]                 = useState<AuditLogEntry[]>([]);
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState<string | null>(null);
   const [filterModule, setFilterModule] = useState('');
   const [filterUser, setFilterUser]     = useState('');
   const [dateFrom, setDateFrom]         = useState('');
+  const [filterEntityId, setFilterEntityId] = useState(initialEntityId || '');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (initialEntityId) {
+      setFilterEntityId(initialEntityId);
+    } else {
+      setFilterEntityId('');
+    }
+  }, [initialEntityId, isOpen]);
 
   const toggleExpand = (id: string) => {
     setExpandedRows(prev => {
@@ -49,6 +59,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole }: Props) {
       if (filterModule) params.set('module', filterModule);
       if (filterUser)   params.set('user_name', filterUser);
       if (dateFrom)     params.set('dateFrom', dateFrom);
+      if (filterEntityId) params.set('entity_id', filterEntityId);
 
       const res  = await fetch(`/api/audit?${params.toString()}`);
       const json = await res.json();
@@ -59,7 +70,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [filterModule, filterUser, dateFrom]);
+  }, [filterModule, filterUser, dateFrom, filterEntityId]);
 
   useEffect(() => {
     if (isOpen && userRole === 'admin') {
@@ -119,7 +130,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole }: Props) {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 p-4 border-b border-shuma-border/50 bg-shuma-surface/50">
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 p-4 border-b border-shuma-border/50 bg-shuma-surface/50">
             <input
               type="text"
               placeholder="Usuario"
@@ -143,6 +154,13 @@ export default function AuditLogModal({ isOpen, onClose, userRole }: Props) {
               onChange={e => setDateFrom(e.target.value)}
               className="px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text focus:outline-none focus:border-blue-500"
             />
+            <input
+              type="text"
+              placeholder="Entity ID"
+              value={filterEntityId}
+              onChange={e => setFilterEntityId(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text placeholder:text-shuma-muted focus:outline-none focus:border-blue-500"
+            />
             <button
               onClick={exportToCSV}
               disabled={logs.length === 0}
@@ -152,7 +170,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole }: Props) {
               Exportar
             </button>
             <button
-              onClick={() => { setFilterModule(''); setFilterUser(''); setDateFrom(''); }}
+              onClick={() => { setFilterModule(''); setFilterUser(''); setDateFrom(''); setFilterEntityId(''); }}
               className="px-3 py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30 transition-colors"
             >
               Limpiar

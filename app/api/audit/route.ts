@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
     const module    = searchParams.get('module') || '';
     const user_name = searchParams.get('user_name') || '';
     const dateFrom  = searchParams.get('dateFrom') || '';
+    const entity_id = searchParams.get('entity_id') || '';
     const limit     = parseInt(searchParams.get('limit') || '500');
 
     let query = supabaseAdmin
@@ -51,6 +52,7 @@ export async function GET(req: NextRequest) {
     if (module)    query = query.eq('module', module);
     if (user_name) query = query.eq('user_name', user_name);
     if (dateFrom)  query = query.gte('created_at', new Date(dateFrom).toISOString());
+    if (entity_id) query = query.eq('entity_id', entity_id);
 
     const { data, error } = await query;
     if (error) throw error;
