@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Cluster } from '@/types';
+import DEPOTS from '@/lib/depots';
 
 interface Props {
   clusters: Cluster[];
@@ -114,6 +115,56 @@ export default function ZoneMap({ clusters, onConfirm, onRegroup }: Props) {
     if (clusters.length === 0) return;
 
     const bounds = new google.maps.LatLngBounds();
+
+    // ── Ghost markers de bodegas (siempre visibles como referencia) ──
+    DEPOTS.forEach((depot) => {
+      const ghostEl = document.createElement('div');
+      ghostEl.style.cssText = `
+        display: flex; flex-direction: column; align-items: center;
+        opacity: 0.55; cursor: default; pointer-events: none;
+      `;
+      ghostEl.innerHTML = `
+        <div style="
+          width: 36px; height: 36px; border-radius: 50%;
+          background: rgba(33,150,243,0.12);
+          border: 1.5px dashed rgba(33,150,243,0.45);
+          display: flex; align-items: center; justify-content: center;
+          backdrop-filter: blur(4px);
+        ">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="rgba(33,150,243,0.9)" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" />
+            <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+            <line x1="12" y1="12" x2="12" y2="17" />
+            <line x1="9.5" y1="14.5" x2="14.5" y2="14.5" />
+          </svg>
+        </div>
+        <div style="
+          margin-top: 4px;
+          background: rgba(10,22,40,0.85);
+          border: 1px solid rgba(33,150,243,0.25);
+          border-radius: 6px;
+          padding: 2px 7px;
+          font-size: 9px;
+          font-family: 'Exo 2', sans-serif;
+          font-weight: 600;
+          color: rgba(33,150,243,0.8);
+          white-space: nowrap;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        ">${depot.name.replace('Bodega ', '')}</div>
+      `;
+
+      const ghostMarker = new google.maps.marker.AdvancedMarkerElement({
+        position: { lat: depot.lat, lng: depot.lng },
+        map,
+        content: ghostEl,
+        zIndex: 0,
+      });
+      markersRef.current.push(ghostMarker);
+    });
+    // ── fin ghost markers ──
 
     clusters.forEach(cluster => {
       // Draw convex hull polygon

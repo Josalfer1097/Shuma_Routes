@@ -242,21 +242,41 @@ export default function SlideOver({
         }
         .so-select {
           width: 100%;
-          background: rgba(255,255,255,0.04);
+          background: #0D1E38;
           border: 1px solid rgba(255,255,255,0.08);
           border-radius: 9px;
           padding: 9px 12px;
+          padding-right: 32px;
           color: #E8EFF8;
           font-size: calc(13px * var(--font-scale, 1));
           font-family: 'DM Sans', sans-serif;
           outline: none;
           transition: all 0.2s;
           appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235B7BA0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 10px center;
+          cursor: pointer;
         }
         .so-select:focus {
           border-color: rgba(33,150,243,0.45);
-          background: rgba(33,150,243,0.06);
+          background-color: #0D1E38;
           box-shadow: 0 0 0 3px rgba(33,150,243,0.08);
+        }
+        .so-select option {
+          background: #0D1E38;
+          color: #E8EFF8;
+        }
+        .so-select option:disabled {
+          color: #3B5270;
+        }
+        .so-select optgroup {
+          background: #0A1628;
+          color: #5B7BA0;
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
         }
 
         /* ── Card styles inside slide-over ── */

@@ -1378,59 +1378,173 @@ export default function DispatcherPage() {
 
         {/* ── Overlay: progreso de geocoding ── */}
         {state.step === 'geocoding' && (() => {
-          const total = state.addresses.length;
-          const done  = state.addresses.filter(a => a.geocoded).length;
-          const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+          const total  = state.addresses.length;
+          const done   = state.addresses.filter(a => a.geocoded).length;
+          const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
           const errors = state.addresses.filter(a => a.geocoded && a.geocodeError).length;
+          const lastAddr = [...state.addresses].filter(a => a.geocoded).at(-1)?.raw || '';
+          const isComplete = pct === 100;
+
+          // posición del camión: 0% → 8% de la pista, 100% → 78% (para que el camión "frene")
+          const truckPos = isComplete ? 78 : 8 + (pct / 100) * 70;
 
           return (
             <div style={{
               position: 'fixed', inset: 0, zIndex: 9999,
-              background: 'rgba(5,15,35,0.55)',
-              backdropFilter: 'blur(3px)',
+              background: 'rgba(5,12,28,0.75)',
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <div style={{
-                background: 'rgba(17,32,64,0.92)',
-                border: '0.5px solid rgba(33,150,243,0.35)',
-                borderRadius: 16,
-                padding: '24px 28px',
-                width: 280,
-                backdropFilter: 'blur(16px)',
-                boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+                background: 'linear-gradient(160deg, #0D1E38 0%, #0A1628 100%)',
+                border: '1px solid rgba(33,150,243,0.25)',
+                borderRadius: 20,
+                padding: '28px 32px',
+                width: 340,
+                backdropFilter: 'blur(20px)',
+                boxShadow: '0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(33,150,243,0.05)',
+                overflow: 'hidden',
+                position: 'relative',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                  <svg style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }}
-                    fill="none" viewBox="0 0 24 24">
-                    <circle opacity="0.25" cx="12" cy="12" r="10" stroke="#2196F3" strokeWidth="4" />
-                    <path opacity="0.85" fill="#2196F3" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#E8EFF8',
+
+                {/* Título */}
+                <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                  <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase',
+                    color: '#5B7BA0', fontFamily: "'Exo 2', sans-serif", marginBottom: 4 }}>
+                    {isComplete ? '✓ Geocodificación completa' : 'Geocodificando direcciones'}
+                  </div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: '#E8EFF8',
                     fontFamily: "'Exo 2', sans-serif" }}>
-                    Geocodificando direcciones
-                  </span>
+                    {pct}<span style={{ fontSize: 14, color: '#5B7BA0' }}>%</span>
+                  </div>
                 </div>
+
+                {/* Pista de camión */}
+                <div style={{ position: 'relative', height: 64, marginBottom: 16 }}>
+                  {/* Carretera */}
+                  <div style={{
+                    position: 'absolute', bottom: 16, left: 0, right: 0,
+                    height: 6, borderRadius: 3,
+                    background: 'rgba(33,150,243,0.08)',
+                    border: '1px solid rgba(33,150,243,0.12)',
+                  }} />
+                  {/* Línea central punteada */}
+                  <div style={{
+                    position: 'absolute', bottom: 18, left: 0, right: 0, height: 2,
+                    backgroundImage: 'repeating-linear-gradient(90deg, rgba(33,150,243,0.3) 0px, rgba(33,150,243,0.3) 12px, transparent 12px, transparent 22px)',
+                  }} />
+                  {/* Progreso de carretera */}
+                  <div style={{
+                    position: 'absolute', bottom: 16, left: 0,
+                    width: `${pct}%`, height: 6, borderRadius: 3,
+                    background: 'linear-gradient(90deg, #1565C0, #2196F3, #42A5F5)',
+                    transition: 'width 0.35s ease-out',
+                    boxShadow: '0 0 8px rgba(33,150,243,0.4)',
+                  }} />
+
+                  {/* CAMIÓN SVG */}
+                  <div style={{
+                    position: 'absolute', bottom: 20,
+                    left: `${truckPos}%`,
+                    transition: isComplete ? 'left 0.8s cubic-bezier(0.22,1,0.36,1)' : 'left 0.35s ease-out',
+                    transform: 'translateX(-50%)',
+                  }}>
+                    <svg width="52" height="32" viewBox="0 0 52 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      {/* Cabina */}
+                      <rect x="30" y="6" width="18" height="18" rx="3" fill="#1565C0" />
+                      {/* Ventana cabina */}
+                      <rect x="35" y="9" width="10" height="7" rx="1.5" fill="#90CAF9" opacity="0.8" />
+                      {/* Cuerpo */}
+                      <rect x="4" y="4" width="28" height="20" rx="3" fill="#1976D2" />
+                      {/* Franja */}
+                      <rect x="4" y="16" width="28" height="3" fill="#2196F3" opacity="0.5" />
+                      {/* Logo Shuma minimalista */}
+                      <rect x="10" y="8" width="16" height="8" rx="1" fill="rgba(33,150,243,0.2)" />
+                      <text x="18" y="15" textAnchor="middle" fill="#90CAF9"
+                        style={{ fontSize: '5px', fontFamily: "'Exo 2', sans-serif", fontWeight: 700 }}>
+                        SHUMA
+                      </text>
+                      {/* Ruedas */}
+                      <circle cx="13" cy="26" r="5" fill="#0D1E38" stroke="#2196F3" strokeWidth="1.5" />
+                      <circle cx="13" cy="26" r="2.5" fill="#1565C0" />
+                      <circle cx="39" cy="26" r="5" fill="#0D1E38" stroke="#2196F3" strokeWidth="1.5" />
+                      <circle cx="39" cy="26" r="2.5" fill="#1565C0" />
+                      {/* Parachoque */}
+                      <rect x="46" y="17" width="5" height="6" rx="1" fill="#0D1E38" stroke="#2196F3" strokeWidth="1" />
+                      {/* Humo / velocidad si no es complete */}
+                      {!isComplete && (
+                        <>
+                          <circle cx="1" cy="10" r="3" fill="rgba(91,123,160,0.3)" />
+                          <circle cx="5" cy="8" r="2" fill="rgba(91,123,160,0.2)" />
+                        </>
+                      )}
+                    </svg>
+
+                    {/* PAQUETE: solo aparece al 100% con bounce */}
+                    {isComplete && (
+                      <div style={{
+                        position: 'absolute', top: -28, left: '50%',
+                        transform: 'translateX(-50%)',
+                        animation: 'pkgBounce 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards',
+                      }}>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                          <rect x="2" y="5" width="16" height="13" rx="2" fill="#F59E0B" />
+                          <path d="M2 9h16" stroke="#B45309" strokeWidth="1" />
+                          <path d="M10 5v14" stroke="#B45309" strokeWidth="1" />
+                          <rect x="5" y="5" width="10" height="4" rx="1" fill="#FCD34D" opacity="0.6" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Dirección actual */}
+                {lastAddr && !isComplete && (
+                  <div style={{
+                    fontSize: 10.5, color: '#5B7BA0', marginBottom: 10,
+                    fontFamily: "'DM Sans', sans-serif",
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    textAlign: 'center',
+                  }}>
+                    {lastAddr}
+                  </div>
+                )}
+
+                {/* Contador done/total */}
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   fontSize: 11, color: '#5B7BA0', marginBottom: 6,
                   fontFamily: "'DM Sans', sans-serif" }}>
-                  <span>{done} de {total}</span>
-                  <span>{pct}%</span>
+                  <span>{done} de {total} direcciones</span>
+                  {errors > 0 && (
+                    <span style={{ color: '#F59E0B' }}>⚠ {errors} sin match</span>
+                  )}
                 </div>
-                <div style={{ width: '100%', height: 6, borderRadius: 3,
-                  background: 'rgba(33,150,243,0.12)', overflow: 'hidden' }}>
+
+                {/* Barra de progreso */}
+                <div style={{ width: '100%', height: 5, borderRadius: 99,
+                  background: 'rgba(33,150,243,0.08)', overflow: 'hidden' }}>
                   <div style={{
                     width: `${pct}%`, height: '100%',
-                    background: 'linear-gradient(90deg, #1565C0, #2196F3)',
-                    borderRadius: 3, transition: 'width 0.25s ease-out',
+                    background: isComplete
+                      ? 'linear-gradient(90deg, #16a34a, #22c55e)'
+                      : 'linear-gradient(90deg, #1565C0, #2196F3, #42A5F5)',
+                    borderRadius: 99,
+                    transition: 'width 0.35s ease-out, background 0.5s ease',
+                    boxShadow: isComplete ? '0 0 6px rgba(34,197,94,0.4)' : '0 0 6px rgba(33,150,243,0.3)',
                   }} />
                 </div>
-                {errors > 0 && (
-                  <div style={{ marginTop: 10, fontSize: 10.5, color: '#F59E0B',
-                    fontFamily: "'DM Sans', sans-serif" }}>
-                    ⚠ {errors} dirección(es) sin coincidencia exacta
-                  </div>
-                )}
               </div>
+
+              {/* Keyframes para el paquete */}
+              <style>{`
+                @keyframes pkgBounce {
+                  0%   { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+                  60%  { transform: translateX(-50%) translateY(4px); opacity: 1; }
+                  80%  { transform: translateX(-50%) translateY(-4px); }
+                  100% { transform: translateX(-50%) translateY(0px); opacity: 1; }
+                }
+              `}</style>
             </div>
           );
         })()}
@@ -1947,22 +2061,72 @@ export default function DispatcherPage() {
                   setIsSlideOverOpen(false);
                 }}
                 onRegroup={() => {
-                  const regenerated = clusterDeliveries(state.addresses, state.vehicles, state.clusteringConfig);
+                  const regenerated = clusterDeliveries(state.addresses, state.vehicles, state.clusteringConfig, numClusters);
                   dispatch({ type: 'SET_CLUSTERS', payload: regenerated });
                 }}
               />
             </div>
-            <div className="flex items-center justify-between bg-slate-700/50 p-3 rounded-xl border border-shuma-border">
-              <div>
-                <h3 className="text-sm font-bold text-white">Zonas ({state.clusters.length})</h3>
-                <p className="text-xs text-shuma-muted">1 zona por camión</p>
+            <div className="bg-slate-700/50 p-3 rounded-xl border border-shuma-border space-y-3">
+              {/* Header: zonas actuales + botón agregar */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-white">
+                    Zonas ({numClusters})
+                  </h3>
+                  <p className="text-xs text-shuma-muted">
+                    {state.vehicles.length} camión{state.vehicles.length !== 1 ? 'es' : ''}
+                    {' · '}{numClusters} zona{numClusters !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowInlineVehicleForm(!showInlineVehicleForm)}
+                  className="px-3 py-1.5 text-xs font-bold bg-slate-600 hover:bg-slate-500 rounded-lg text-white"
+                >
+                  {showInlineVehicleForm ? 'Cancelar' : '+ Agregar camión'}
+                </button>
               </div>
-              <button
-                onClick={() => setShowInlineVehicleForm(!showInlineVehicleForm)}
-                className="px-3 py-1.5 text-xs font-bold bg-slate-600 hover:bg-slate-500 rounded-lg text-white"
-              >
-                {showInlineVehicleForm ? 'Cancelar' : '+ Agregar camión'}
-              </button>
+
+              {/* Slider de rutas a generar */}
+              {state.vehicles.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-shuma-muted uppercase tracking-wider">
+                      Rutas a generar
+                    </label>
+                    <span className="text-xs font-bold text-shuma-accent bg-blue-500/10
+                      border border-blue-500/20 rounded-full px-2.5 py-0.5">
+                      {numClusters}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={Math.max(state.vehicles.length * 2, state.addresses.length > 0
+                      ? Math.min(state.addresses.length, state.vehicles.length * 3)
+                      : state.vehicles.length * 2)}
+                    value={numClusters}
+                    onChange={(e) => {
+                      const n = Number(e.target.value);
+                      setNumClusters(n);
+                      const regenerated = clusterDeliveries(
+                        state.addresses, state.vehicles, state.clusteringConfig, n
+                      );
+                      dispatch({ type: 'SET_CLUSTERS', payload: regenerated });
+                    }}
+                    className="w-full accent-blue-500"
+                    style={{ accentColor: '#2196F3' }}
+                  />
+                  <div className="flex justify-between text-[10px] text-shuma-muted mt-1">
+                    <span>1</span>
+                    <span className="text-[10px] text-shuma-muted font-normal">
+                      Arrastra para reagrupar automáticamente
+                    </span>
+                    <span>{Math.max(state.vehicles.length * 2, state.addresses.length > 0
+                      ? Math.min(state.addresses.length, state.vehicles.length * 3)
+                      : state.vehicles.length * 2)}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {showInlineVehicleForm && (

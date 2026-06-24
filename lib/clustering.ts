@@ -39,12 +39,15 @@ function getZoneName(centroid: { lat: number, lng: number }): string {
 export function clusterDeliveries(
   addresses: Address[],
   vehicles: Vehicle[],
-  config: ClusteringConfig
+  config: ClusteringConfig,
+  overrideNumClusters?: number
 ): Cluster[] {
   const valid = addresses.filter(a => a.lat !== null && a.lng !== null);
   if (valid.length === 0) return [];
   
-  const numClusters = vehicles.length;
+  const numClusters = overrideNumClusters && overrideNumClusters > 0
+    ? overrideNumClusters
+    : vehicles.length;
   const k = Math.min(numClusters, valid.length);
   if (k === 0) return [];
 

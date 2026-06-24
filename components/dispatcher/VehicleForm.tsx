@@ -115,6 +115,17 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
 
   return (
     <div className="space-y-4">
+      <style>{`
+        .vf-select { background: #0D1E38; color: #E8EFF8; border: 1px solid #112040;
+          border-radius: 8px; padding: 7px 10px; width: 100%; font-size: 14px;
+          font-family: 'DM Sans', sans-serif; appearance: none; outline: none;
+          transition: border-color 0.2s; cursor: pointer; }
+        .vf-select:focus { border-color: #2196F3; box-shadow: 0 0 0 2px rgba(33,150,243,0.12); }
+        .vf-select option { background: #0D1E38; color: #E8EFF8; }
+        .vf-select option:disabled { color: #3B5270; }
+        .vf-select optgroup { background: #0A1628; color: #5B7BA0; font-size: 11px;
+          font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+      `}</style>
       {availableDrivers.length > 0 && vehicles.length < 10 ? (
         <form onSubmit={handleSubmit} className="space-y-3 bg-shuma-surface p-4 rounded-xl border border-shuma-border">
           <div className="space-y-3">
@@ -125,7 +136,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
               <select
                 value={selectedDriverId}
                 onChange={e => setSelectedDriverId(e.target.value)}
-                className={inputCls}
+                className="vf-select"
               >
                 <option value="">— Selecciona un chofer —</option>
                 {driversDB.map(d => {
@@ -145,7 +156,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
               <select
                 value={selectedVehicleId}
                 onChange={e => setSelectedVehicleId(e.target.value)}
-                className={inputCls}
+                className="vf-select"
               >
                 <option value="">— Selecciona un vehículo —</option>
                 {(['truck_large', 'truck_medium', 'truck_small', 'van'] as const).map(type => {

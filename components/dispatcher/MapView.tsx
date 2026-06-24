@@ -121,7 +121,8 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [],
     const { Polyline, SymbolPath } = google.maps;
 
     const addInfoWindow = (marker: google.maps.marker.AdvancedMarkerElement, htmlContent: string) => {
-      marker.addListener('click', () => {
+      // Usar gmp-click para AdvancedMarkerElement (evita warning de consola)
+      marker.addEventListener('gmp-click', () => {
         if (infoWindowRef.current) {
           infoWindowRef.current.setContent(htmlContent);
           infoWindowRef.current.open({
