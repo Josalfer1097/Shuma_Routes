@@ -555,7 +555,7 @@ export default function DispatcherPage() {
       body: JSON.stringify({
         routes: newRoutes,
         globalConfig: state.globalConfig,
-        date: state.globalConfig?.departureTime || new Date().toISOString(),
+        date: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }),
         user: sessionStorage.getItem('shuma_name') || 'Dispatcher'
       })
     }).catch(e => console.error('Error guardando en BD:', e));
