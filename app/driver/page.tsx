@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { compressImage } from '@/lib/imageCompress';
 import NotificationBell from '@/components/notifications/NotificationBell';
+import { supabase } from '@/lib/supabase-client';
 
 function PhotoPicker({ photoPreviews, onAdd, onRemove, fileInputRef, isCompressing, onChange }: {
   photoPreviews: string[],
@@ -86,6 +87,7 @@ export default function DriverPage() {
   const [driverName, setDriverName]   = useState('');
   const [driverId, setDriverId]       = useState('');
   const [error, setError]             = useState('');
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
 
   // Modal state
   const [activeModal, setActiveModal]             = useState<ModalType>(null);
@@ -132,6 +134,37 @@ export default function DriverPage() {
     }
     else { setError('No se encontró tu ID. Contacta al administrador.'); setLoading(false); }
   }, [router, fetchRoute]);
+
+  useEffect(() => {
+    if (!driverId) return;
+
+    // ── Realtime: escuchar cambios en las entregas de este chofer ──
+    // Se activa cuando:
+    // - El admin reabre una entrega (status cambia a 'pending')
+    // - Cualquier cambio de status en sus deliveries
+    const deliveriesChannel = supabase
+      .channel(`driver_deliveries_${driverId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'deliveries',
+          filter: `driver_id=eq.${driverId}`,
+        },
+        (_payload) => {
+          // Re-fetch la ruta completa para tener el estado más reciente
+          fetchRoute(driverId, true);
+        }
+      )
+      .subscribe((status) => {
+        setRealtimeConnected(status === 'SUBSCRIBED');
+      });
+
+    return () => {
+      supabase.removeChannel(deliveriesChannel);
+    };
+  }, [driverId, fetchRoute]);
 
   const openModal = (type: ModalType, stop: DeliveryStop, index: number) => {
     setActiveModal(type);
@@ -492,16 +525,24 @@ export default function DriverPage() {
             <div>
               <h1 className="text-base font-bold text-white leading-tight flex items-center gap-2">
                 {route.routeCode ? `Ruta ${route.routeCode}` : 'Mi Ruta de Hoy'}
-                <button
-                  onClick={() => fetchRoute(driverId, true)}
-                  disabled={isRefreshing}
-                  className="p-1 text-shuma-muted hover:text-white transition-colors disabled:opacity-50"
-                  title="Actualizar ruta"
-                >
-                  <svg className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                      realtimeConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'
+                    }`}
+                    title={realtimeConnected ? 'Actualizaciones en tiempo real activas' : 'Sin conexión en tiempo real'}
+                  />
+                  <button
+                    onClick={() => fetchRoute(driverId, true)}
+                    disabled={isRefreshing}
+                    className="p-1 text-shuma-muted hover:text-white transition-colors disabled:opacity-50"
+                    title="Actualizar ruta"
+                  >
+                    <svg className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                </div>
               </h1>
               <p className="text-xs text-shuma-muted mt-0.5">
                 {driverName} · {route.totalKm?.toFixed(1)} km · {Math.floor((route.totalMinutes || 0) / 60)}h {(route.totalMinutes || 0) % 60}m

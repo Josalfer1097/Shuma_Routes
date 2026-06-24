@@ -26,6 +26,7 @@ import AuditLogModal from '@/components/dispatcher/AuditLogModal';
 import FontScaleButton from '@/components/dispatcher/FontScaleButton';
 import { useFontSize } from '@/lib/fontScaleContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
+import { supabase } from '@/lib/supabase-client';
 
 import type { MapViewRef } from '@/components/dispatcher/MapView';
 
@@ -387,6 +388,32 @@ export default function DispatcherPage() {
     }
   }, []);
 
+  useEffect(() => {
+    // ── Realtime: escuchar cambios de estado en routes ──
+    // Cuando una ruta cambia de status (ej. cerrada, aprobada),
+    // recargamos el panel de rutas activas automáticamente.
+    const routesChannel = supabase
+      .channel('dispatcher_routes_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'routes',
+          filter: `date=eq.${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })}`,
+        },
+        (_payload) => {
+          // Re-fetch rutas activas cuando hay cambio en alguna ruta de hoy
+          fetchActiveRoutes();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(routesChannel);
+    };
+  }, [fetchActiveRoutes]);
+
   const saveAlias = async (routeId: string) => {
     await fetch('/api/routes/alias', {
       method: 'PATCH',
@@ -429,22 +456,53 @@ export default function DispatcherPage() {
   }, [state.globalConfig, state.vehicles, state.addresses, state.clusters, saveSession]);
 
   useEffect(() => {
-    // Polling 30s para live tracking
-    const fetchStatuses = async () => {
+    // ── Carga inicial de statuses ──
+    const loadStatuses = async () => {
       try {
-        const res = await fetch('/api/deliveries/status');
+        const res  = await fetch('/api/deliveries/status');
         const json = await res.json();
-        if (json.ok && json.statuses) {
-          setLiveDeliveryStatus(json.statuses);
-        }
+        if (json.ok && json.statuses) setLiveDeliveryStatus(json.statuses);
       } catch (err) {
-        console.error('Error fetching live delivery statuses', err);
+        console.error('Error loading delivery statuses:', err);
       }
     };
+    loadStatuses();
 
-    fetchStatuses();
-    const intv = setInterval(fetchStatuses, 30000);
-    return () => clearInterval(intv);
+    // ── Realtime: escuchar cambios en deliveries ──
+    // Realtime via Supabase (reemplazó polling 30s — Jun 2026)
+    const channel = supabase
+      .channel('dispatcher_deliveries_realtime')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'deliveries' },
+        (payload) => {
+          const updated = payload.new as {
+            invoice?: string;
+            status?: string;
+            id?: string;
+          };
+          if (updated.invoice && updated.status) {
+            // Actualizar el status del marcador en el mapa
+            setLiveDeliveryStatus(prev => ({
+              ...prev,
+              [updated.invoice!]: updated.status!,
+            }));
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[Realtime] Suscrito a deliveries ✓');
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.warn('[Realtime] Error de canal, recargando statuses...');
+          loadStatuses(); // fallback: recargar via REST si falla el canal
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
