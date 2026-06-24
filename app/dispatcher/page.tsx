@@ -426,6 +426,36 @@ export default function DispatcherPage() {
     setEditingAlias(null);
     setAliasValue('');
   };
+
+  const alertedRiskyRoutes = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!activeRoutesData.length) return;
+
+    const deadline = state.globalConfig?.deadlineTime || '17:45';
+
+    activeRoutesData.forEach((route: any) => {
+      const { total, delivered, partial, failed, pending } = route.stats || {};
+      const isDone = pending === 0 && total > 0;
+      if (isDone) return;
+
+      const { isAtRisk } = calcRouteETA(
+        route.departure_time,
+        route.total_minutes,
+        pending,
+        total,
+        deadline
+      );
+
+      if (isAtRisk && !alertedRiskyRoutes.current.has(route.id)) {
+        alertedRiskyRoutes.current.add(route.id);
+        showToast(
+          `⚠ Ruta en riesgo: ${route.route_alias || route.route_code || route.driver_name} — puede no llegar antes de las ${deadline}`,
+          'warn'
+        );
+      }
+    });
+  }, [activeRoutesData, state.globalConfig?.deadlineTime]);
   const [sessionToRestore, setSessionToRestore] = useState<null | {
     savedAt: string;
     vehicleCount: number;
@@ -545,6 +575,38 @@ export default function DispatcherPage() {
     if (typeof window !== 'undefined') {
       setUserName(sessionStorage.getItem('shuma_name') || '');
       setUserRole(sessionStorage.getItem('shuma_role') || '');
+
+      // Detectar plantilla del histórico
+      const templateRaw = sessionStorage.getItem('shuma_route_template');
+      if (templateRaw && window.location.search.includes('from=template')) {
+        try {
+          const template = JSON.parse(templateRaw);
+          sessionStorage.removeItem('shuma_route_template');
+
+          showToast(
+            `Plantilla cargada: ${template.routeAlias || template.routeCode || template.driverName} · ${template.deliveries?.length || 0} entregas`,
+            'ok'
+          );
+
+          if (template.deliveries && template.deliveries.length > 0) {
+            const templateAddresses = template.deliveries.map((d: any, idx: number) => ({
+              id:       `tmpl-${idx}`,
+              name:     d.name,
+              raw:      d.raw,
+              invoice:  d.invoice,
+              lat:      d.lat ?? null,
+              lng:      d.lng ?? null,
+              geocoded: d.lat != null && d.lng != null,
+              label:    d.raw,
+            }));
+            dispatch({ type: 'SET_ADDRESSES', payload: templateAddresses });
+            setIsSlideOverOpen(true);
+            setActiveTab('upload');
+          }
+        } catch (e) {
+          console.warn('Error cargando plantilla:', e);
+        }
+      }
 
       // Verificar si hay sesión guardada
       try {
@@ -2604,7 +2666,26 @@ export default function DispatcherPage() {
                                 </div>
                               )}
                               <p className="text-xs text-shuma-muted mt-0.5">
-                                {route.driver_name || 'Sin chofer asignado'}
+                                <button
+                                  onClick={() => {
+                                    const firstStop = (route.deliveries || []).find(
+                                      (d: any) => d.address?.lat && d.address?.lng
+                                    );
+                                    if (firstStop?.address?.lat && mapViewRef.current) {
+                                      setIsActiveRoutesOpen(false);
+                                      setTimeout(() => {
+                                        mapViewRef.current?.panToDelivery(
+                                          firstStop.address.lat,
+                                          firstStop.address.lng
+                                        );
+                                      }, 200);
+                                    }
+                                  }}
+                                  className="text-blue-400 hover:text-blue-300 hover:underline transition-colors cursor-pointer bg-transparent border-none p-0 font-inherit text-inherit"
+                                  title="Ir a la ruta en el mapa"
+                                >
+                                  {route.driver_name || 'Sin chofer asignado'}
+                                </button>
                                 {route.route_code && route.route_alias && (
                                   <span className="ml-1.5 opacity-40">· {route.route_code}</span>
                                 )}

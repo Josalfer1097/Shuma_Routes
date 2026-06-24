@@ -222,6 +222,31 @@ export default function HistoryPage() {
                       >
                         📄 Descargar PDF
                       </button>
+                      <button
+                        onClick={() => {
+                          // Guardar plantilla en sessionStorage
+                          const template = {
+                            driverName:    route.driver_name,
+                            routeCode:     route.route_code,
+                            routeAlias:    route.route_alias,
+                            color:         route.color,
+                            totalKm:       route.total_km,
+                            date:          route.date,
+                            deliveries:    (route.deliveries || []).map((d: any) => ({
+                              name:      d.address?.clientName || d.address?.name || '',
+                              raw:       d.address?.label || d.address?.raw || '',
+                              invoice:   d.address?.invoice || '',
+                              lat:       d.address?.lat,
+                              lng:       d.address?.lng,
+                            })),
+                          };
+                          sessionStorage.setItem('shuma_route_template', JSON.stringify(template));
+                          router.push('/dispatcher?from=template');
+                        }}
+                        className="flex-1 text-xs text-emerald-400 hover:text-emerald-300 py-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors border border-emerald-500/30 hover:border-emerald-500/50"
+                      >
+                        ♻️ Usar como plantilla
+                      </button>
                     </div>
 
                     {/* Paradas (Expandible) */}

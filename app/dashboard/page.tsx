@@ -18,6 +18,7 @@ interface APIRoute {
   total_km: number;
   stats: RouteStats;
   total_merchandise_value?: number;
+  deliveries?: any[];
 }
 
 export default function DashboardPage() {
@@ -25,7 +26,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [period, setPeriod] = useState<'today' | '7d' | '30d'>('7d');
-
+  const [drillDown, setDrillDown] = useState<{
+    type: 'total' | 'exitosas' | 'fallidas' | 'valor' | 'choferes' | null;
+    title: string;
+  }>({ type: null, title: '' });
   useEffect(() => {
     async function fetchData() {
       try {
@@ -190,6 +194,28 @@ export default function DashboardPage() {
     return { name, ...st, tasa };
   }).sort((a, b) => b.tasa - a.tasa).slice(0, 10);
 
+  // Calcular listas para drill-down
+  const drillDeliveries: any = {
+    total: allRoutes.flatMap(r => r.deliveries || []),
+    exitosas: allRoutes.flatMap(r =>
+      (r.deliveries || []).filter((d: any) =>
+        d.status === 'delivered' || d.status === 'completed' || d.status === 'partial'
+      )
+    ),
+    fallidas: allRoutes.flatMap(r =>
+      (r.deliveries || []).filter((d: any) => d.status === 'failed')
+    ),
+    valor: allRoutes.flatMap(r =>
+      (r.deliveries || []).filter((d: any) =>
+        (d.merchandiseValue || d.address?.merchandiseValue || 0) > 0
+      )
+    ),
+    choferes: Array.from(driverStats.entries()).map(([name, st]) => ({
+      name, ...st,
+      tasa: st.total > 0 ? Math.round((st.success / st.total) * 100) : 0,
+    })),
+  };
+
   return (
     <div className="min-h-screen bg-shuma-bg opacity-0 transition-opacity duration-500 font-['DM_Sans']" style={{ opacity: 1 }}>
       
@@ -239,7 +265,9 @@ export default function DashboardPage() {
         
         {/* KPI CARDS */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="shuma-card rounded-2xl p-5 border border-shuma-border" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
+          <div 
+            onClick={() => setDrillDown({ type: 'total', title: 'Todas las entregas' })}
+            className="shuma-card rounded-2xl p-5 border border-shuma-border cursor-pointer hover:border-blue-500/40 transition-colors" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Entregas totales</p>
@@ -252,7 +280,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="shuma-card rounded-2xl p-5 border border-shuma-border" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
+          <div 
+            onClick={() => setDrillDown({ type: 'exitosas', title: 'Entregas exitosas' })}
+            className="shuma-card rounded-2xl p-5 border border-shuma-border cursor-pointer hover:border-blue-500/40 transition-colors" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Tasa de éxito</p>
@@ -278,7 +308,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="shuma-card rounded-2xl p-5 border border-shuma-border" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
+          <div 
+            onClick={() => setDrillDown({ type: 'choferes', title: 'Choferes del período' })}
+            className="shuma-card rounded-2xl p-5 border border-shuma-border cursor-pointer hover:border-blue-500/40 transition-colors" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Choferes activos</p>
@@ -291,7 +323,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="shuma-card rounded-2xl p-5 border border-shuma-border" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
+          <div 
+            onClick={() => setDrillDown({ type: 'valor', title: 'Entregas con valor de mercancía' })}
+            className="shuma-card rounded-2xl p-5 border border-shuma-border cursor-pointer hover:border-blue-500/40 transition-colors" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Valor Mercancía</p>
@@ -410,7 +444,122 @@ export default function DashboardPage() {
             </table>
           </div>
         </div>
+        {/* Drill-down drawer */}
+        {drillDown.type && (
+          <div
+            className="fixed inset-0 z-50 flex"
+            onClick={() => setDrillDown({ type: null, title: '' })}
+          >
+            {/* Backdrop */}
+            <div className="flex-1 bg-black/40 backdrop-blur-sm" />
+
+            {/* Panel */}
+            <div
+              className="w-full max-w-md bg-shuma-bg border-l border-shuma-border overflow-hidden flex flex-col shadow-2xl"
+              style={{ animation: 'slideInRight 0.3s cubic-bezier(0.16,1,0.3,1) forwards' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header del drawer */}
+              <div className="p-5 border-b border-shuma-border flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-white">{drillDown.title}</h3>
+                  <p className="text-xs text-shuma-muted mt-0.5">
+                    {drillDown.type === 'choferes'
+                      ? `${drillDeliveries.choferes.length} choferes`
+                      : `${(drillDeliveries[drillDown.type!] || []).length} registros`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setDrillDown({ type: null, title: '' })}
+                  className="p-2 rounded-lg text-shuma-muted hover:text-white hover:bg-shuma-surface transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Contenido */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {drillDown.type === 'choferes' ? (
+                  // Vista de choferes
+                  drillDeliveries.choferes
+                    .sort((a: any, b: any) => b.tasa - a.tasa)
+                    .map((ch: any, i: number) => (
+                      <div key={ch.name}
+                        className="p-3 rounded-xl bg-shuma-surface border border-shuma-border">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-shuma-muted w-5">#{i+1}</span>
+                            <span className="font-semibold text-white text-sm">{ch.name}</span>
+                          </div>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            ch.tasa >= 90 ? 'bg-emerald-500/15 text-emerald-400' :
+                            ch.tasa >= 70 ? 'bg-amber-500/15 text-amber-400' :
+                                            'bg-red-500/15 text-red-400'
+                          }`}>{ch.tasa}%</span>
+                        </div>
+                        <div className="flex gap-3 text-xs text-shuma-muted">
+                          <span className="text-emerald-400">✓ {ch.success}</span>
+                          <span className="text-red-400">✗ {ch.failed}</span>
+                          <span>Total: {ch.total}</span>
+                          <span>{ch.km.toFixed(1)} km</span>
+                        </div>
+                      </div>
+                    ))
+                ) : (
+                  // Vista de entregas
+                  (drillDeliveries[drillDown.type!] || []).map((d: any, i: number) => {
+                    const addr = d.address || d;
+                    const val = addr.merchandiseValue || d.merchandiseValue || 0;
+                    const statusColor =
+                      d.status === 'delivered' || d.status === 'completed' ? 'text-emerald-400' :
+                      d.status === 'partial' ? 'text-amber-400' :
+                      d.status === 'failed' ? 'text-red-400' : 'text-shuma-muted';
+
+                    return (
+                      <div key={i}
+                        className="p-3 rounded-xl bg-shuma-surface border border-shuma-border">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-white text-sm truncate">
+                              {addr.clientName || addr.name || 'Sin nombre'}
+                            </p>
+                            {addr.invoice && (
+                              <p className="text-xs text-blue-400 font-mono mt-0.5">{addr.invoice}</p>
+                            )}
+                            <p className="text-xs text-shuma-muted mt-0.5 truncate">
+                              {addr.label || addr.raw || ''}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span className={`text-xs font-bold ${statusColor}`}>
+                              {d.status === 'delivered' || d.status === 'completed' ? '✓ Entregado' :
+                               d.status === 'partial' ? '◑ Parcial' :
+                               d.status === 'failed' ? '✗ Fallido' : '○ Pendiente'}
+                            </span>
+                            {val > 0 && (
+                              <span className="text-[10px] text-amber-400 font-semibold">
+                                💰 ${val.toLocaleString('es-MX')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
+
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to   { transform: translateX(0); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
