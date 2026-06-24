@@ -249,7 +249,7 @@ export default function HomePage() {
           marginTop: 6, fontFamily: "'DM Sans', sans-serif",
           letterSpacing: '0.04em',
         }}>
-          v7.23.6
+          v7.24.0
         </p>
         <style>{`
           @keyframes rgbRoll {

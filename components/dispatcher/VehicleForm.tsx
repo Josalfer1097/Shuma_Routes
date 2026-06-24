@@ -64,6 +64,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
   }, []);
 
   const assignedDriverNames = vehicles.map(v => v.driverName);
+  const assignedMatriculas = vehicles.map(v => v.matricula);
   const availableDrivers = driversDB.filter(d => !assignedDriverNames.includes(d.name));
   const selectedVehicle = vehiclesDB.find(v => v.id === selectedVehicleId);
 
@@ -94,7 +95,10 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
     const nextAssigned = [...assignedDriverNames, driver.name];
     const next = driversDB.find(d => !nextAssigned.includes(d.name));
     setSelectedDriverId(next?.id || '');
-    setSelectedVehicleId(vehiclesDB[0]?.id || '');
+    const nextVehicle = vehiclesDB.find(v =>
+      ![...assignedMatriculas, newVehicle.matricula].includes(v.plate)
+    );
+    setSelectedVehicleId(nextVehicle?.id || '');
     setCapacity('');
     setInvoices('');
   };
@@ -149,11 +153,14 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                   if (group.length === 0) return null;
                   return (
                     <optgroup key={type} label={VEHICLE_TYPE_LABELS[type]}>
-                      {group.map(v => (
-                        <option key={v.id} value={v.id}>
-                          {v.plate} — {VEHICLE_TYPE_LABELS[v.type]}
-                        </option>
-                      ))}
+                      {group.map(v => {
+                        const isAssigned = assignedMatriculas.includes(v.plate);
+                        return (
+                          <option key={v.id} value={v.id} disabled={isAssigned}>
+                            {v.plate} — {VEHICLE_TYPE_LABELS[v.type]}{isAssigned ? ' (Asignado)' : ''}
+                          </option>
+                        );
+                      })}
                     </optgroup>
                   );
                 })}
