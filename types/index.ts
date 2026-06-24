@@ -62,7 +62,7 @@ export interface Vehicle {
   driverName: string;
   matricula: string;
   vehicleId: string;
-  type: 'Camión grande' | 'Camión chico' | 'Camioneta';
+  type: 'Camión grande' | 'Camión mediano' | 'Camión chico' | 'Camioneta';
   capacity: number;
   color: string;
   zoneName?: string;

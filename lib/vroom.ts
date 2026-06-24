@@ -532,6 +532,168 @@ export async function optimizeRoutes(
   }
 }
 
+export async function optimizeRoutesGoogle(
+  addresses: Address[],
+  vehicles: Vehicle[],
+  departureTime: string,
+  unloadConfig?: any
+): Promise<Route[]> {
+  const valid = addresses.filter(a => a.lat !== null && a.lng !== null && a.geocoded);
+  if (valid.length === 0) throw new Error('No hay direcciones geocodificadas.');
+  if (vehicles.length === 0) throw new Error('No hay choferes registrados.');
+
+  const DEFAULT_LAT = 19.3550675;
+  const DEFAULT_LNG = -99.0939998;
+
+  const globalStartDate = new Date(departureTime);
+  const globalEndTime = new Date(globalStartDate.getTime() + 12 * 60 * 60 * 1000).toISOString();
+
+  // Construir vehículos sin restricción de zona
+  const googleVehicles = vehicles.map((v) => {
+    const endDep = v.endDepot ?? v.depot;
+    const vehicleStartTime = buildVehicleStartTime(departureTime, v.departureTime);
+    const vehicleStartDate = new Date(vehicleStartTime);
+    const vehicleEndTime = new Date(vehicleStartDate.getTime() + 12 * 60 * 60 * 1000).toISOString();
+
+    let maxLoad = v.capacity || 9999;
+    if (v.type === 'Camión grande')  maxLoad = 6;
+    if (v.type === 'Camión mediano') maxLoad = 4;
+    if (v.type === 'Camión chico')   maxLoad = 2;
+    if (v.type === 'Camioneta')      maxLoad = 4;
+
+    const sLat = typeof v.depot?.lat === 'number' && isFinite(v.depot.lat) ? v.depot.lat : DEFAULT_LAT;
+    const sLng = typeof v.depot?.lng === 'number' && isFinite(v.depot.lng) ? v.depot.lng : DEFAULT_LNG;
+    const eLat = typeof endDep?.lat === 'number' && isFinite(endDep.lat) ? endDep.lat : sLat;
+    const eLng = typeof endDep?.lng === 'number' && isFinite(endDep.lng) ? endDep.lng : sLng;
+
+    return {
+      startLocation: { latitude: sLat, longitude: sLng },
+      endLocation:   { latitude: eLat, longitude: eLng },
+      label: v.driverName,
+      loadLimits: { parcels: { maxLoad: maxLoad.toString() } },
+      startTimeWindows: [{ startTime: vehicleStartTime, endTime: vehicleEndTime }],
+    };
+  });
+
+  // Todas las entregas sin allowedVehicleIndices — Google distribuye libre
+  const shipments = valid.map(addr => ({
+    deliveries: [{
+      arrivalLocation: { latitude: addr.lat!, longitude: addr.lng! },
+      duration: '300s',
+    }],
+    label: addr.name,
+    loadDemands: { parcels: { amount: '1' } },
+    penaltyCost: 1000000,
+  }));
+
+  const vehicleTypes = vehicles.reduce((acc, v) => ({ ...acc, [v.driverName]: v.type }), {});
+
+  const payload = {
+    model: {
+      shipments,
+      vehicles: googleVehicles,
+      globalStartTime: departureTime,
+      globalEndTime,
+    },
+    unloadConfig,
+    vehicleTypes,
+  };
+
+  const googleResult = await callGoogleRouteOptimization(payload);
+
+  const routes: Route[] = [];
+
+  for (const googleRoute of googleResult.routes || []) {
+    const vehicleIndex = googleRoute.vehicleIndex ?? 0;
+    const vehicle = vehicles[vehicleIndex];
+    if (!vehicle) continue;
+
+    const color = DRIVER_COLORS[vehicleIndex % DRIVER_COLORS.length];
+
+    const stops: Stop[] = (googleRoute.visits || []).map((visit: any, seqIndex: number) => {
+      const shipmentIndex = visit.shipmentIndex ?? 0;
+      const address = valid[shipmentIndex];
+      const transition = googleRoute.transitions?.[seqIndex];
+      return {
+        sequence: seqIndex + 1,
+        address,
+        status: 'pending' as const,
+        eta: transition ? parseInt(transition.travelDuration || '0') : 0,
+        distance: transition ? transition.travelDistanceMeters || 0 : 0,
+      };
+    });
+
+    let accumulatedDistance = 0;
+    let accumulatedDuration = 0;
+    for (const stop of stops) {
+      accumulatedDistance += stop.distance || 0;
+      accumulatedDuration += stop.eta || 0;
+      stop.distance = accumulatedDistance;
+      stop.eta = accumulatedDuration;
+      accumulatedDuration += 300;
+    }
+
+    let finalDistance = 0;
+    let finalDuration = 0;
+    if (googleRoute.transitions?.length > (googleRoute.visits?.length || 0)) {
+      const last = googleRoute.transitions[googleRoute.transitions.length - 1];
+      finalDistance = last.travelDistanceMeters || 0;
+      finalDuration = parseInt(last.travelDuration || '0');
+    }
+
+    const totalDistance = accumulatedDistance + finalDistance;
+    const totalDuration = accumulatedDuration + finalDuration;
+
+    let polyline: [number, number][] = [];
+    let alternatives: [number, number][][] = [];
+    if (stops.length > 0) {
+      const endDep = vehicle.endDepot ?? vehicle.depot;
+      const waypoints: [number, number][] = [
+        [vehicle.depot.lat, vehicle.depot.lng],
+        ...stops.map(s => [s.address.lat!, s.address.lng!] as [number, number]),
+        [endDep.lat, endDep.lng],
+      ];
+      try {
+        const routesResult = await getRouteGoogle(waypoints);
+        polyline = routesResult.polyline;
+        const polylineEncoded = routesResult.polylineEncoded;
+        alternatives = routesResult.alternatives;
+        (alternatives as any)._polylineEncoded = polylineEncoded;
+      } catch (e) {
+        console.warn(`[Google Intelligence] Polilínea falló para ${vehicle.driverName}:`, e);
+      }
+    }
+
+    // Solo incluir vehículos que recibieron paradas
+    if (stops.length > 0) {
+      routes.push({
+        vehicleId: vehicle.id,
+        driverName: vehicle.driverName,
+        matricula: vehicle.matricula,
+        vehicleType: vehicle.type,
+        color,
+        depot: vehicle.depot,
+        endDepot: vehicle.endDepot ?? vehicle.depot,
+        stops,
+        invoices: vehicle.invoices,
+        polyline,
+        polylineEncoded: (alternatives as any)._polylineEncoded,
+        alternatives,
+        totalDistance,
+        totalDuration,
+        departureTime: vehicle.departureTime,
+        metrics: {
+          totalDistanceKm: Number((totalDistance / 1000).toFixed(2)),
+          totalDurationMin: Math.round(totalDuration / 60),
+          stopCount: stops.length,
+        },
+      });
+    }
+  }
+
+  return routes;
+}
+
 /**
  * Asigna colores a los vehículos para consistencia visual.
  */

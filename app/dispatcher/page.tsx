@@ -7,7 +7,7 @@ import type {
 } from '@/types';
 import { getWeatherCDMX, type WeatherData } from '@/lib/weather';
 import { geocodeBatch, geocodeAddress } from '@/lib/nominatim';
-import { optimizeRoutes, assignVehicleColors, optimizeSingleVehicle, redrawPolylineForRoute } from '@/lib/vroom';
+import { optimizeRoutes, optimizeRoutesGoogle, assignVehicleColors, optimizeSingleVehicle, redrawPolylineForRoute } from '@/lib/vroom';
 import CSVUploader from '@/components/dispatcher/CSVUploader';
 import VehicleForm from '@/components/dispatcher/VehicleForm';
 import RoutePanel from '@/components/dispatcher/RoutePanel';
@@ -264,6 +264,7 @@ export default function DispatcherPage() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const fs = useFontSize();
   const [activeTab, setActiveTab] = useState<'config' | 'upload' | 'zones' | 'routes'>('config');
+  const [optimizeMode, setOptimizeMode] = useState<'zones' | 'google'>('zones');
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [geocodingDone, setGeocodingDone] = useState(false);
@@ -679,6 +680,58 @@ export default function DispatcherPage() {
       setIsOptimizing(false);
     }
   }, [state.addresses, state.vehicles, state.depot, state.clusters]);
+
+  const handleGoogleIntelligence = useCallback(async () => {
+    if (state.vehicles.length === 0) {
+      showToast('Agrega al menos un chofer antes de optimizar');
+      return;
+    }
+    if (state.addresses.length === 0) {
+      showToast('Primero carga un archivo CSV con las direcciones');
+      return;
+    }
+    if (state.addresses.some(a => !a.geocoded)) {
+      showToast('Espera a que terminen de geocodificarse las direcciones');
+      return;
+    }
+
+    setIsOptimizing(true);
+    dispatch({ type: 'SET_ERROR', payload: null });
+    dispatch({ type: 'SET_STEP', payload: 'optimizing' });
+    setIsSlideOverOpen(false);
+
+    try {
+      const today = new Date();
+      const timeParts = (state.globalConfig?.departureTime || '08:00').split(':');
+      today.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+      const departureTime = today.toISOString();
+
+      // Asignar depósitos a los vehículos
+      const assignedVehicles = state.vehicles.map(v => {
+        const startDepot = state.globalConfig?.departureDepot || v.depot;
+        const endDepot = state.globalConfig?.returnDepot === 'same'
+          ? startDepot
+          : (state.globalConfig?.returnDepot || v.depot);
+        return { ...v, depot: startDepot, endDepot };
+      });
+
+      const routes = await optimizeRoutesGoogle(
+        state.addresses,
+        assignedVehicles,
+        departureTime,
+        state.globalConfig?.unloadConfig
+      );
+
+      dispatch({ type: 'SET_ROUTES', payload: routes });
+      saveRoutesData(routes);
+      setActiveTab('routes');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      dispatch({ type: 'SET_ERROR', payload: msg });
+    } finally {
+      setIsOptimizing(false);
+    }
+  }, [state.addresses, state.vehicles, state.globalConfig]);
 
   // Compartir link con el chofer
   const handleShareRoute = useCallback((vehicleId: string) => {
@@ -1693,21 +1746,80 @@ export default function DispatcherPage() {
               <button className="so-btn-ghost" onClick={() => { setActiveTab('config'); }}>
                 ← Volver
               </button>
-              <button
-                className="so-btn-primary"
-                disabled={state.addresses.length === 0}
-                onClick={() => {
-                  if (state.addresses.length > 0) {
-                    if (state.vehicles.length === 0) {
-                      showToast('Agrega al menos un chofer antes de continuar');
-                      return;
-                    }
-                    setActiveTab('zones');
-                  }
-                }}
-              >
-                Continuar a Zonas →
-              </button>
+              {state.addresses.length > 0 && state.vehicles.length > 0 ? (
+                <div className="mt-3 space-y-2 ml-auto w-full max-w-sm">
+                  <p className="text-xs text-shuma-muted font-semibold uppercase tracking-wider">
+                    Modo de optimización
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setOptimizeMode('zones')}
+                      className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all ${
+                        optimizeMode === 'zones'
+                          ? 'bg-blue-500/15 border-blue-500/50 text-blue-400'
+                          : 'bg-shuma-surface border-shuma-border text-shuma-muted hover:border-blue-500/30'
+                      }`}
+                    >
+                      <div className="text-base mb-1">🗺️</div>
+                      <div>Zonas manuales</div>
+                      <div className="text-[10px] opacity-70 mt-0.5 font-normal">
+                        Tú defines las zonas, Google ordena
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setOptimizeMode('google')}
+                      className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all ${
+                        optimizeMode === 'google'
+                          ? 'bg-amber-500/15 border-amber-500/50 text-amber-400'
+                          : 'bg-shuma-surface border-shuma-border text-shuma-muted hover:border-amber-500/30'
+                      }`}
+                    >
+                      <div className="text-base mb-1">⚡</div>
+                      <div>Google Intelligence</div>
+                      <div className="text-[10px] opacity-70 mt-0.5 font-normal">
+                        Google distribuye y ordena todo
+                      </div>
+                    </button>
+                  </div>
+
+                  {optimizeMode === 'google' ? (
+                    <button
+                      onClick={handleGoogleIntelligence}
+                      disabled={isOptimizing}
+                      className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                    >
+                      {isOptimizing ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                          </svg>
+                          Calculando rutas...
+                        </>
+                      ) : (
+                        <>⚡ Optimizar con Google Intelligence</>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        dispatch({ type: 'SET_STEP', payload: 'zones' });
+                        setActiveTab('zones');
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition-colors"
+                    >
+                      Continuar a Zonas →
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <button
+                  className="so-btn-primary ml-auto"
+                  disabled={true}
+                >
+                  Continuar a Zonas →
+                </button>
+              )}
             </>
           ) : activeTab === 'zones' ? (
             <>
