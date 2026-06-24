@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { setOptions } from '@googlemaps/js-api-loader';
 import { formatDuration, formatDistance } from '@/lib/osrm';
 import type { Address, Route } from '@/types';
@@ -11,6 +11,10 @@ interface Props {
   depot: { lat: number; lng: number; label: string } | null;
   hiddenRouteIds?: string[];
   liveDeliveryStatus?: Record<string, string>;
+}
+
+export interface MapViewRef {
+  panToDelivery: (lat: number, lng: number) => void;
 }
 
 // ── Helpers para crear marcadores personalizados (HTML) ───────────
@@ -42,13 +46,25 @@ function createStopPin(number: string | number, statusColor?: string) {
   return div;
 }
 
-export default function MapView({ addresses, routes, depot, hiddenRouteIds = [], liveDeliveryStatus = {} }: Props) {
+const MapView = forwardRef<MapViewRef, Props>(function MapView(
+  { addresses, routes, depot, hiddenRouteIds = [], liveDeliveryStatus = {} },
+  ref
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const markersRef = useRef<any[]>([]);
   const routeLayersRef = useRef<{ [vehicleId: string]: any[] }>({});
   const [mapInitialized, setMapInitialized] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    panToDelivery: (lat: number, lng: number) => {
+      if (mapRef.current) {
+        mapRef.current.panTo({ lat, lng });
+        mapRef.current.setZoom(17);
+      }
+    },
+  }));
 
   // ── Inicializar Google Maps ───────────────────────────────────────────
   useEffect(() => {
@@ -405,4 +421,6 @@ export default function MapView({ addresses, routes, depot, hiddenRouteIds = [],
       style={{ minHeight: '400px', backgroundColor: '#0f172a' }}
     />
   );
-}
+});
+
+export default MapView;

@@ -32,6 +32,9 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   const [filterUser, setFilterUser]     = useState('');
   const [dateFrom, setDateFrom]         = useState('');
   const [filterEntityId, setFilterEntityId] = useState(initialEntityId || '');
+  const [searchText, setSearchText]   = useState('');
+  const [dateTo, setDateTo]           = useState('');
+  const [totalCount, setTotalCount]   = useState(0);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -60,17 +63,20 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
       if (filterUser)   params.set('user_name', filterUser);
       if (dateFrom)     params.set('dateFrom', dateFrom);
       if (filterEntityId) params.set('entity_id', filterEntityId);
+      if (searchText)   params.set('search', searchText);
+      if (dateTo)       params.set('dateTo', dateTo);
 
       const res  = await fetch(`/api/audit?${params.toString()}`);
       const json = await res.json();
       if (!json.ok) throw new Error('Error al cargar bitácora');
       setLogs(json.data || []);
+      setTotalCount(json.total || 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
       setLoading(false);
     }
-  }, [filterModule, filterUser, dateFrom, filterEntityId]);
+  }, [filterModule, filterUser, dateFrom, filterEntityId, searchText, dateTo]);
 
   useEffect(() => {
     if (isOpen && userRole === 'admin') {
@@ -145,6 +151,14 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
           <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 p-4 border-b border-shuma-border/50 bg-shuma-surface/50">
             <input
               type="text"
+              placeholder="🔍 Buscar en acciones, usuario, detalles..."
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && fetchLogs()}
+              className="col-span-2 sm:col-span-6 px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-accent/40 text-xs text-shuma-text placeholder:text-shuma-muted focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+            />
+            <input
+              type="text"
               placeholder="Usuario"
               value={filterUser}
               onChange={e => setFilterUser(e.target.value)}
@@ -167,6 +181,12 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
               className="px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text focus:outline-none focus:border-blue-500"
             />
             <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text focus:outline-none focus:border-blue-500"
+            />
+            <input
               type="text"
               placeholder="Entity ID"
               value={filterEntityId}
@@ -182,12 +202,19 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
               Exportar
             </button>
             <button
-              onClick={() => { setFilterModule(''); setFilterUser(''); setDateFrom(''); setFilterEntityId(''); }}
+              onClick={() => { setFilterModule(''); setFilterUser(''); setDateFrom(''); setFilterEntityId(''); setSearchText(''); setDateTo(''); }}
               className="px-3 py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30 transition-colors"
             >
               Limpiar
             </button>
           </div>
+
+          {totalCount > 0 && (
+            <div className="px-4 py-1.5 bg-shuma-surface/50 border-b border-shuma-border/30 text-[11px] text-shuma-muted font-medium">
+              {totalCount} registro{totalCount !== 1 ? 's' : ''} encontrado{totalCount !== 1 ? 's' : ''}
+              {searchText && <span className="text-blue-400 ml-1">· búsqueda: "{searchText}"</span>}
+            </div>
+          )}
 
           <div className="flex-1 overflow-auto">
             {loading ? (

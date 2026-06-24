@@ -37,29 +37,41 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const module    = searchParams.get('module') || '';
-    const user_name = searchParams.get('user_name') || '';
-    const dateFrom  = searchParams.get('dateFrom') || '';
-    const entity_id = searchParams.get('entity_id') || '';
-    const limit     = parseInt(searchParams.get('limit') || '500');
+    const module     = searchParams.get('module')     || '';
+    const user_name  = searchParams.get('user_name')  || '';
+    const dateFrom   = searchParams.get('dateFrom')   || '';
+    const dateTo     = searchParams.get('dateTo')     || '';
+    const entity_id  = searchParams.get('entity_id')  || '';
+    const search     = searchParams.get('search')     || '';  // ← NUEVO: full-text
+    const limit      = parseInt(searchParams.get('limit') || '200');
+    const offset     = parseInt(searchParams.get('offset') || '0');  // ← NUEVO: paginación
 
     let query = supabaseAdmin
       .from('audit_log')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
-      .limit(limit);
+      .range(offset, offset + limit - 1);
 
     if (module)    query = query.eq('module', module);
-    if (user_name) query = query.eq('user_name', user_name);
+    if (user_name) query = query.ilike('user_name', `%${user_name}%`);  // ← era eq, ahora ilike
     if (dateFrom)  query = query.gte('created_at', new Date(dateFrom).toISOString());
+    if (dateTo)    query = query.lte('created_at', new Date(dateTo + 'T23:59:59').toISOString());
     if (entity_id) query = query.eq('entity_id', entity_id);
 
-    const { data, error } = await query;
+    // Búsqueda full-text: busca en action, user_name y metadata::text
+    if (search) {
+      const term = `%${search}%`;
+      query = query.or(
+        `action.ilike.${term},user_name.ilike.${term},metadata::text.ilike.${term}`
+      );
+    }
+
+    const { data, error, count } = await query;
     if (error) throw error;
 
-    return NextResponse.json({ ok: true, data });
+    return NextResponse.json({ ok: true, data, total: count ?? 0 });
   } catch (err) {
     console.error('Audit GET error:', err);
-    return NextResponse.json({ ok: false, data: [] }, { status: 500 });
+    return NextResponse.json({ ok: false, data: [], total: 0 }, { status: 500 });
   }
 }

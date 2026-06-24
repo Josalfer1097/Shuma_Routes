@@ -27,6 +27,8 @@ import FontScaleButton from '@/components/dispatcher/FontScaleButton';
 import { useFontSize } from '@/lib/fontScaleContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
 
+import type { MapViewRef } from '@/components/dispatcher/MapView';
+
 // Leaflet NO es compatible con SSR → dynamic import
 const MapView = dynamic(() => import('@/components/dispatcher/MapView'), {
   ssr: false,
@@ -41,7 +43,7 @@ const MapView = dynamic(() => import('@/components/dispatcher/MapView'), {
       </div>
     </div>
   ),
-});
+}) as any;
 
 const ZoneMap = dynamic(() => import('@/components/dispatcher/ZoneMap'), {
   ssr: false,
@@ -290,6 +292,12 @@ export default function DispatcherPage() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [auditEntityId, setAuditEntityId] = useState<string | undefined>(undefined);
 
+  // ── Map Search ──
+  const mapViewRef = useRef<MapViewRef>(null);
+  const [showMapSearch, setShowMapSearch] = useState(false);
+  const [mapSearchText, setMapSearchText] = useState('');
+  const [mapSearchResults, setMapSearchResults] = useState<any[]>([]);
+
   const openAuditForRoute = (routeId: string) => {
     setAuditEntityId(routeId);
     setIsAuditModalOpen(true);
@@ -441,11 +449,39 @@ export default function DispatcherPage() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsMoreMenuOpen(false);
+      if (e.key === 'Escape') {
+        setIsMoreMenuOpen(false);
+        setShowMapSearch(false);
+      }
+      if (e.key === 'F1' || (e.ctrlKey && e.key.toLowerCase() === 'f')) {
+        e.preventDefault();
+        setShowMapSearch(prev => !prev);
+        if (!showMapSearch) {
+          // autofocus in the render
+          setTimeout(() => document.getElementById('map-search-input')?.focus(), 50);
+        }
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [showMapSearch]);
+
+  useEffect(() => {
+    if (!mapSearchText) {
+      setMapSearchResults([]);
+      return;
+    }
+    const txt = mapSearchText.toLowerCase();
+    const results: any[] = [];
+    state.routes.forEach(r => {
+      r.stops.forEach(s => {
+        if (s.address.name.toLowerCase().includes(txt) || s.address.clientName?.toLowerCase().includes(txt) || s.address.invoice?.toLowerCase().includes(txt) || s.address.raw.toLowerCase().includes(txt)) {
+          results.push({ ...s, route: r });
+        }
+      });
+    });
+    setMapSearchResults(results);
+  }, [mapSearchText, state.routes]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1170,12 +1206,60 @@ export default function DispatcherPage() {
       <main style={{ flex: 1, position: 'relative', overflow: 'hidden', height: mapHeight }}>
         {/* Map */}
         <MapView
+          ref={mapViewRef}
           addresses={state.addresses}
           routes={state.routes}
           depot={state.depot}
           hiddenRouteIds={hiddenRouteIds}
           liveDeliveryStatus={liveDeliveryStatus}
         />
+
+        {/* ── Buscador de mapa (F1 o Ctrl+F) ── */}
+        {showMapSearch && (
+          <div className="absolute top-4 left-4 z-40 bg-shuma-bg border border-shuma-border rounded-xl shadow-2xl p-4 w-80 font-['DM_Sans'] flex flex-col max-h-[70vh]">
+            <div className="flex items-center gap-2 mb-3">
+              <Search className="text-shuma-muted" size={16} />
+              <input
+                id="map-search-input"
+                type="text"
+                placeholder="Buscar cliente, factura..."
+                value={mapSearchText}
+                onChange={e => setMapSearchText(e.target.value)}
+                className="flex-1 bg-transparent border-none focus:outline-none text-sm text-shuma-text placeholder:text-shuma-muted"
+              />
+              <button onClick={() => setShowMapSearch(false)} className="text-shuma-muted hover:text-white transition-colors text-xs px-2 py-1 bg-shuma-surface rounded border border-shuma-border/50">Esc</button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+              {mapSearchText && mapSearchResults.length === 0 && (
+                <div className="text-xs text-shuma-muted text-center py-4">No se encontraron paradas</div>
+              )}
+              {mapSearchResults.map((res, i) => (
+                <div 
+                  key={i}
+                  className="bg-shuma-surface hover:bg-slate-800 border border-shuma-border rounded-lg p-3 cursor-pointer transition-colors"
+                  onClick={() => {
+                    if (res.address.lat && res.address.lng) {
+                      mapViewRef.current?.panToDelivery(res.address.lat, res.address.lng);
+                      setShowMapSearch(false);
+                      setMapSearchText('');
+                    }
+                  }}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <p className="text-xs font-bold text-white line-clamp-1">{res.address.clientName || res.address.name}</p>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: res.route.color + '20', color: res.route.color }}>
+                      Parada {res.sequence}
+                    </span>
+                  </div>
+                  {res.address.invoice && <p className="text-[11px] text-blue-400 font-medium">Factura: {res.address.invoice}</p>}
+                  <p className="text-[10px] text-shuma-muted line-clamp-2 mt-1">{res.address.raw}</p>
+                  <p className="text-[10px] text-shuma-muted font-bold mt-1.5">Ruta: {res.route.driverName}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Weather widget (bottom-left) ── */}
         {weather && (

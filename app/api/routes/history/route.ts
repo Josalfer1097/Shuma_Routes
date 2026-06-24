@@ -7,6 +7,8 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const dateFilter = searchParams.get('date');
+    const dateFrom   = searchParams.get('dateFrom') || '';
+    const dateTo     = searchParams.get('dateTo')   || '';
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
 
     let query = supabaseAdmin
@@ -16,6 +18,10 @@ export async function GET(req: NextRequest) {
 
     if (dateFilter) {
       query = query.eq('date', dateFilter);
+    } else if (dateFrom && dateTo) {
+      query = query.gte('date', dateFrom).lte('date', dateTo);
+    } else if (dateFrom) {
+      query = query.gte('date', dateFrom);
     } else {
       query = query.lt('date', today);
     }

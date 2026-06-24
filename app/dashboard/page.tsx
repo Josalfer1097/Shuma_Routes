@@ -17,29 +17,62 @@ interface APIRoute {
   driver_name: string | null;
   total_km: number;
   stats: RouteStats;
+  total_merchandise_value?: number;
 }
 
 export default function DashboardPage() {
   const [allRoutes, setAllRoutes] = useState<APIRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [period, setPeriod] = useState<'today' | '7d' | '30d'>('7d');
 
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true);
         setError(false);
+        const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
+        const today = now.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+
+        let historyUrl = '';
+        let activeUrl  = `/api/routes/active?date=${today}`;
+
+        if (period === 'today') {
+          historyUrl = `/api/routes/history?date=${today}`;
+        } else if (period === '7d') {
+          const from = new Date(now); from.setDate(from.getDate() - 6);
+          historyUrl = `/api/routes/history?dateFrom=${from.toLocaleDateString('en-CA')}&dateTo=${today}`;
+        } else if (period === '30d') {
+          const from = new Date(now); from.setDate(from.getDate() - 29);
+          historyUrl = `/api/routes/history?dateFrom=${from.toLocaleDateString('en-CA')}&dateTo=${today}`;
+        }
+
         const [resHistory, resActive] = await Promise.all([
-          fetch('/api/routes/history'),
-          fetch(`/api/routes/active?date=${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })}`)
+          fetch(historyUrl),
+          fetch(activeUrl),
         ]);
 
         const jsonHistory = await resHistory.json();
-        const jsonActive = await resActive.json();
+        const jsonActive  = await resActive.json();
 
         let combined: APIRoute[] = [];
-        if (jsonHistory.ok && jsonHistory.routes) combined = combined.concat(jsonHistory.routes);
-        if (jsonActive.ok && jsonActive.routes) combined = combined.concat(jsonActive.routes);
+
+        if (jsonHistory.ok && jsonHistory.routes) {
+          combined = combined.concat(jsonHistory.routes.map((r: any) => ({
+            ...r,
+            total_merchandise_value: (r.deliveries || []).reduce(
+              (acc: number, d: any) => acc + (Number(d.merchandiseValue || d.address?.merchandiseValue) || 0), 0
+            ),
+          })));
+        }
+        if (jsonActive.ok && jsonActive.routes) {
+          combined = combined.concat(jsonActive.routes.map((r: any) => ({
+            ...r,
+            total_merchandise_value: (r.deliveries || []).reduce(
+              (acc: number, d: any) => acc + (Number(d.merchandiseValue || d.address?.merchandiseValue) || 0), 0
+            ),
+          })));
+        }
 
         setAllRoutes(combined);
       } catch (e) {
@@ -50,7 +83,7 @@ export default function DashboardPage() {
       }
     }
     fetchData();
-  }, []);
+  }, [period]);
 
   if (loading) {
     return (
@@ -97,12 +130,14 @@ export default function DashboardPage() {
   let totalEntregas = 0;
   let entregadas = 0;
   let totalKm = 0;
+  let totalMercValue = 0;
   const driverNames = new Set<string>();
 
   allRoutes.forEach(r => {
     totalEntregas += (r.stats?.total || 0);
     entregadas += (r.stats?.delivered || 0) + (r.stats?.partial || 0);
     totalKm += (r.total_km || 0);
+    totalMercValue += (r.total_merchandise_value || 0);
     if (r.driver_name) driverNames.add(r.driver_name);
   });
 
@@ -111,9 +146,9 @@ export default function DashboardPage() {
 
   // Gráfico Semanal
   const daysMap = new Map<string, { total: number, success: number }>();
-  // Inicializamos los ultimos 7 dias para que siempre haya 7 barras
   const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
-  for (let i = 6; i >= 0; i--) {
+  const daysToShow = period === 'today' ? 1 : period === '7d' ? 7 : 30;
+  for (let i = daysToShow - 1; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
     const dateStr = d.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
@@ -167,20 +202,43 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold text-white font-['Exo_2'] flex items-center gap-2">
               <span className="text-2xl">📊</span> Intelligence Hub
             </h1>
-            <p className="text-xs text-shuma-muted font-medium mt-0.5">Últimos 7 días · CDMX</p>
+            <p className="text-xs text-shuma-muted font-medium mt-0.5">
+              {period === 'today' ? 'Hoy' : period === '7d' ? 'Últimos 7 días' : 'Últimos 30 días'} · CDMX
+            </p>
           </div>
         </div>
-        <div className="bg-shuma-surface border border-shuma-border px-3 py-1.5 rounded-lg">
-          <p className="text-xs font-bold text-shuma-text">
-            <span className="text-blue-400">{allRoutes.length}</span> rutas analizadas
-          </p>
+        <div className="flex items-center gap-2">
+          {/* Selector de período */}
+          <div className="flex items-center bg-shuma-surface border border-shuma-border rounded-xl overflow-hidden text-xs font-bold">
+            {(['today', '7d', '30d'] as const).map((p) => {
+              const labels = { today: 'Hoy', '7d': '7 días', '30d': '30 días' };
+              return (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`px-3 py-1.5 transition-colors ${
+                    period === p
+                      ? 'bg-blue-600 text-white'
+                      : 'text-shuma-muted hover:text-white hover:bg-shuma-border'
+                  }`}
+                >
+                  {labels[p]}
+                </button>
+              );
+            })}
+          </div>
+          <div className="bg-shuma-surface border border-shuma-border px-3 py-1.5 rounded-lg">
+            <p className="text-xs font-bold text-shuma-text">
+              <span className="text-blue-400">{allRoutes.length}</span> rutas
+            </p>
+          </div>
         </div>
       </header>
 
       <main className="p-6 max-w-7xl mx-auto space-y-6">
         
         {/* KPI CARDS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="shuma-card rounded-2xl p-5 border border-shuma-border" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
             <div className="flex justify-between items-start">
               <div>
@@ -230,6 +288,24 @@ export default function DashboardPage() {
             </div>
             <div className="mt-2 text-xs font-medium text-violet-400 bg-violet-500/10 inline-block px-2 py-0.5 rounded border border-violet-500/20">
               Fuerza laboral
+            </div>
+          </div>
+
+          <div className="shuma-card rounded-2xl p-5 border border-shuma-border" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Valor Mercancía</p>
+                <p className="text-[22px] font-bold text-white">
+                  ${totalMercValue.toLocaleString('es-MX', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  })}
+                </p>
+              </div>
+              <span className="text-3xl opacity-80">💰</span>
+            </div>
+            <div className="mt-2 text-xs font-medium text-amber-400 bg-amber-500/10 inline-block px-2 py-0.5 rounded border border-amber-500/20">
+              {period === 'today' ? 'Hoy' : period === '7d' ? 'Últimos 7 días' : 'Últimos 30 días'}
             </div>
           </div>
         </div>
