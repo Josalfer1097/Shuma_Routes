@@ -22,6 +22,7 @@ interface Props {
   onVehicleTimeChange?: (vehicleId: string, timeStr: string) => void;
   deadlineTime?: string;
   unloadConfig?: import('@/types').UnloadConfig;
+  onUpdateDriverVehicle?: (vehicleId: string, newDriverName: string, newMatricula: string) => void;
 }
 
 function getHaversineDistance(
@@ -53,7 +54,8 @@ export default function RoutePanel({
   globalDepartureTime = '08:00',
   onVehicleTimeChange,
   deadlineTime = '17:45',
-  unloadConfig
+  unloadConfig,
+  onUpdateDriverVehicle
 }: Props) {
   const fs = useFontSize();
   const [expandedRoute, setExpandedRoute] = useState<string | null>(routes[0]?.vehicleId ?? null);
@@ -63,6 +65,13 @@ export default function RoutePanel({
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [dragOverVehicleId, setDragOverVehicleId] = useState<string | null>(null);
   const [metricsModalRouteId, setMetricsModalRouteId] = useState<string | null>(null);
+
+  const [reassignModalId, setReassignModalId] = useState<string | null>(null);
+  const [driversDB, setDriversDB]             = useState<{ id: string; name: string }[]>([]);
+  const [vehiclesDB, setVehiclesDB]           = useState<{ id: string; plate: string; type: string }[]>([]);
+  const [newDriverName,  setNewDriverName]    = useState('');
+  const [newMatricula,   setNewMatricula]     = useState('');
+  const [loadingReassign, setLoadingReassign] = useState(false);
 
   // Modal State
   const [modalState, setModalState] = useState<{
@@ -75,6 +84,32 @@ export default function RoutePanel({
     haversineExtraKm: number;
     isRestrictedZone: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/drivers')
+      .then(r => r.json())
+      .then(json => {
+        if (json.ok) {
+          setDriversDB(json.drivers || []);
+          setVehiclesDB(json.vehicles || []);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  const openReassign = (route: Route) => {
+    setReassignModalId(route.vehicleId);
+    setNewDriverName(route.driverName);
+    setNewMatricula(route.matricula || '');
+  };
+
+  const confirmReassign = () => {
+    if (!reassignModalId || !newDriverName || !newMatricula) return;
+    if (onUpdateDriverVehicle) {
+      onUpdateDriverVehicle(reassignModalId, newDriverName, newMatricula);
+    }
+    setReassignModalId(null);
+  };
 
   useEffect(() => {
     if (!isEditing && routes.length > 0) {
@@ -449,7 +484,24 @@ export default function RoutePanel({
                     <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: route.color }} />
                     <div className="flex-1 text-left">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-shuma-text">{route.driverName}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-shuma-text">{route.driverName}</p>
+                          {route.matricula && (
+                            <span className="text-[10px] text-shuma-muted font-mono">{route.matricula}</span>
+                          )}
+                          {onUpdateDriverVehicle && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openReassign(route); }}
+                              className="p-0.5 rounded text-shuma-muted hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                              title="Cambiar chofer / vehículo"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                         {route.zoneName && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-shuma-surface/50 text-shuma-text border border-shuma-border/50">
                             {route.zoneName}
@@ -823,6 +875,68 @@ export default function RoutePanel({
           </div>
         );
       })()}
+
+      {reassignModalId && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setReassignModalId(null)}>
+          <div className="bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl w-full max-w-sm p-5"
+            onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-white mb-4">Reasignar chofer / vehículo</h3>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-shuma-muted block mb-1">Chofer</label>
+                <select
+                  value={newDriverName}
+                  onChange={e => setNewDriverName(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-shuma-surface border border-shuma-border rounded-lg text-shuma-text focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">— Selecciona —</option>
+                  {driversDB.map(d => (
+                    <option key={d.id} value={d.name}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-shuma-muted block mb-1">Vehículo</label>
+                <select
+                  value={newMatricula}
+                  onChange={e => setNewMatricula(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-shuma-surface border border-shuma-border rounded-lg text-shuma-text focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">— Selecciona —</option>
+                  {vehiclesDB.map(v => (
+                    <option key={v.id} value={v.plate}>
+                      {v.plate} — {
+                        v.type === 'truck_large'  ? 'Camión grande'  :
+                        v.type === 'truck_medium' ? 'Camión mediano' :
+                        v.type === 'truck_small'  ? 'Camión chico'   : 'Camioneta'
+                      }
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setReassignModalId(null)}
+                className="flex-1 py-2.5 bg-slate-800 text-slate-300 font-bold text-sm rounded-xl border border-shuma-border"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmReassign}
+                disabled={!newDriverName || !newMatricula}
+                className="flex-1 py-2.5 bg-blue-600 disabled:bg-blue-600/40 text-white font-bold text-sm rounded-xl"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

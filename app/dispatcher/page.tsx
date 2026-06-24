@@ -2032,6 +2032,25 @@ export default function DispatcherPage() {
                     : [...prev, vehicleId]
                 );
               }}
+              onUpdateDriverVehicle={(vehicleId, newDriverName, newMatricula) => {
+                // Actualizar en state.vehicles
+                dispatch({
+                  type: 'UPDATE_VEHICLE',
+                  payload: {
+                    id: vehicleId,
+                    changes: { driverName: newDriverName, matricula: newMatricula }
+                  }
+                });
+                // Actualizar en state.routes
+                dispatch({
+                  type: 'SET_ROUTES',
+                  payload: state.routes.map(r =>
+                    r.vehicleId === vehicleId
+                      ? { ...r, driverName: newDriverName, matricula: newMatricula }
+                      : r
+                  )
+                });
+              }}
             />
           </div>
         )}
