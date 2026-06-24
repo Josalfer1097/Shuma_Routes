@@ -97,6 +97,8 @@ export default function DriverPage() {
   const [isCompressing, setIsCompressing]         = useState(false);
   const [isSubmitting, setIsSubmitting]           = useState(false);
   const [isRefreshing, setIsRefreshing]           = useState(false);
+  const [routeStarted, setRouteStarted]           = useState(false);
+  const [isStarting, setIsStarting]               = useState(false);
   const [expandedStops, setExpandedStops]         = useState<Set<string>>(new Set());
   const fileInputRef                              = useRef<HTMLInputElement>(null);
 
@@ -122,7 +124,12 @@ export default function DriverPage() {
     const id   = sessionStorage.getItem('shuma_driver_id') || '';
     setDriverName(name);
     setDriverId(id);
-    if (id) fetchRoute(id);
+    if (id) {
+      fetchRoute(id);
+      // Persistir estado de ruta iniciada en sessionStorage
+      const started = sessionStorage.getItem('shuma_route_started');
+      if (started === 'true') setRouteStarted(true);
+    }
     else { setError('No se encontró tu ID. Contacta al administrador.'); setLoading(false); }
   }, [router, fetchRoute]);
 
@@ -296,6 +303,34 @@ export default function DriverPage() {
 
   const handleLogout = () => { sessionStorage.clear(); router.push('/'); };
 
+  const handleStartRoute = async () => {
+    if (!route || isStarting) return;
+    setIsStarting(true);
+    try {
+      const res = await fetch('/api/driver/route/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          routeId:       route.routeId,
+          routeDriverId: route.routeDriverId,
+          driverId,
+          driverName,
+        }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Error al iniciar ruta');
+      setRouteStarted(true);
+      sessionStorage.setItem('shuma_route_started', 'true');
+      // Refrescar las paradas para que muestren status in_route
+      await fetchRoute(driverId, true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      alert(`Error: ${msg}`);
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
   if (loading) return (
     <AuthGuard>
       <div className="min-h-screen bg-shuma-bg flex items-center justify-center">
@@ -337,6 +372,107 @@ export default function DriverPage() {
       </div>
     </AuthGuard>
   );
+
+  // Pantalla "Iniciar Ruta" — si la ruta no ha sido iniciada
+  if (!routeStarted && route.closureStatus !== 'approved') {
+    return (
+      <AuthGuard>
+        <div className="min-h-screen bg-shuma-bg flex flex-col">
+          {/* Header minimal */}
+          <header className="bg-shuma-surface border-b border-shuma-border p-4 flex justify-between items-center">
+            <div>
+              <h1 className="text-base font-bold text-white">
+                {route.routeCode ? `Ruta ${route.routeCode}` : 'Mi Ruta de Hoy'}
+              </h1>
+              <p className="text-xs text-shuma-muted mt-0.5">{driverName}</p>
+            </div>
+            <button onClick={handleLogout} className="p-2 text-shuma-muted touch-manipulation">
+              <LogOut size={18} />
+            </button>
+          </header>
+
+          {/* Contenido centrado */}
+          <main className="flex-1 flex flex-col items-center justify-center p-6 gap-6 text-center">
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: `${route.color}20`, border: `2px solid ${route.color}` }}
+            >
+              <Truck size={36} style={{ color: route.color }} />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-white">
+                ¡Listo para salir!
+              </h2>
+              <p className="text-shuma-muted text-sm max-w-xs">
+                Tienes <span className="text-white font-semibold">{route.stops.length} entregas</span> programadas
+                para hoy. Presiona el botón cuando estés en camino.
+              </p>
+            </div>
+
+            {/* Info de ruta */}
+            <div className="w-full max-w-xs bg-shuma-surface border border-shuma-border rounded-2xl p-4 space-y-2 text-left">
+              <div className="flex justify-between text-sm">
+                <span className="text-shuma-muted">Entregas</span>
+                <span className="text-white font-semibold">{route.stops.length}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-shuma-muted">Distancia</span>
+                <span className="text-white font-semibold">{route.totalKm?.toFixed(1)} km</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-shuma-muted">Tiempo estimado</span>
+                <span className="text-white font-semibold">
+                  {Math.floor((route.totalMinutes || 0) / 60)}h {(route.totalMinutes || 0) % 60}m
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-shuma-muted">Hora de salida</span>
+                <span className="text-white font-semibold">{route.departureTime || '—'}</span>
+              </div>
+            </div>
+
+            {/* Botón principal */}
+            <button
+              onClick={handleStartRoute}
+              disabled={isStarting}
+              className="w-full max-w-xs flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-white text-base touch-manipulation transition-all active:scale-95 disabled:opacity-60"
+              style={{ backgroundColor: route.color || '#2196F3' }}
+            >
+              {isStarting ? (
+                <>
+                  <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Iniciando...
+                </>
+              ) : (
+                <>
+                  <Truck size={22} />
+                  Iniciar Ruta
+                </>
+              )}
+            </button>
+          </main>
+
+          {/* Footer */}
+          <footer className="p-3 border-t border-shuma-border">
+            <p style={{
+              fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase' as const,
+              background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
+              backgroundSize: '400% auto', WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+              animation: 'rgbRoll 5s linear infinite', opacity: 0.4,
+              textAlign: 'center',
+            }}>
+              Design &amp; Developed by Shuma Sistemas IT
+            </p>
+          </footer>
+        </div>
+      </AuthGuard>
+    );
+  }
 
   const delivered    = route.stops.filter(s => s.status === 'delivered' || s.status === 'completed').length;
   const partial      = route.stops.filter(s => s.status === 'partial').length;

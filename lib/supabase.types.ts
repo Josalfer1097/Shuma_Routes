@@ -83,7 +83,7 @@ export type Delivery = {
   updated_at: string;
 };
 
-export type EventType = 'delivered' | 'failed' | 'photo' | 'signature' | 'panic' | 'note';
+export type EventType = 'delivered' | 'failed' | 'photo' | 'signature' | 'panic' | 'note' | 'route_started';
 
 export type DeliveryEvent = {
   id: string;
