@@ -196,6 +196,44 @@ function calcularViabilidad(vehicles: Vehicle[], clusters: Cluster[], globalConf
   });
 }
 
+// Helper: calcular ETA de una ruta activa
+const calcRouteETA = (
+  departureTime: string,        // 'HH:MM'
+  totalMinutes: number,         // tiempo total estimado de la ruta
+  pending: number,              // paradas pendientes
+  total: number,                // total de paradas
+  deadlineTime: string          // 'HH:MM' límite del día
+): { etaStr: string; isAtRisk: boolean } => {
+  try {
+    // Tiempo promedio por parada (mínimo 10 min)
+    const avgMinPerStop = total > 0 ? Math.max(totalMinutes / total, 10) : 15;
+    // Tiempo restante estimado
+    const remainingMin = Math.round(pending * avgMinPerStop);
+
+    // Hora actual en CDMX
+    const nowCDMX = new Date().toLocaleTimeString('en-CA', {
+      timeZone: 'America/Mexico_City', hour12: false
+    });
+    const [nowH, nowM] = nowCDMX.split(':').map(Number);
+    const nowTotalMin = nowH * 60 + nowM;
+
+    // ETA = ahora + tiempo restante
+    const etaTotalMin = nowTotalMin + remainingMin;
+    const etaH = Math.floor(etaTotalMin / 60) % 24;
+    const etaM = etaTotalMin % 60;
+    const etaStr = `${String(etaH).padStart(2, '0')}:${String(etaM).padStart(2, '0')}`;
+
+    // ¿Supera el deadline?
+    const [dlH, dlM] = (deadlineTime || '17:45').split(':').map(Number);
+    const deadlineMin = dlH * 60 + dlM;
+    const isAtRisk = etaTotalMin > deadlineMin;
+
+    return { etaStr, isAtRisk };
+  } catch {
+    return { etaStr: '--:--', isAtRisk: false };
+  }
+};
+
 // ─── Helper: rol badge text ────────────────────────────────
 const ROLE_LABELS: Record<string, string> = {
   admin: 'ADMIN',
@@ -2079,6 +2117,11 @@ export default function DispatcherPage() {
                     const isDone    = pending === 0 && total > 0;
                     const hasFails  = failed > 0 || partial > 0;
 
+                    const deadline = state.globalConfig?.deadlineTime || '17:45';
+                    const { etaStr, isAtRisk } = !isDone
+                      ? calcRouteETA(route.departure_time, route.total_minutes, pending, route.stats.total, deadline)
+                      : { etaStr: '', isAtRisk: false };
+
                     return (
                       <div key={route.id}
                         className="p-4 rounded-xl border border-shuma-border bg-shuma-surface/30 space-y-3">
@@ -2129,28 +2172,38 @@ export default function DispatcherPage() {
                                   <span className="ml-1.5 opacity-40">· {route.route_code}</span>
                                 )}
                                 {route.total_km > 0 && ` · ${route.total_km.toFixed(1)} km`}
+                                {!isDone && etaStr && etaStr !== '--:--' && (
+                                  <span className="ml-1.5">· ETA <span className={isAtRisk ? 'text-red-400 font-semibold' : 'text-shuma-text'}>{etaStr}</span></span>
+                                )}
                               </p>
                             </div>
                           </div>
 
-                          {/* Badge de status */}
-                          <button
-                            onClick={() => hasFails ? openAuditForRoute(route.id) : undefined}
-                            className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 border ${
-                              isDone && !hasFails
-                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 cursor-default'
-                                : isDone && hasFails
-                                  ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/25 cursor-pointer transition-colors'
-                                  : hasFails
+                          {/* Badge de status y riesgo */}
+                          <div className="flex flex-col items-end gap-1">
+                            <button
+                              onClick={() => hasFails ? openAuditForRoute(route.id) : undefined}
+                              className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 border ${
+                                isDone && !hasFails
+                                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 cursor-default'
+                                  : isDone && hasFails
                                     ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/25 cursor-pointer transition-colors'
-                                    : 'bg-blue-500/15 text-blue-400 border-blue-500/30 cursor-default'
-                            }`}
-                          >
-                            {isDone && !hasFails ? '✓ Completada'
-                              : isDone ? '⚠ Con incidencias'
-                              : pending > 0 ? `● ${pending} pendientes`
-                              : '● En curso'}
-                          </button>
+                                    : hasFails
+                                      ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/25 cursor-pointer transition-colors'
+                                      : 'bg-blue-500/15 text-blue-400 border-blue-500/30 cursor-default'
+                              }`}
+                            >
+                              {isDone && !hasFails ? '✓ Completada'
+                                : isDone ? '⚠ Con incidencias'
+                                : pending > 0 ? `● ${pending} pendientes`
+                                : '● En curso'}
+                            </button>
+                            {isAtRisk && !isDone && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-400 border border-red-500/30 animate-pulse shrink-0">
+                                ⚠ En riesgo
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         {/* Barra de progreso */}
