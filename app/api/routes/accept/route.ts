@@ -19,33 +19,60 @@ export async function POST(req: NextRequest) {
 
     for (const route of routes) {
       // 1. Insertar ruta principal
-      // Buscar depot_id por coordenadas (tolerancia de 0.001 grados)
-      let depotId: string | null = null;
-      let returnDepotId: string | null = null;
+      // ── Resolver depot_id con fallback por nombre ──
+      const resolveDepotId = async (
+        depotObj: { lat?: number; lng?: number; name?: string; id?: string } | null | undefined
+      ): Promise<string | null> => {
+        if (!depotObj) return null;
 
-      if (route.depot?.lat && route.depot?.lng) {
-        const { data: depotData } = await supabaseAdmin
-          .from('depots')
-          .select('id')
-          .gte('lat', route.depot.lat - 0.001)
-          .lte('lat', route.depot.lat + 0.001)
-          .gte('lng', route.depot.lng - 0.001)
-          .lte('lng', route.depot.lng + 0.001)
-          .single();
-        depotId = depotData?.id || null;
-      }
+        // Intento 1: buscar por coordenadas exactas con tolerancia
+        if (depotObj.lat && depotObj.lng) {
+          const { data } = await supabaseAdmin
+            .from('depots')
+            .select('id, name')
+            .gte('lat', depotObj.lat - 0.002)
+            .lte('lat', depotObj.lat + 0.002)
+            .gte('lng', depotObj.lng - 0.002)
+            .lte('lng', depotObj.lng + 0.002)
+            .limit(1)
+            .single();
 
-      if (route.endDepot?.lat && route.endDepot?.lng) {
-        const { data: returnData } = await supabaseAdmin
-          .from('depots')
-          .select('id')
-          .gte('lat', route.endDepot.lat - 0.001)
-          .lte('lat', route.endDepot.lat + 0.001)
-          .gte('lng', route.endDepot.lng - 0.001)
-          .lte('lng', route.endDepot.lng + 0.001)
-          .single();
-        returnDepotId = returnData?.id || null;
-      }
+          if (data?.id) {
+            console.log(`[accept] depot encontrado por coords: ${data.name} → ${data.id}`);
+            return data.id;
+          }
+        }
+
+        // Intento 2: buscar por nombre del depot
+        if (depotObj.name) {
+          // Normalizar: "San Pablo", "Bodega San Pablo", "División del Norte" → buscar substring
+          const searchName = depotObj.name
+            .replace(/^bodega\s+/i, '')   // quitar prefijo "Bodega "
+            .trim();
+
+          const { data } = await supabaseAdmin
+            .from('depots')
+            .select('id, name')
+            .ilike('name', `%${searchName}%`)
+            .limit(1)
+            .single();
+
+          if (data?.id) {
+            console.log(`[accept] depot encontrado por nombre "${searchName}": ${data.name} → ${data.id}`);
+            return data.id;
+          }
+        }
+
+        console.warn(`[accept] depot NO encontrado — lat=${depotObj.lat} lng=${depotObj.lng} name=${depotObj.name}`);
+        return null;
+      };
+
+      const depotId       = await resolveDepotId(route.depot);
+      const returnDepotId = await resolveDepotId(
+        route.endDepot?.lat ? route.endDepot : route.depot
+      );
+
+      console.log(`[accept] depotId="${depotId}" returnDepotId="${returnDepotId}"`);
 
       const { data: routeData, error: routeErr } = await supabaseAdmin
         .from('routes')

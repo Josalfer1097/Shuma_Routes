@@ -17,33 +17,42 @@ export async function POST(req: Request) {
         : '08:00:00';
 
     // ── Fix depot_id: buscar UUID en Supabase por coordenadas ──
-    let depotId: string | null = null;
-    let returnDepotId: string | null = null;
+    const resolveDepotId = async (
+      depotObj: { lat?: number; lng?: number; name?: string; id?: string } | null | undefined
+    ): Promise<string | null> => {
+      if (!depotObj) return null;
 
-    const depLat = globalConfig?.departureDepot?.lat;
-    const depLng = globalConfig?.departureDepot?.lng;
-    const retLat = globalConfig?.returnDepot?.lat ?? depLat;
-    const retLng = globalConfig?.returnDepot?.lng ?? depLng;
+      if (depotObj.lat && depotObj.lng) {
+        const { data } = await supabaseAdmin
+          .from('depots')
+          .select('id, name')
+          .gte('lat', depotObj.lat - 0.002)
+          .lte('lat', depotObj.lat + 0.002)
+          .gte('lng', depotObj.lng - 0.002)
+          .lte('lng', depotObj.lng + 0.002)
+          .limit(1)
+          .single();
 
-    if (depLat && depLng) {
-      const { data: depotData } = await supabaseAdmin
-        .from('depots')
-        .select('id')
-        .gte('lat', depLat - 0.001).lte('lat', depLat + 0.001)
-        .gte('lng', depLng - 0.001).lte('lng', depLng + 0.001)
-        .single();
-      depotId = depotData?.id || null;
-    }
+        if (data?.id) return data.id;
+      }
 
-    if (retLat && retLng) {
-      const { data: retData } = await supabaseAdmin
-        .from('depots')
-        .select('id')
-        .gte('lat', retLat - 0.001).lte('lat', retLat + 0.001)
-        .gte('lng', retLng - 0.001).lte('lng', retLng + 0.001)
-        .single();
-      returnDepotId = retData?.id || depotId;
-    }
+      if (depotObj.name) {
+        const searchName = depotObj.name.replace(/^bodega\s+/i, '').trim();
+        const { data } = await supabaseAdmin
+          .from('depots')
+          .select('id, name')
+          .ilike('name', `%${searchName}%`)
+          .limit(1)
+          .single();
+
+        if (data?.id) return data.id;
+      }
+
+      return null;
+    };
+
+    const depotId = await resolveDepotId(globalConfig?.departureDepot);
+    const returnDepotId = await resolveDepotId(globalConfig?.returnDepot) || depotId;
 
     // ── Versionado ──
     const { data: previousRoutes } = await supabaseAdmin

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, Fragment } from 'react';
+import { useEffect, useState, useCallback, Fragment, useRef } from 'react';
 import { X, Download, ChevronRight, ChevronDown, LogIn, LogOut, Package, Truck, RotateCcw, Lock, AlertCircle } from 'lucide-react';
 
 interface AuditLogEntry {
@@ -36,6 +36,9 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   const [dateTo, setDateTo]           = useState('');
   const [totalCount, setTotalCount]   = useState(0);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage]   = useState(1);
+  const PAGE_SIZE = 50; // registros por página
+  const tableScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (initialEntityId) {
@@ -58,6 +61,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     setLoading(true);
     setError(null);
     try {
+      tableScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       const params = new URLSearchParams();
       if (filterModule) params.set('module', filterModule);
       if (filterUser)   params.set('user_name', filterUser);
@@ -65,6 +69,8 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
       if (filterEntityId) params.set('entity_id', filterEntityId);
       if (searchText)   params.set('search', searchText);
       if (dateTo)       params.set('dateTo', dateTo);
+      params.set('limit', String(PAGE_SIZE));
+      params.set('offset', String((currentPage - 1) * PAGE_SIZE));
 
       const res  = await fetch(`/api/audit?${params.toString()}`);
       const json = await res.json();
@@ -76,13 +82,17 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     } finally {
       setLoading(false);
     }
-  }, [filterModule, filterUser, dateFrom, filterEntityId, searchText, dateTo]);
+  }, [filterModule, filterUser, dateFrom, filterEntityId, searchText, dateTo, currentPage]);
 
   useEffect(() => {
     if (isOpen && userRole === 'admin') {
       fetchLogs();
     }
   }, [isOpen, userRole, fetchLogs]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterModule, filterUser, dateFrom, filterEntityId, searchText, dateTo]);
 
   // Guard DESPUÉS de todos los hooks — regla de React
   if (!isOpen || userRole !== 'admin') return null;
@@ -216,7 +226,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
             </div>
           )}
 
-          <div className="flex-1 overflow-auto">
+          <div ref={tableScrollRef} className="flex-1 overflow-auto">
             {loading ? (
               <div className="flex items-center justify-center h-40 text-shuma-muted text-sm">Cargando bitácora…</div>
             ) : error ? (
@@ -330,8 +340,110 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
             )}
           </div>
 
-          <div className="px-6 py-3 border-t border-shuma-border bg-shuma-surface/50 text-xs text-shuma-muted">
-            Total: {logs.length} registros
+          <div className="px-4 py-3 border-t border-shuma-border bg-shuma-surface/50
+            flex items-center justify-between gap-4 flex-wrap">
+            
+            {/* Info */}
+            <span className="text-xs text-shuma-muted">
+              {totalCount > 0 ? (
+                <>
+                  Mostrando{' '}
+                  <span className="text-shuma-text font-medium">
+                    {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, totalCount)}
+                  </span>
+                  {' '}de{' '}
+                  <span className="text-shuma-text font-medium">{totalCount}</span>
+                  {' '}registros
+                </>
+              ) : (
+                'Sin registros'
+              )}
+            </span>
+
+            {/* Controles */}
+            {totalCount > PAGE_SIZE && (
+              <div className="flex items-center gap-1">
+                {/* Primera página */}
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-2 py-1 rounded text-xs text-shuma-muted hover:text-white
+                    hover:bg-shuma-border disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Primera página"
+                >
+                  «
+                </button>
+
+                {/* Anterior */}
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-2.5 py-1 rounded text-xs text-shuma-muted hover:text-white
+                    hover:bg-shuma-border disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  ‹ Anterior
+                </button>
+
+                {/* Páginas numéricas — máximo 5 visibles */}
+                {(() => {
+                  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+                  const delta = 2;
+                  const pages: (number | '...')[] = [];
+                  
+                  for (let i = 1; i <= totalPages; i++) {
+                    if (
+                      i === 1 || i === totalPages ||
+                      (i >= currentPage - delta && i <= currentPage + delta)
+                    ) {
+                      pages.push(i);
+                    } else if (
+                      (i === currentPage - delta - 1 && i > 1) ||
+                      (i === currentPage + delta + 1 && i < totalPages)
+                    ) {
+                      pages.push('...');
+                    }
+                  }
+                  
+                  return pages.map((p, i) => p === '...' ? (
+                    <span key={`dots-${i}`}
+                      className="px-1 text-xs text-shuma-muted">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p as number)}
+                      className={`w-7 h-7 rounded text-xs font-medium transition-colors ${
+                        currentPage === p
+                          ? 'bg-blue-600 text-white'
+                          : 'text-shuma-muted hover:text-white hover:bg-shuma-border'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ));
+                })()}
+
+                {/* Siguiente */}
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalCount / PAGE_SIZE), p + 1))}
+                  disabled={currentPage >= Math.ceil(totalCount / PAGE_SIZE)}
+                  className="px-2.5 py-1 rounded text-xs text-shuma-muted hover:text-white
+                    hover:bg-shuma-border disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  Siguiente ›
+                </button>
+
+                {/* Última página */}
+                <button
+                  onClick={() => setCurrentPage(Math.ceil(totalCount / PAGE_SIZE))}
+                  disabled={currentPage >= Math.ceil(totalCount / PAGE_SIZE)}
+                  className="px-2 py-1 rounded text-xs text-shuma-muted hover:text-white
+                    hover:bg-shuma-border disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Última página"
+                >
+                  »
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
