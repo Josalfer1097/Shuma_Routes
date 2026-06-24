@@ -152,7 +152,7 @@ export default function HistoryPage() {
                 const isExpanded = expandedRoute === route.id;
 
                 return (
-                  <div key={route.id} className="p-4 rounded-xl border border-shuma-border bg-shuma-surface/30 space-y-3 hover:border-slate-600 transition-colors">
+                  <div key={route.id} className="p-4 rounded-xl border border-shuma-border bg-shuma-surface/30 space-y-3 hover:border-slate-600 transition-colors" style={{ borderLeft: `3px solid ${route.color || '#2196F3'}` }}>
                     
                     {/* Cabecera de ruta */}
                     <div className="flex items-start justify-between gap-3">

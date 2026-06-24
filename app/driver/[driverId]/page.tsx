@@ -24,7 +24,7 @@ export default function DriverPage() {
     setError(null);
 
     try {
-      // 1. Intentar desde URL params (link compartido por despachador)
+      // 1. Intentar desde URL params (link compartido por administrador)
       const dataParam = searchParams.get('data');
       if (dataParam) {
         const decoded = JSON.parse(decodeURIComponent(atob(dataParam))) as SharedRouteState;
@@ -77,7 +77,7 @@ export default function DriverPage() {
         return;
       }
 
-      setError('No se encontró información de ruta. Pide al despachador que te comparta el link.');
+      setError('No se encontró información de ruta. Pide al administrador que te comparta el link.');
     } catch {
       setError('Error al cargar la ruta. El link puede estar dañado.');
     }

@@ -62,7 +62,7 @@ export interface Vehicle {
   depot: Depot;
   /** Bodega de regreso (si difiere de la de salida) */
   endDepot?: Depot;
-  /** Facturas/notas del despachador */
+  /** Facturas/notas del administrador */
   invoices: string;
   /** Hora de salida individual para este vehículo (ISO string) */
   departureTime?: string;
@@ -114,7 +114,7 @@ export interface Route {
   };
 }
 
-/** Estado compartido despachador → chofer */
+/** Estado compartido administrador → chofer */
 export interface SharedRouteState {
   routes: Route[];
   depot: { lat: number; lng: number; label: string } | null;

@@ -19,7 +19,7 @@ import { clusterDeliveries } from '@/lib/clustering';
 import type { Cluster, GlobalConfig, ClusteringConfig, Stop } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
+import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw, Search, Truck } from 'lucide-react';
 import Image from 'next/image';
 import WeatherIntelPanel from '@/components/dispatcher/WeatherIntelPanel';
 import AuditLogModal from '@/components/dispatcher/AuditLogModal';
@@ -398,6 +398,14 @@ export default function DispatcherPage() {
     fetchStatuses();
     const intv = setInterval(fetchStatuses, 30000);
     return () => clearInterval(intv);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMoreMenuOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   useEffect(() => {
@@ -900,10 +908,10 @@ export default function DispatcherPage() {
                         animation: 'fadeInDown 0.15s ease-out',
                       }}>
                         {[
-                          { icon: '📊', label: 'Dashboard', href: '/dashboard' },
-                          { icon: '📜', label: 'Histórico', href: '/history' },
-                          { icon: '🔍', label: 'Bitácora', action: () => { setIsAuditModalOpen(true); setIsMoreMenuOpen(false); } },
-                          { icon: '🚚', label: 'Rutas Activas', action: () => { fetchActiveRoutes(); setIsActiveRoutesOpen(true); setIsMoreMenuOpen(false); } },
+                          { icon: <BarChart2 size={14} />, label: 'Dashboard', href: '/dashboard' },
+                          { icon: <History size={14} />, label: 'Histórico', href: '/history' },
+                          { icon: <Search size={14} />, label: 'Bitácora', action: () => { setIsAuditModalOpen(true); setIsMoreMenuOpen(false); } },
+                          { icon: <Truck size={14} />, label: 'Rutas Activas', action: () => { fetchActiveRoutes(); setIsActiveRoutesOpen(true); setIsMoreMenuOpen(false); } },
                         ].map(item => (
                           <button
                             key={item.label}
@@ -922,7 +930,7 @@ export default function DispatcherPage() {
                             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(33,150,243,0.08)'; e.currentTarget.style.color = '#e2e8f0'; }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94a3b8'; }}
                           >
-                            <span style={{ fontSize: fs(14) }}>{item.icon}</span>
+                            {item.icon}
                             {item.label}
                           </button>
                         ))}
