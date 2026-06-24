@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, Fragment } from 'react';
-import { X, Download, ChevronRight, ChevronDown } from 'lucide-react';
+import { X, Download, ChevronRight, ChevronDown, LogIn, LogOut, Package, Truck, RotateCcw, Lock, AlertCircle } from 'lucide-react';
 
 interface AuditLogEntry {
   id: string;
@@ -111,6 +111,18 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
       timeStyle: 'medium',
     });
 
+  const getActionIcon = (action: string, module: string) => {
+    const a = action.toLowerCase();
+    const m = module.toLowerCase();
+    if (a.includes('login') || a.includes('sesión'))   return <LogIn size={13} className="text-blue-400 shrink-0" />;
+    if (a.includes('logout') || a.includes('salida'))  return <LogOut size={13} className="text-slate-400 shrink-0" />;
+    if (a.includes('entrega') || m === 'entregas')     return <Package size={13} className="text-emerald-400 shrink-0" />;
+    if (a.includes('ruta') || m === 'rutas')           return <Truck size={13} className="text-blue-400 shrink-0" />;
+    if (a.includes('reapertura') || a.includes('corrección')) return <RotateCcw size={13} className="text-amber-400 shrink-0" />;
+    if (a.includes('cierre') || a.includes('cerrar'))  return <Lock size={13} className="text-purple-400 shrink-0" />;
+    return <AlertCircle size={13} className="text-shuma-muted shrink-0" />;
+  };
+
   return (
     <>
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
@@ -194,7 +206,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-shuma-border/50">
-                  {logs.map(log => {
+                  {logs.map((log, rowIdx) => {
                     const isExpanded = expandedRows.has(log.id);
                     const hasMetadata = log.metadata && Object.keys(log.metadata).length > 0;
                     
@@ -202,7 +214,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                       <Fragment key={log.id}>
                         <tr 
                           onClick={() => hasMetadata && toggleExpand(log.id)}
-                          className={`hover:bg-shuma-surface/50 transition-colors ${hasMetadata ? 'cursor-pointer' : ''}`}
+                          className={`hover:bg-shuma-surface/50 transition-colors ${hasMetadata ? 'cursor-pointer' : ''} ${rowIdx % 2 === 0 ? '' : 'bg-slate-900/30'}`}
                         >
                           <td className="px-4 py-2 text-shuma-text">
                             <div className="flex items-center gap-2">
@@ -215,9 +227,22 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                             </div>
                           </td>
                           <td className="px-4 py-2 text-blue-400 font-medium">{log.user_name}</td>
-                          <td className="px-4 py-2 text-amber-400">{log.user_role}</td>
+                          <td className="px-4 py-2">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide border ${
+                              log.user_role === 'admin'
+                                ? 'bg-blue-500/10 text-blue-400 border-blue-500/25'
+                                : 'bg-amber-500/10 text-amber-400 border-amber-500/25'
+                            }`}>
+                              {log.user_role === 'admin' ? 'ADMIN' : 'CHOFER'}
+                            </span>
+                          </td>
                           <td className="px-4 py-2 text-cyan-400">{log.module}</td>
-                          <td className="px-4 py-2 text-shuma-text">{log.action}</td>
+                          <td className="px-4 py-2 text-shuma-text">
+                            <div className="flex items-center gap-1.5">
+                              {getActionIcon(log.action, log.module)}
+                              {log.action}
+                            </div>
+                          </td>
                           <td className="px-4 py-2 text-shuma-muted">{log.ip_address}</td>
                         </tr>
                         {isExpanded && hasMetadata && (
