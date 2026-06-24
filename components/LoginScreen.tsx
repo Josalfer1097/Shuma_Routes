@@ -371,7 +371,7 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
         .ls-eye-btn svg { width: 16px; height: 16px; }
         .ls-btn {
           width: 100%; margin-top: 8px; height: 50px;
-          background: linear-gradient(135deg, #0047AB 0%, #1565C0 100%);
+          background: linear-gradient(135deg, ${accentColor} 0%, ${accentColor}cc 100%);
           border: none; border-radius: 10px; color: #fff;
           font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 700;
           letter-spacing: 0.25em; text-transform: uppercase;
