@@ -35,8 +35,16 @@ export interface Depot {
 export interface Driver {
   id: string;
   name: string;
-  matricula: string;
-  defaultType?: 'Camión grande' | 'Camión chico' | 'Camioneta';
+  employee_id: string | null;
+  active: boolean;
+}
+
+export interface SupabaseVehicle {
+  id: string;
+  plate: string;
+  type: 'truck_large' | 'truck_medium' | 'truck_small' | 'van';
+  max_load: number;
+  active: boolean;
 }
 
 export interface Cluster {
