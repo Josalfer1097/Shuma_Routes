@@ -10,6 +10,19 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'a' || e.key === 'A') {
+        window.location.href = '/admin-login';
+      }
+      if (e.key === 'c' || e.key === 'C') {
+        window.location.href = '/driver-login';
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, []);
+
+  useEffect(() => {
     setReady(true);
     const auth = sessionStorage.getItem('shuma_auth');
     const role = sessionStorage.getItem('shuma_role');
@@ -171,6 +184,9 @@ export default function HomePage() {
             }}
               className="group-hover:opacity-60 group-hover:scale-110 group-hover:translate-x-2"
             >🗺️</div>
+            <span className="absolute top-2 right-2 text-[9px] font-mono bg-white/10 text-white/40 px-1.5 py-0.5 rounded border border-white/10">
+              A
+            </span>
           </Link>
           <Link
             href="/driver-login"
@@ -206,6 +222,9 @@ export default function HomePage() {
             }}
               className="group-hover:opacity-60 group-hover:scale-110 group-hover:translate-x-2"
             >🚛</div>
+            <span className="absolute top-2 right-2 text-[9px] font-mono bg-white/10 text-white/40 px-1.5 py-0.5 rounded border border-white/10">
+              C
+            </span>
           </Link>
         </div>
         {/* Footer RGB */}
