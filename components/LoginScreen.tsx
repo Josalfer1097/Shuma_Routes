@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 export interface LoginScreenProps {
@@ -31,6 +31,7 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
   const [loading, setLoading] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const router = useRouter();
+  const userInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const savedAttempts = parseInt(sessionStorage.getItem('shuma_login_attempts') || '0');
@@ -58,6 +59,15 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
       setAttempts(savedAttempts);
     }
   }, []);
+
+  useEffect(() => {
+    // Auto-focus en el campo usuario al montar, con delay
+    // para esperar la animación cardIn (0.7s)
+    const t = setTimeout(() => {
+      if (!isBlocked) userInputRef.current?.focus();
+    }, 750);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async () => {
     if (isBlocked) return;
@@ -658,6 +668,7 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
               <div className={`ls-field-row ${focusU ? "focused" : ""} ${error ? "err" : ""}`}>
                 <div className="ls-icon-box">{icon}</div>
                 <input
+                  ref={userInputRef}
                   type="text"
                   placeholder="Identificador de acceso"
                   value={user}

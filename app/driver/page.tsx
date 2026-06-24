@@ -88,6 +88,8 @@ export default function DriverPage() {
   const [driverId, setDriverId]       = useState('');
   const [error, setError]             = useState('');
   const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const [justDeliveredId, setJustDeliveredId] = useState<string | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
 
   // Modal state
   const [activeModal, setActiveModal]             = useState<ModalType>(null);
@@ -134,6 +136,22 @@ export default function DriverPage() {
     }
     else { setError('No se encontró tu ID. Contacta al administrador.'); setLoading(false); }
   }, [router, fetchRoute]);
+
+  useEffect(() => {
+    if (route && routeStarted && !showSummary) {
+      const delivered = route.stops.filter(s => s.status === 'delivered' || s.status === 'completed').length;
+      const partial = route.stops.filter(s => s.status === 'partial').length;
+      const failed = route.stops.filter(s => s.status === 'failed').length;
+      const pending = route.stops.length - delivered - partial - failed;
+      const allDone = pending === 0;
+
+      if (allDone) {
+        // Mostrar el resumen 1.5s después de que la última entrega se procese
+        const t = setTimeout(() => setShowSummary(true), 1500);
+        return () => clearTimeout(t);
+      }
+    }
+  }, [route, routeStarted, showSummary]); // eslint-disable-line
 
   useEffect(() => {
     if (!driverId) return;
@@ -266,11 +284,14 @@ export default function DriverPage() {
       const json = await res.json();
       if (!json.ok) throw new Error('Error al actualizar');
 
-      // Actualizar local
       const newStops = route.stops.map((s, i) =>
         i === selectedStop.index ? { ...s, status, notes } : s
       );
       setRoute({ ...route, stops: newStops });
+      if (status === 'completed') {
+        setJustDeliveredId(selectedStop.stop.id);
+        setTimeout(() => setJustDeliveredId(null), 1800);
+      }
       closeModal();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
@@ -515,6 +536,127 @@ export default function DriverPage() {
   const pct          = Math.round((processed / route.stops.length) * 100);
   const allDone      = pending === 0;
 
+  if (showSummary && route) {
+    const deliveredFinal = route.stops.filter(s =>
+      s.status === 'delivered' || s.status === 'completed'
+    ).length;
+    const partialFinal   = route.stops.filter(s => s.status === 'partial').length;
+    const failedFinal    = route.stops.filter(s => s.status === 'failed').length;
+    const tasaExito      = Math.round(((deliveredFinal + partialFinal) / route.stops.length) * 100);
+
+    return (
+      <AuthGuard>
+        <div className="min-h-screen bg-shuma-bg flex flex-col items-center justify-center p-6"
+          style={{ animation: 'cardSlideUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards' }}>
+          
+          <style>{`
+            @keyframes cardSlideUp {
+              from { opacity: 0; transform: translateY(24px); }
+              to   { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes successRing {
+              0%   { transform: scale(0.8); opacity: 0; }
+              60%  { transform: scale(1.08); opacity: 1; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            @keyframes rgbRoll {
+              from { background-position: 0% center; }
+              to   { background-position: 400% center; }
+            }
+          `}</style>
+
+          {/* Ícono de éxito */}
+          <div style={{
+            width: 88, height: 88, borderRadius: '50%',
+            background: 'rgba(16,185,129,0.12)',
+            border: `3px solid ${route.color || '#10B981'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginBottom: 20,
+            animation: 'successRing 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards',
+          }}>
+            <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+              <path d="M10 24 L20 34 L38 16"
+                stroke={route.color || '#10B981'} strokeWidth="3.5"
+                strokeLinecap="round" strokeLinejoin="round"
+                style={{ strokeDasharray: 60, strokeDashoffset: 60,
+                  animation: 'drawCheck 0.5s ease 0.4s forwards' }}
+              />
+            </svg>
+          </div>
+
+          <h1 className="text-2xl font-bold text-white text-center mb-1">
+            ¡Ruta completada!
+          </h1>
+          <p className="text-shuma-muted text-sm text-center mb-8">
+            {driverName} · {new Date().toLocaleDateString('es-MX', {
+              weekday: 'long', day: 'numeric', month: 'long',
+              timeZone: 'America/Mexico_City'
+            })}
+          </p>
+
+          {/* KPIs */}
+          <div className="w-full max-w-xs space-y-3 mb-8">
+            <div className="bg-shuma-surface border border-shuma-border rounded-2xl p-4">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <p className="text-2xl font-bold text-emerald-400">{deliveredFinal}</p>
+                  <p className="text-[10px] text-shuma-muted uppercase tracking-wide mt-0.5">Entregados</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-amber-400">{partialFinal}</p>
+                  <p className="text-[10px] text-shuma-muted uppercase tracking-wide mt-0.5">Parciales</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-red-400">{failedFinal}</p>
+                  <p className="text-[10px] text-shuma-muted uppercase tracking-wide mt-0.5">Sin entregar</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-shuma-border grid grid-cols-2 gap-3 text-center">
+                <div>
+                  <p className="text-lg font-bold text-white">{tasaExito}%</p>
+                  <p className="text-[10px] text-shuma-muted uppercase tracking-wide mt-0.5">Tasa de éxito</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-white">{route.totalKm?.toFixed(1)} km</p>
+                  <p className="text-[10px] text-shuma-muted uppercase tracking-wide mt-0.5">Recorridos</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Acciones */}
+          <div className="w-full max-w-xs space-y-3">
+            <button
+              onClick={() => setShowSummary(false)}
+              className="w-full py-3 rounded-2xl border border-shuma-border
+                text-shuma-muted hover:text-white hover:bg-shuma-surface
+                text-sm font-semibold transition-colors"
+            >
+              Ver detalle de entregas
+            </button>
+            <button
+              onClick={handleLogout}
+              className="w-full py-3 rounded-2xl font-bold text-white text-sm transition-colors"
+              style={{ backgroundColor: route.color || '#2196F3' }}
+            >
+              Cerrar sesión
+            </button>
+          </div>
+
+          <p style={{
+            marginTop: 32, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase',
+            background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
+            backgroundSize: '400% auto', WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            animation: 'rgbRoll 5s linear infinite', opacity: 0.4,
+          }}>
+            Design &amp; Developed by Shuma Sistemas IT
+          </p>
+        </div>
+      </AuthGuard>
+    );
+  }
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-shuma-bg flex flex-col">
@@ -623,7 +765,40 @@ export default function DriverPage() {
             if (isFailed)    { borderColor = 'border-red-500/30';     bgColor = 'bg-red-900/10'; }
 
             return (
-              <div key={stop.id} className={`rounded-2xl border ${borderColor} ${bgColor} overflow-hidden shadow-sm`}>
+              <div key={stop.id}
+                className={`rounded-2xl border ${borderColor} ${bgColor} overflow-hidden shadow-sm`}
+                style={{ position: 'relative' }}
+              >
+                {/* Flash de entrega exitosa */}
+                {justDeliveredId === stop.id && (
+                  <div style={{
+                    position: 'absolute', inset: 0, zIndex: 10,
+                    background: 'rgba(16,185,129,0.15)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: 'inherit',
+                    animation: 'deliveryFlash 1.8s ease forwards',
+                    pointerEvents: 'none',
+                  }}>
+                    <div style={{
+                      width: 56, height: 56, borderRadius: '50%',
+                      background: 'rgba(16,185,129,0.2)',
+                      border: '2px solid rgba(16,185,129,0.6)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      animation: 'deliveryCheckScale 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards',
+                    }}>
+                      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+                        <path d="M6 16 L13 23 L26 10"
+                          stroke="#10B981" strokeWidth="2.5"
+                          strokeLinecap="round" strokeLinejoin="round"
+                          style={{
+                            strokeDasharray: 40, strokeDashoffset: 40,
+                            animation: 'drawCheck 0.4s ease 0.1s forwards',
+                          }}
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                )}
                 {/* Cabecera de la parada */}
                 <div className="p-3.5" onClick={() => toggleExpand(stop.id)}>
                   <div className="flex items-start gap-3">
@@ -673,13 +848,35 @@ export default function DriverPage() {
 
                     {isPending && (
                       <div className="mt-3 space-y-2">
-                        {/* Navegar — fila propia, ancho completo */}
-                        <button
-                          onClick={() => window.open(`https://maps.google.com/?q=${stop.address.lat},${stop.address.lng}`, '_blank')}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl text-xs font-semibold touch-manipulation active:bg-blue-500/20 transition-colors"
-                        >
-                          <Navigation size={13} /> Ir a la dirección
-                        </button>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => window.open(
+                              `https://www.google.com/maps/dir/?api=1&destination=${stop.address.lat},${stop.address.lng}&travelmode=driving`,
+                              '_blank'
+                            )}
+                            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl
+                              bg-blue-500/10 text-blue-400 border border-blue-500/20
+                              text-xs font-semibold touch-manipulation active:bg-blue-500/20 transition-colors"
+                          >
+                            <Navigation size={13} />
+                            Google Maps
+                          </button>
+                          <button
+                            onClick={() => window.open(
+                              `https://waze.com/ul?ll=${stop.address.lat},${stop.address.lng}&navigate=yes`,
+                              '_blank'
+                            )}
+                            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl
+                              bg-purple-500/10 text-purple-400 border border-purple-500/20
+                              text-xs font-semibold touch-manipulation active:bg-purple-500/20 transition-colors"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1
+                                14.5v-5l4 2.5-4 2.5z"/>
+                            </svg>
+                            Waze
+                          </button>
+                        </div>
 
                         {/* 3 acciones de estado — mismo peso visual */}
                         {route.closureStatus !== 'approved' && route.closureStatus !== 'requested' && (
@@ -729,6 +926,21 @@ export default function DriverPage() {
 
         {/* ── FOOTER ── */}
         <footer className="fixed bottom-0 left-0 right-0 p-3 bg-shuma-bg/95 backdrop-blur-sm border-t border-shuma-border">
+          <style>{`
+            @keyframes deliveryFlash {
+              0%   { opacity: 0; }
+              15%  { opacity: 1; }
+              75%  { opacity: 1; }
+              100% { opacity: 0; }
+            }
+            @keyframes deliveryCheckScale {
+              from { transform: scale(0); }
+              to   { transform: scale(1); }
+            }
+            @keyframes drawCheck {
+              to { stroke-dashoffset: 0; }
+            }
+          `}</style>
           <p style={{
             fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase' as const,
             background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',

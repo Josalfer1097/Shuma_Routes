@@ -7,7 +7,16 @@ import ParticleField from '@/components/ParticleField';
 
 export default function HomePage() {
   const [ready, setReady] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [sysStatus, setSysStatus] = useState<'checking' | 'ok' | 'error'>('checking');
   const router = useRouter();
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(j => setSysStatus(j.ok ? 'ok' : 'error'))
+      .catch(() => setSysStatus('error'));
+  }, []);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -40,7 +49,10 @@ export default function HomePage() {
   );
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-shuma-bg px-4">
+    <main
+      className="min-h-screen flex items-center justify-center bg-shuma-bg px-4"
+      style={leaving ? { animation: 'pageFadeOut 0.3s ease forwards' } : undefined}
+    >
       {/* Fondo decorativo */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Gradientes de fondo */}
@@ -144,18 +156,35 @@ export default function HomePage() {
           <p className="text-shuma-muted text-sm">
             Sistema de optimización de rutas de entrega
           </p>
+          <div className="flex items-center justify-center gap-2 mt-3 mb-1">
+            <div className={`w-2 h-2 rounded-full transition-colors ${
+              sysStatus === 'ok'       ? 'bg-emerald-400 animate-pulse' :
+              sysStatus === 'error'    ? 'bg-red-400' :
+                                         'bg-slate-600 animate-pulse'
+            }`} />
+            <span style={{
+              fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: sysStatus === 'ok' ? '#34d399' : sysStatus === 'error' ? '#f87171' : '#3B5270',
+              fontFamily: "'Exo 2', sans-serif",
+            }}>
+              {sysStatus === 'ok'    ? 'Sistema operativo' :
+               sysStatus === 'error' ? 'Sin conexión' :
+                                       'Verificando...'}
+            </span>
+          </div>
         </div>
         {/* Selector de rol */}
         <div className="space-y-3">
           <p className="text-center text-xs font-medium text-slate-500 uppercase tracking-widest mb-5">
             Selecciona tu rol
           </p>
-          <Link
-            href="/admin-login"
+          <button
+            onClick={() => { setLeaving(true); setTimeout(() => router.push('/admin-login'), 280); }}
             className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-accent transition-all duration-300 hover:shadow-lg
                        hover:shadow-[0_0_15px_rgba(33,150,243,0.15)] hover:-translate-y-0.5"
+            style={{ animation: 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s both' }}
           >
             <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0
                             bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors duration-300">
@@ -187,13 +216,14 @@ export default function HomePage() {
             <span className="absolute top-2 right-2 text-[9px] font-mono bg-white/10 text-white/40 px-1.5 py-0.5 rounded border border-white/10">
               A
             </span>
-          </Link>
-          <Link
-            href="/driver-login"
+          </button>
+          <button
+            onClick={() => { setLeaving(true); setTimeout(() => router.push('/driver-login'), 280); }}
             className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-warning transition-all duration-300 hover:shadow-lg
                        hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:-translate-y-0.5"
+            style={{ animation: 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.22s both' }}
           >
             <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0
                             bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors duration-300">
@@ -225,7 +255,7 @@ export default function HomePage() {
             <span className="absolute top-2 right-2 text-[9px] font-mono bg-white/10 text-white/40 px-1.5 py-0.5 rounded border border-white/10">
               C
             </span>
-          </Link>
+          </button>
         </div>
         {/* Footer RGB */}
         <p style={{
@@ -255,6 +285,14 @@ export default function HomePage() {
           @keyframes rgbRoll {
             from { background-position: 0% center; }
             to   { background-position: 400% center; }
+          }
+          @keyframes cardSlideUp {
+            from { opacity: 0; transform: translateY(24px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+          }
+          @keyframes pageFadeOut {
+            from { opacity: 1; transform: scale(1); }
+            to   { opacity: 0; transform: scale(0.98); }
           }
         `}</style>
       </div>
