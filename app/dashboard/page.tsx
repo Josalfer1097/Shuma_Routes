@@ -23,6 +23,7 @@ interface APIRoute {
 
 export default function DashboardPage() {
   const [allRoutes, setAllRoutes] = useState<APIRoute[]>([]);
+  const [prevRoutes, setPrevRoutes] = useState<APIRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [period, setPeriod] = useState<'today' | '7d' | '30d'>('7d');
@@ -79,6 +80,39 @@ export default function DashboardPage() {
         }
 
         setAllRoutes(combined);
+
+        // ── Fetch período anterior para deltas ──
+        const now2 = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
+        let prevUrl = '';
+        if (period === 'today') {
+          const yesterday = new Date(now2); yesterday.setDate(yesterday.getDate() - 1);
+          prevUrl = `/api/routes/history?date=${yesterday.toLocaleDateString('en-CA')}`;
+        } else if (period === '7d') {
+          const from = new Date(now2); from.setDate(from.getDate() - 13);
+          const to   = new Date(now2); to.setDate(to.getDate() - 7);
+          prevUrl = `/api/routes/history?dateFrom=${from.toLocaleDateString('en-CA')}&dateTo=${to.toLocaleDateString('en-CA')}`;
+        } else if (period === '30d') {
+          const from = new Date(now2); from.setDate(from.getDate() - 59);
+          const to   = new Date(now2); to.setDate(to.getDate() - 30);
+          prevUrl = `/api/routes/history?dateFrom=${from.toLocaleDateString('en-CA')}&dateTo=${to.toLocaleDateString('en-CA')}`;
+        }
+
+        if (prevUrl) {
+          try {
+            const resPrev = await fetch(prevUrl);
+            const jsonPrev = await resPrev.json();
+            if (jsonPrev.ok && jsonPrev.routes) {
+              setPrevRoutes(jsonPrev.routes.map((r: any) => ({
+                ...r,
+                total_merchandise_value: (r.deliveries || []).reduce(
+                  (acc: number, d: any) => acc + (Number(d.merchandiseValue || d.address?.merchandiseValue) || 0), 0
+                ),
+              })));
+            } else {
+              setPrevRoutes([]);
+            }
+          } catch { setPrevRoutes([]); }
+        }
       } catch (e) {
         console.error(e);
         setError(true);
@@ -147,6 +181,45 @@ export default function DashboardPage() {
 
   const tasaExito = totalEntregas > 0 ? Math.round((entregadas / totalEntregas) * 100) : 0;
   const choferesActivos = driverNames.size;
+
+  let prevTotal = 0;
+  let prevEntregadas = 0;
+  let prevKm = 0;
+  let prevMercValue = 0;
+  prevRoutes.forEach(r => {
+    prevTotal      += (r.stats?.total || 0);
+    prevEntregadas += (r.stats?.delivered || 0) + (r.stats?.partial || 0);
+    prevKm         += (r.total_km || 0);
+    prevMercValue  += (r.total_merchandise_value || 0);
+  });
+  const prevTasa = prevTotal > 0 ? Math.round((prevEntregadas / prevTotal) * 100) : 0;
+
+  // Helper para calcular delta
+  const delta = (curr: number, prev: number): { pct: number; dir: 'up' | 'down' | 'flat' } => {
+    if (prev === 0) return { pct: 0, dir: 'flat' };
+    const pct = Math.round(((curr - prev) / prev) * 100);
+    return { pct: Math.abs(pct), dir: pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat' };
+  };
+
+  const deltaTotal = delta(totalEntregas, prevTotal);
+  const deltaTasa  = delta(tasaExito, prevTasa);
+  const deltaKm    = delta(totalKm, prevKm);
+  const deltaMerc  = delta(totalMercValue, prevMercValue);
+
+  const DeltaBadge = ({ d }: { d: { pct: number; dir: 'up' | 'down' | 'flat' } }) => {
+    if (d.dir === 'flat' || d.pct === 0) return null;
+    const isGood = d.dir === 'up'; // para entregas/tasa/km UP es bueno; para fallidas DOWN es bueno
+    return (
+      <span style={{
+        fontSize: 10, fontWeight: 700,
+        color: isGood ? '#34d399' : '#f87171',
+        fontFamily: "'Exo 2', sans-serif",
+        display: 'inline-flex', alignItems: 'center', gap: 2,
+      }}>
+        {d.dir === 'up' ? '↑' : '↓'}{d.pct}%
+      </span>
+    );
+  };
 
   // Gráfico Semanal
   const daysMap = new Map<string, { total: number, success: number }>();
@@ -234,6 +307,19 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Exportar PDF */}
+          <button
+            onClick={() => window.print()}
+            className="no-print flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-shuma-surface border border-shuma-border text-xs font-semibold text-shuma-muted hover:text-white hover:border-blue-500/40 transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polyline points="6 9 6 2 18 2 18 9"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Imprimir / PDF
+          </button>
+          
           {/* Selector de período */}
           <div className="flex items-center bg-shuma-surface border border-shuma-border rounded-xl overflow-hidden text-xs font-bold">
             {(['today', '7d', '30d'] as const).map((p) => {
@@ -261,7 +347,18 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="p-6 max-w-7xl mx-auto space-y-6">
+      <style>{`
+        @media print {
+          body > * { display: none !important; }
+          #dashboard-print-area { display: block !important; }
+          #dashboard-print-area { position: fixed; top: 0; left: 0;
+            width: 100%; background: white; color: black; }
+          .no-print { display: none !important; }
+          @page { margin: 1cm; size: A4 landscape; }
+        }
+      `}</style>
+
+      <main id="dashboard-print-area" className="p-6 max-w-7xl mx-auto space-y-6">
         
         {/* KPI CARDS */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -271,12 +368,13 @@ export default function DashboardPage() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Entregas totales</p>
-                <p className="text-[28px] font-bold text-white">{totalEntregas}</p>
+                <p className="text-[28px] font-bold text-white leading-tight">{totalEntregas}</p>
+                <DeltaBadge d={deltaTotal} />
               </div>
               <span className="text-3xl opacity-80">📦</span>
             </div>
             <div className="mt-2 text-xs font-medium text-blue-400 bg-blue-500/10 inline-block px-2 py-0.5 rounded border border-blue-500/20">
-              Volumen general
+              vs. {period === 'today' ? 'ayer' : period === '7d' ? '7 días anteriores' : '30 días anteriores'}
             </div>
           </div>
 
@@ -286,12 +384,13 @@ export default function DashboardPage() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Tasa de éxito</p>
-                <p className="text-[28px] font-bold text-white">{tasaExito}%</p>
+                <p className="text-[28px] font-bold text-white leading-tight">{tasaExito}%</p>
+                <DeltaBadge d={deltaTasa} />
               </div>
               <span className="text-3xl opacity-80">✓</span>
             </div>
             <div className={`mt-2 text-xs font-medium inline-block px-2 py-0.5 rounded border ${tasaExito >= 80 ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20'}`}>
-              Efectividad global
+              vs. {period === 'today' ? 'ayer' : period === '7d' ? '7 días anteriores' : '30 días anteriores'}
             </div>
           </div>
 
@@ -299,12 +398,13 @@ export default function DashboardPage() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Km recorridos</p>
-                <p className="text-[28px] font-bold text-white">{totalKm.toFixed(0)} <span className="text-lg text-shuma-muted font-normal">km</span></p>
+                <p className="text-[28px] font-bold text-white leading-tight">{totalKm.toFixed(0)} <span className="text-lg text-shuma-muted font-normal">km</span></p>
+                <DeltaBadge d={deltaKm} />
               </div>
               <span className="text-3xl opacity-80">🛣</span>
             </div>
             <div className="mt-2 text-xs font-medium text-cyan-400 bg-cyan-500/10 inline-block px-2 py-0.5 rounded border border-cyan-500/20">
-              Distancia total
+              vs. {period === 'today' ? 'ayer' : period === '7d' ? '7 días anteriores' : '30 días anteriores'}
             </div>
           </div>
 
@@ -314,12 +414,12 @@ export default function DashboardPage() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Choferes activos</p>
-                <p className="text-[28px] font-bold text-white">{choferesActivos}</p>
+                <p className="text-[28px] font-bold text-white leading-tight">{choferesActivos}</p>
               </div>
               <span className="text-3xl opacity-80">👤</span>
             </div>
             <div className="mt-2 text-xs font-medium text-violet-400 bg-violet-500/10 inline-block px-2 py-0.5 rounded border border-violet-500/20">
-              Fuerza laboral
+              vs. {period === 'today' ? 'ayer' : period === '7d' ? '7 días anteriores' : '30 días anteriores'}
             </div>
           </div>
 
@@ -329,17 +429,18 @@ export default function DashboardPage() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Valor Mercancía</p>
-                <p className="text-[22px] font-bold text-white">
+                <p className="text-[22px] font-bold text-white leading-tight">
                   ${totalMercValue.toLocaleString('es-MX', {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0,
                   })}
                 </p>
+                <DeltaBadge d={deltaMerc} />
               </div>
               <span className="text-3xl opacity-80">💰</span>
             </div>
             <div className="mt-2 text-xs font-medium text-amber-400 bg-amber-500/10 inline-block px-2 py-0.5 rounded border border-amber-500/20">
-              {period === 'today' ? 'Hoy' : period === '7d' ? 'Últimos 7 días' : 'Últimos 30 días'}
+              vs. {period === 'today' ? 'ayer' : period === '7d' ? '7 días anteriores' : '30 días anteriores'}
             </div>
           </div>
         </div>
