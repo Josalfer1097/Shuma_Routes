@@ -1051,6 +1051,23 @@ export default function DispatcherPage() {
   // ── Map height calculation ──
   const mapHeight = isMapFullscreen ? '100vh' : 'calc(100vh - 48px)';
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchActiveRoutes();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchActiveRoutes]);
+
+  const chofresEnRuta = activeRoutesData.filter((r: any) => {
+    const { pending, total } = r.stats || {};
+    return pending > 0 && total > 0;
+  }).length;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#050C1A', overflow: 'hidden' }}>
       {toast && (
@@ -1080,10 +1097,12 @@ export default function DispatcherPage() {
           <span>{toast.msg}</span>
         </div>
       )}
-      {/* ═══════════════════════════════════════════════ */}
-      {/* BANNER RGB Y HEADER                            */}
-      {/* ═══════════════════════════════════════════════ */}
-      {!isMapFullscreen && (
+
+
+  {/* ═══════════════════════════════════════════════ */}
+  {/* BANNER RGB Y HEADER                            */}
+  {/* ═══════════════════════════════════════════════ */}
+  {!isMapFullscreen && (
         <>
           <header
             style={{
@@ -1158,7 +1177,20 @@ export default function DispatcherPage() {
                           { icon: <BarChart2 size={14} />, label: 'Dashboard', href: '/dashboard' },
                           { icon: <History size={14} />, label: 'Histórico', href: '/history' },
                           { icon: <Search size={14} />, label: 'Bitácora', action: () => { setIsAuditModalOpen(true); setIsMoreMenuOpen(false); } },
-                          { icon: <Truck size={14} />, label: 'Rutas Activas', action: () => { fetchActiveRoutes(); setIsActiveRoutesOpen(true); setIsMoreMenuOpen(false); } },
+                          { 
+                            icon: (
+                              <div className="relative">
+                                <Truck size={14} />
+                                {chofresEnRuta > 0 && (
+                                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center pointer-events-none border border-shuma-bg">
+                                    {chofresEnRuta}
+                                  </span>
+                                )}
+                              </div>
+                            ),
+                            label: `Rutas Activas${chofresEnRuta > 0 ? ` (${chofresEnRuta} activos)` : ''}`,
+                            action: () => { fetchActiveRoutes(); setIsActiveRoutesOpen(true); setIsMoreMenuOpen(false); } 
+                          },
                         ].map(item => (
                           <button
                             key={item.label}
@@ -1285,7 +1317,26 @@ export default function DispatcherPage() {
               <span className="hidden-mobile">Actualizar</span>
             </button>
 
-            <NotificationBell targetRole="admin" />
+            <NotificationBell 
+              targetRole="admin" 
+              onNavigateToRoute={(entityId) => {
+                const route = activeRoutesData.find((r: any) => r.id === entityId);
+                if (route) {
+                  const firstStop = (route.deliveries || []).find(
+                    (d: any) => d.address?.lat && d.address?.lng
+                  );
+                  if (firstStop && mapViewRef.current) {
+                    mapViewRef.current.panToDelivery(
+                      firstStop.address.lat,
+                      firstStop.address.lng
+                    );
+                  }
+                } else {
+                  setAuditEntityId(entityId);
+                  setIsAuditModalOpen(true);
+                }
+              }}
+            />
 
             <button
               onClick={handleLogout}

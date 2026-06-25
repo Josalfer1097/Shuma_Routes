@@ -14,10 +14,17 @@ interface Notification {
   created_at: string;
 }
 
-export default function NotificationBell({ targetRole }: { targetRole: string }) {
+export default function NotificationBell({
+  targetRole,
+  onNavigateToRoute,
+}: {
+  targetRole: string;
+  onNavigateToRoute?: (entityId: string) => void;
+}) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all');
 
   const fetchNotifications = async () => {
     try {
@@ -58,6 +65,24 @@ export default function NotificationBell({ targetRole }: { targetRole: string })
       body: JSON.stringify({ ids: unread }),
     });
   };
+
+  const markOneAsRead = async (id: string) => {
+    setNotifications(prev =>
+      prev.map(n => n.id === id ? { ...n, read: true } : n)
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    await fetch('/api/notifications', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [id] }),
+    });
+  };
+
+  const filteredNotifs = notifications.filter(n => {
+    if (notifFilter === 'unread') return !n.read;
+    if (notifFilter === 'read')   return n.read;
+    return true;
+  });
 
   const handleAction = async (action: 'approve_close' | 'reject_close' | 'approve_reopen' | 'reject_reopen', entityId: string | null) => {
     if (!entityId) return;
@@ -100,10 +125,7 @@ export default function NotificationBell({ targetRole }: { targetRole: string })
   return (
     <div className="relative">
       <button
-        onClick={() => {
-          setIsOpen(!isOpen);
-          if (!isOpen && unreadCount > 0) markAsRead();
-        }}
+        onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-shuma-muted hover:text-white transition-colors"
       >
         <Bell size={20} />
@@ -114,21 +136,88 @@ export default function NotificationBell({ targetRole }: { targetRole: string })
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 bg-shuma-surface border border-shuma-border rounded-xl shadow-2xl overflow-hidden z-50">
-          <div className="p-3 border-b border-shuma-border flex justify-between items-center">
-            <h3 className="font-bold text-white text-sm">Notificaciones</h3>
-            {unreadCount > 0 && (
-              <span className="text-xs text-shuma-muted">{unreadCount} nuevas</span>
-            )}
+          <div className="p-3 border-b border-shuma-border space-y-2">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-white text-sm">Notificaciones</h3>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAsRead}
+                  className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  Marcar todas leídas
+                </button>
+              )}
+            </div>
+            {/* Filtros */}
+            <div className="flex gap-1">
+              {(['all', 'unread', 'read'] as const).map(f => {
+                const labels = { all: 'Todas', unread: 'Nuevas', read: 'Leídas' };
+                const counts = {
+                  all:    notifications.length,
+                  unread: notifications.filter(n => !n.read).length,
+                  read:   notifications.filter(n => n.read).length,
+                };
+                return (
+                  <button
+                    key={f}
+                    onClick={() => setNotifFilter(f)}
+                    className={`flex-1 text-[10px] font-semibold py-1 rounded-lg transition-colors ${
+                      notifFilter === f
+                        ? 'bg-blue-600/30 text-blue-300 border border-blue-500/30'
+                        : 'text-shuma-muted hover:text-white hover:bg-shuma-border'
+                    }`}
+                  >
+                    {labels[f]} {counts[f] > 0 && `(${counts[f]})`}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <p className="p-6 text-center text-shuma-muted text-sm">No hay notificaciones</p>
+            {filteredNotifs.length === 0 ? (
+              <p className="p-6 text-center text-shuma-muted text-sm">
+                {notifFilter === 'unread' ? 'No hay notificaciones nuevas'
+                 : notifFilter === 'read'  ? 'No hay notificaciones leídas'
+                 : 'No hay notificaciones'}
+              </p>
             ) : (
-              notifications.map(notif => (
-                <div key={notif.id} className={`p-3 text-sm border-b border-shuma-border last:border-0 ${!notif.read ? 'bg-blue-500/5' : ''}`}>
-                  <p className="font-bold text-white">{notif.title}</p>
-                  <p className="text-shuma-muted text-xs mt-0.5 mb-2">{notif.body}</p>
+              filteredNotifs.map(notif => (
+                <div
+                  key={notif.id}
+                  onClick={() => {
+                    if (
+                      notif.entity_id &&
+                      onNavigateToRoute &&
+                      (notif.type === 'route_closure_resolved' || notif.type === 'reopen_resolved')
+                    ) {
+                      onNavigateToRoute(notif.entity_id);
+                      setIsOpen(false);
+                    }
+                  }}
+                  className={`p-3 text-sm border-b border-shuma-border last:border-0 ${
+                    !notif.read ? 'bg-blue-500/5 border-l-2 border-l-blue-500/40' : ''
+                  } ${
+                    (notif.type === 'route_closure_resolved' || notif.type === 'reopen_resolved') && notif.entity_id
+                      ? 'cursor-pointer hover:bg-shuma-border/30 transition-colors'
+                      : ''
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-white text-xs">{notif.title}</p>
+                      <p className="text-shuma-muted text-xs mt-0.5 mb-2">{notif.body}</p>
+                    </div>
+                    {!notif.read && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); markOneAsRead(notif.id); }}
+                        className="shrink-0 w-5 h-5 rounded-full bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/30 flex items-center justify-center transition-colors mt-0.5"
+                        title="Marcar como leída"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                      </button>
+                    )}
+                  </div>
                   
                   {targetRole === 'admin' && (notif.type === 'route_closure_requested' || notif.type === 'reopen_requested') && (
                     <div className="flex gap-2 mt-2">
