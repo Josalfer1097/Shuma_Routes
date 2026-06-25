@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
     const dateTo     = searchParams.get('dateTo')     || '';
     const entity_id  = searchParams.get('entity_id')  || '';
     const search     = searchParams.get('search')     || '';  // ← NUEVO: full-text
+    const actionType = searchParams.get('actionType') || ''; // login|entrega|ruta|sistema
     const limit      = parseInt(searchParams.get('limit') || '200');
     const offset     = parseInt(searchParams.get('offset') || '0');  // ← NUEVO: paginación
 
@@ -64,6 +65,21 @@ export async function GET(req: NextRequest) {
       query = query.or(
         `action.ilike.${term},user_name.ilike.${term},metadata::text.ilike.${term}`
       );
+    }
+
+    if (actionType) {
+      const typeMap: Record<string, string[]> = {
+        login:   ['login_success', 'login_failed', 'Cuenta bloqueada', 'Logout'],
+        entrega: ['Entrega completada', 'Entrega parcial', 'Entrega fallida', 'Entrega reabierta'],
+        ruta:    ['Ruta aceptada y guardada', 'Ruta iniciada', 'Ruta cerrada', 'Ruta reabierta', 'Alias actualizado'],
+        sistema: ['Cookies aceptadas', 'Sesión iniciada', 'Sesión cerrada'],
+      };
+      const actions = typeMap[actionType];
+      if (actions && actions.length > 0) {
+        // Buscar cualquiera de esas acciones
+        const orClause = actions.map(a => `action.ilike.%${a}%`).join(',');
+        query = query.or(orClause);
+      }
     }
 
     const { data, error, count } = await query;

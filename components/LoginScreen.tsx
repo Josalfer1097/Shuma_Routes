@@ -142,7 +142,25 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
           }, 1000);
         }
 
-        setErrorMsg(data.error || 'Credenciales incorrectas — acceso denegado');
+        const rawError = (data.error || '').toLowerCase();
+        let friendlyError = '❌ Credenciales incorrectas — verifica tu usuario y contraseña';
+
+        if (rawError.includes('not found') || rawError.includes('no encontrado') ||
+            rawError.includes('does not exist') || rawError.includes('invalid user')) {
+          friendlyError = `👤 Usuario "${user}" no encontrado en el sistema`;
+        } else if (rawError.includes('password') || rawError.includes('contraseña') ||
+                   rawError.includes('incorrect') || rawError.includes('wrong')) {
+          friendlyError = '🔒 Contraseña incorrecta — inténtalo de nuevo';
+        } else if (rawError.includes('inactive') || rawError.includes('disabled') ||
+                   rawError.includes('inactivo')) {
+          friendlyError = `🚫 La cuenta "${user}" está desactivada. Contacta a TI`;
+        } else if (rawError.includes('role') || rawError.includes('rol')) {
+          friendlyError = '⚠️ Rol de acceso incorrecto — usa el acceso correspondiente';
+        } else if (data.error) {
+          friendlyError = `⚠️ ${data.error}`;
+        }
+
+        setErrorMsg(friendlyError);
         setGlitching(true);
         setTimeout(() => {
           setGlitching(false);
@@ -189,7 +207,7 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
         }, 1000);
       }
 
-      setErrorMsg('Error de conexión — intenta de nuevo');
+      setErrorMsg('🌐 Sin conexión — verifica tu red e inténtalo de nuevo');
       setGlitching(true);
       setTimeout(() => {
         setGlitching(false);
@@ -772,8 +790,16 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
             </div>
 
             <div className={`ls-error ${error ? "show" : ""} ${shaking ? "shake" : ""}`}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              {errorMsg || 'Credenciales incorrectas — acceso denegado'}
+              {(() => {
+                const msg = errorMsg || '';
+                const icon =
+                  msg.includes('red') || msg.includes('conexión') ? '📡' :
+                  msg.includes('desactivada')                     ? '🔒' :
+                  msg.includes('no encontrado')                   ? '👤' :
+                  msg.includes('Contraseña')                      ? '🔑' :
+                  msg.includes('Rol')                             ? '⚠️' : '❌';
+                return `${icon} ${msg}`;
+              })()}
             </div>
 
             {attempts > 0 && !isBlocked && (

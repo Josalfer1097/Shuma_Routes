@@ -44,6 +44,9 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
   const [invoices,   setInvoices]   = useState('');
   const [formError,  setFormError]  = useState<string | null>(null);
 
+  const [driverSearch, setDriverSearch]       = useState('');
+  const [showDriverDropdown, setShowDriverDropdown] = useState(false);
+
   useEffect(() => {
     fetch('/api/drivers')
       .then(r => r.json())
@@ -63,9 +66,23 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
       .finally(() => setLoadingDB(false));
   }, []);
 
+  useEffect(() => {
+    if (!showDriverDropdown) return;
+    const close = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.driver-combobox')) setShowDriverDropdown(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [showDriverDropdown]);
+
   const assignedDriverNames = vehicles.map(v => v.driverName);
   const assignedMatriculas = vehicles.map(v => v.matricula);
   const availableDrivers = driversDB.filter(d => !assignedDriverNames.includes(d.name));
+  const filteredDrivers = availableDrivers.filter(d =>
+    d.name.toLowerCase().includes(driverSearch.toLowerCase()) ||
+    (d.employee_id || '').toLowerCase().includes(driverSearch.toLowerCase())
+  );
   const selectedVehicle = vehiclesDB.find(v => v.id === selectedVehicleId);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -133,21 +150,132 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
             {/* Chofer */}
             <div>
               <label className="block text-xs font-medium text-shuma-muted mb-1">Chofer *</label>
-              <select
-                value={selectedDriverId}
-                onChange={e => setSelectedDriverId(e.target.value)}
-                className="vf-select"
-              >
-                <option value="">— Selecciona un chofer —</option>
-                {driversDB.map(d => {
-                  const isAssigned = assignedDriverNames.includes(d.name);
-                  return (
-                    <option key={d.id} value={d.id} disabled={isAssigned}>
-                      {d.name} {d.employee_id ? `(${d.employee_id})` : ''} {isAssigned ? '— Asignado' : ''}
-                    </option>
-                  );
-                })}
-              </select>
+              <div className="driver-combobox" style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowDriverDropdown(!showDriverDropdown); setDriverSearch(''); }}
+                  style={{
+                    width: '100%', padding: '8px 10px', textAlign: 'left',
+                    background: '#0D1E38', border: '1px solid #112040',
+                    borderRadius: 8, color: selectedDriverId
+                      ? '#E8EFF8' : '#3B5270',
+                    fontSize: 14, fontFamily: "'DM Sans', sans-serif",
+                    cursor: 'pointer', outline: 'none',
+                    transition: 'border-color 0.2s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#2196F3')}
+                  onBlur={e => (e.currentTarget.style.borderColor = '#112040')}
+                >
+                  <span>
+                    {selectedDriverId
+                      ? (() => {
+                          const d = driversDB.find(d => d.id === selectedDriverId);
+                          return d ? `${d.name}${d.employee_id ? ` (${d.employee_id})` : ''}` : '— Selecciona un chofer —';
+                        })()
+                      : '— Selecciona un chofer —'}
+                  </span>
+                  <svg width="10" height="6" viewBox="0 0 10 6" fill="none"
+                    style={{ transform: showDriverDropdown ? 'rotate(180deg)' : 'none',
+                      transition: 'transform 0.2s', flexShrink: 0 }}>
+                    <path d="M1 1l4 4 4-4" stroke="#5B7BA0" strokeWidth="1.5"
+                      strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+
+                {showDriverDropdown && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0,
+                    zIndex: 50, marginTop: 4,
+                    background: '#0D1E38',
+                    border: '1px solid rgba(33,150,243,0.3)',
+                    borderRadius: 10, overflow: 'hidden',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                  }}>
+                    <div style={{ padding: '8px 8px 4px' }}>
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Buscar chofer..."
+                        value={driverSearch}
+                        onChange={e => setDriverSearch(e.target.value)}
+                        style={{
+                          width: '100%', padding: '6px 10px',
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(33,150,243,0.2)',
+                          borderRadius: 6, color: '#E8EFF8',
+                          fontSize: 12, fontFamily: "'DM Sans', sans-serif",
+                          outline: 'none', boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                    <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+                      {filteredDrivers.length === 0 ? (
+                        <div style={{ padding: '10px 12px', fontSize: 12,
+                          color: '#3B5270', fontFamily: "'DM Sans', sans-serif",
+                          textAlign: 'center' }}>
+                          Sin resultados
+                        </div>
+                      ) : (
+                        filteredDrivers.map(d => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDriverId(d.id);
+                              setShowDriverDropdown(false);
+                              setDriverSearch('');
+                            }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 8,
+                              width: '100%', padding: '8px 12px',
+                              background: selectedDriverId === d.id
+                                ? 'rgba(33,150,243,0.15)' : 'transparent',
+                              border: 'none', cursor: 'pointer', textAlign: 'left',
+                              borderBottom: '1px solid rgba(255,255,255,0.03)',
+                              transition: 'background 0.1s',
+                            }}
+                            onMouseEnter={e => {
+                              if (selectedDriverId !== d.id)
+                                (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
+                            }}
+                            onMouseLeave={e => {
+                              if (selectedDriverId !== d.id)
+                                (e.currentTarget as HTMLElement).style.background = 'transparent';
+                            }}
+                          >
+                            <div style={{
+                              width: 28, height: 28, borderRadius: '50%',
+                              background: 'rgba(33,150,243,0.15)',
+                              border: '1px solid rgba(33,150,243,0.2)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 11, fontWeight: 700, color: '#2196F3',
+                              fontFamily: "'Exo 2', sans-serif", flexShrink: 0,
+                            }}>
+                              {d.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 500,
+                                color: '#E8EFF8', fontFamily: "'DM Sans', sans-serif" }}>
+                                {d.name}
+                              </div>
+                              {d.employee_id && (
+                                <div style={{ fontSize: 10, color: '#5B7BA0',
+                                  fontFamily: "'DM Sans', sans-serif" }}>
+                                  {d.employee_id}
+                                </div>
+                              )}
+                            </div>
+                            {selectedDriverId === d.id && (
+                              <span style={{ marginLeft: 'auto', color: '#2196F3', fontSize: 14 }}>✓</span>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Vehículo */}
@@ -176,6 +304,33 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                   );
                 })}
               </select>
+              {selectedVehicle && (
+                <div style={{ marginTop: 6 }}>
+                  <div style={{
+                    display: 'flex', justifyContent: 'space-between',
+                    fontSize: 10, color: '#5B7BA0',
+                    fontFamily: "'DM Sans', sans-serif", marginBottom: 3,
+                  }}>
+                    <span>{VEHICLE_TYPE_LABELS[selectedVehicle.type]}</span>
+                    <span>Capacidad: {(selectedVehicle as any).max_stops || '∞'} paradas</span>
+                  </div>
+                  <div style={{
+                    height: 3, borderRadius: 99,
+                    background: 'rgba(255,255,255,0.06)',
+                    overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      height: '100%',
+                      width: (selectedVehicle as any).max_stops
+                        ? `${Math.min(100, (vehicles.length / (vehiclesDB.length || 1)) * 100)}%`
+                        : '30%',
+                      background: 'linear-gradient(90deg, #1565C0, #2196F3)',
+                      borderRadius: 99,
+                      transition: 'width 0.3s ease',
+                    }} />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Capacidad y Facturas */}

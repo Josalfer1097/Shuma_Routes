@@ -37,6 +37,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   const [totalCount, setTotalCount]   = useState(0);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage]   = useState(1);
+  const [actionType, setActionType]     = useState<string>('');
   const PAGE_SIZE = 50; // registros por página
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
@@ -69,6 +70,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
       if (filterEntityId) params.set('entity_id', filterEntityId);
       if (searchText)   params.set('search', searchText);
       if (dateTo)       params.set('dateTo', dateTo);
+      if (actionType)   params.set('actionType', actionType);
       params.set('limit', String(PAGE_SIZE));
       params.set('offset', String((currentPage - 1) * PAGE_SIZE));
 
@@ -82,7 +84,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     } finally {
       setLoading(false);
     }
-  }, [filterModule, filterUser, dateFrom, filterEntityId, searchText, dateTo, currentPage]);
+  }, [filterModule, filterUser, dateFrom, filterEntityId, searchText, dateTo, currentPage, actionType]);
 
   useEffect(() => {
     if (isOpen && userRole === 'admin') {
@@ -92,7 +94,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterModule, filterUser, dateFrom, filterEntityId, searchText, dateTo]);
+  }, [filterModule, filterUser, dateFrom, filterEntityId, searchText, dateTo, actionType]);
 
   // Guard DESPUÉS de todos los hooks — regla de React
   if (!isOpen || userRole !== 'admin') return null;
@@ -158,8 +160,31 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 p-4 border-b border-shuma-border/50 bg-shuma-surface/50">
-            <input
+          <div className="p-4 border-b border-shuma-border/50 bg-shuma-surface/50 flex flex-col gap-3">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: '',        label: 'Todos',    icon: '📋' },
+                { key: 'login',   label: 'Accesos',  icon: '🔐' },
+                { key: 'entrega', label: 'Entregas', icon: '📦' },
+                { key: 'ruta',    label: 'Rutas',    icon: '🚛' },
+                { key: 'sistema', label: 'Sistema',  icon: '⚙️' },
+              ].map(({ key, label, icon }) => (
+                <button
+                  key={key}
+                  onClick={() => { setActionType(key); setCurrentPage(1); }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                    actionType === key
+                      ? 'bg-blue-600/30 text-blue-300 border-blue-500/50'
+                      : 'bg-shuma-surface text-shuma-muted border-shuma-border hover:text-white hover:border-blue-500/30'
+                  }`}
+                >
+                  <span>{icon}</span> {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+              <input
               type="text"
               placeholder="🔍 Buscar en acciones, usuario, detalles..."
               value={searchText}
@@ -212,11 +237,12 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
               Exportar
             </button>
             <button
-              onClick={() => { setFilterModule(''); setFilterUser(''); setDateFrom(''); setFilterEntityId(''); setSearchText(''); setDateTo(''); }}
+              onClick={() => { setFilterModule(''); setFilterUser(''); setDateFrom(''); setFilterEntityId(''); setSearchText(''); setDateTo(''); setActionType(''); }}
               className="px-3 py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30 transition-colors"
             >
               Limpiar
             </button>
+            </div>
           </div>
 
           {totalCount > 0 && (
