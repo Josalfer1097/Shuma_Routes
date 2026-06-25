@@ -5,7 +5,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import type {
   Address, Vehicle, Route, AppState, AppStep, SharedRouteState,
 } from '@/types';
-import { getWeatherCDMX, type WeatherData } from '@/lib/weather';
+import { getWeatherCDMX, getForecastCDMX, type WeatherData, type HourlyForecast } from '@/lib/weather';
 import { geocodeBatch, geocodeAddress } from '@/lib/nominatim';
 import { optimizeRoutes, optimizeRoutesGoogle, assignVehicleColors, optimizeSingleVehicle, redrawPolylineForRoute } from '@/lib/vroom';
 import CSVUploader from '@/components/dispatcher/CSVUploader';
@@ -375,6 +375,8 @@ export default function DispatcherPage() {
   const [userRole, setUserRole] = useState('');
   const [liveDeliveryStatus, setLiveDeliveryStatus] = useState<Record<string, string>>({});
   const [driverLocations, setDriverLocations] = useState<Record<string, { lat: number; lng: number; updated_at: string }>>({});
+  const [etaTick, setEtaTick] = useState(0);
+  const [forecast, setForecast] = useState<HourlyForecast[]>([]);
 
   const { permission: pushPermission, subscribe: subscribePush } = usePushNotifications('admin');
 
@@ -563,10 +565,22 @@ export default function DispatcherPage() {
 
     return () => {
       supabase.removeChannel(channel);
-      supabase.removeChannel(locChannel);
+supabase.removeChannel(locChannel);
     };
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const hasActive = activeRoutesData.some((r: any) => {
+        const { pending, total } = r.stats || {};
+        return pending > 0 && total > 0;
+      });
+      if (hasActive) setEtaTick(t => t + 1);
+    }, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [activeRoutesData]);
+
+  // Manejo de refresh global (fetch inicial + polling / refresh manual)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -682,6 +696,7 @@ export default function DispatcherPage() {
     
     const fetchWeather = () => {
       getWeatherCDMX(lat, lng).then(setWeather).catch(console.error);
+      getForecastCDMX(lat, lng).then(setForecast).catch(console.error);
     };
     
     fetchWeather();
@@ -1260,9 +1275,37 @@ export default function DispatcherPage() {
                 {/* Botón tamaño de texto */}
                 {userRole !== 'driver' && <FontScaleButton />}
 
+                {weather && (weather.rain1h ?? 0) >= (state.globalConfig?.rainAlertThreshold ?? 5) && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '3px 10px', borderRadius: 99,
+                    background: 'rgba(59,130,246,0.15)',
+                    border: '1px solid rgba(59,130,246,0.3)',
+                    fontSize: 11, color: '#60a5fa',
+                    fontFamily: "'Exo 2', sans-serif",
+                    fontWeight: 600,
+                    animation: 'pulse 2s ease-in-out infinite',
+                  }}>
+                    🌧️ {weather.rain1h} mm/h
+                  </div>
+                )}
+                {forecast.some(f => ((f.rain3h ?? 0) / 3) >= (state.globalConfig?.rainAlertThreshold ?? 5)) &&
+                 (weather?.rain1h ?? 0) < (state.globalConfig?.rainAlertThreshold ?? 5) && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '3px 10px', borderRadius: 99,
+                    background: 'rgba(245,158,11,0.1)',
+                    border: '1px solid rgba(245,158,11,0.25)',
+                    fontSize: 11, color: '#fbbf24',
+                    fontFamily: "'Exo 2', sans-serif",
+                    fontWeight: 600,
+                  }}>
+                    ⚠️ Lluvia próxima
+                  </div>
+                )}
                 {/* Widget clima */}
                 {weather && (
-                  <WeatherIntelPanel weather={weather} />
+                  <WeatherIntelPanel weather={weather} forecast={forecast} />
                 )}
               </>
             )}
@@ -2701,6 +2744,8 @@ export default function DispatcherPage() {
                     const hasFails  = failed > 0 || partial > 0;
 
                     const deadline = state.globalConfig?.deadlineTime || '17:45';
+                    // Fuerza re-cálculo de ETA cada minuto
+                    void etaTick;
                     const { etaStr, isAtRisk } = !isDone
                       ? calcRouteETA(route.departure_time, route.total_minutes, pending, route.stats.total, deadline)
                       : { etaStr: '', isAtRisk: false };
@@ -2895,6 +2940,7 @@ function ConfigPanel({
   const [returnDepotId, setReturnDepotId] = useState(currentConfig?.returnDepot === 'same' ? 'same' : (currentConfig?.returnDepot?.id || 'same'));
   const [deadlineTime, setDeadlineTime] = useState(currentConfig?.deadlineTime || '17:45');
   const [unloadConfig, setUnloadConfig] = useState(currentConfig?.unloadConfig || { truckLarge: 20, truckSmall: 18, van: 15 });
+  const [rainThreshold, setRainThreshold] = useState(currentConfig?.rainAlertThreshold ?? 5);
   const [time, setTime] = useState(() => {
     if (currentConfig?.departureTime) return currentConfig.departureTime;
     const now = new Date();
@@ -2905,7 +2951,7 @@ function ConfigPanel({
   const handleSave = () => {
     const dep = DEPOTS.find(d => d.id === depotId)!;
     const ret = returnDepotId === 'same' ? 'same' : DEPOTS.find(d => d.id === returnDepotId)!;
-    onSave({ departureDepot: dep, returnDepot: ret, departureTime: time, deadlineTime, unloadConfig });
+    onSave({ departureDepot: dep, returnDepot: ret, departureTime: time, deadlineTime, unloadConfig, rainAlertThreshold: rainThreshold });
   };
 
   return (
@@ -3010,6 +3056,27 @@ function ConfigPanel({
               className="so-input" 
               style={{ textAlign: 'center' }}
             />
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="block text-xs font-medium text-shuma-muted mb-1.5">
+            Alerta de lluvia (mm/h)
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={rainThreshold}
+              onChange={e => setRainThreshold(Number(e.target.value))}
+              className="so-input"
+              style={{ width: 80 }}
+              placeholder="5"
+            />
+            <span className="text-xs text-shuma-muted">
+              mm/h — alerta en el header si se supera
+            </span>
           </div>
         </div>
       </div>

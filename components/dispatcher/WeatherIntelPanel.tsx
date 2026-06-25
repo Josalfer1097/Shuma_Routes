@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { Cloud, CloudRain, Sun, Wind, Droplets, Eye, Gauge, Thermometer, X } from 'lucide-react';
-import type { WeatherData } from '@/lib/weather';
+import type { WeatherData, HourlyForecast } from '@/lib/weather';
 
 interface Props {
   weather: WeatherData;
+  forecast?: HourlyForecast[];
 }
 
 function getWindDirection(deg: number): string {
@@ -45,7 +46,7 @@ const NAV_BTN = {
   transition: 'all 0.2s',
 } as const;
 
-export default function WeatherIntelPanel({ weather }: Props) {
+export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
   const [open, setOpen] = useState(false);
 
   const hasAlert  = weather.alerts.length > 0;
@@ -232,11 +233,72 @@ export default function WeatherIntelPanel({ weather }: Props) {
               </div>
             ))}
 
-            {/* Grid de datos con tooltips */}
+            <div style={{ padding: '0 12px 10px' }}>
+            
+            {forecast.length > 0 && (
+              <div style={{
+                borderTop: '1px solid rgba(255,255,255,0.06)',
+                padding: '10px 12px',
+              }}>
+                <p style={{
+                  fontSize: 9, color: '#5B7BA0', letterSpacing: '0.1em',
+                  textTransform: 'uppercase', fontFamily: "'Exo 2', sans-serif",
+                  margin: '0 0 8px',
+                }}>
+                  Pronóstico próximas horas
+                </p>
+                <div style={{
+                  display: 'flex', gap: 6, overflowX: 'auto',
+                  paddingBottom: 4,
+                }}>
+                  {forecast.slice(0, 6).map((f) => {
+                    const hour = new Date(f.time * 1000).toLocaleTimeString('es-MX', {
+                      timeZone: 'America/Mexico_City',
+                      hour: '2-digit', minute: '2-digit', hour12: false,
+                    });
+                    const hasRain = (f.rain3h || 0) > 0 || f.pop > 0.3;
+                    return (
+                      <div key={f.time} style={{
+                        flexShrink: 0, textAlign: 'center',
+                        padding: '6px 8px', borderRadius: 8,
+                        background: hasRain
+                          ? 'rgba(59,130,246,0.08)'
+                          : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${hasRain
+                          ? 'rgba(59,130,246,0.2)'
+                          : 'rgba(255,255,255,0.04)'}`,
+                        minWidth: 46,
+                      }}>
+                        <p style={{ fontSize: 9, color: '#5B7BA0', margin: 0 }}>{hour}</p>
+                        <img
+                          src={`https://openweathermap.org/img/wn/${f.icon}.png`}
+                          alt={f.description}
+                          width={28} height={28}
+                          style={{ margin: '2px auto', display: 'block' }}
+                        />
+                        <p style={{
+                          fontSize: 11, fontWeight: 700,
+                          color: '#E8EFF8', margin: 0,
+                          fontFamily: "'Exo 2', sans-serif",
+                        }}>
+                          {f.temp}°
+                        </p>
+                        {f.pop > 0.1 && (
+                          <p style={{ fontSize: 9, color: '#60a5fa', margin: '1px 0 0' }}>
+                            {Math.round(f.pop * 100)}%
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
             <div style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
-              gap: 4,
+              gap: 8,
               padding: '10px 12px',
             }}>
               {datos.map(({ icon, label, value, tooltip }) => (
@@ -264,6 +326,7 @@ export default function WeatherIntelPanel({ weather }: Props) {
                   <div className="wx-tooltip">{tooltip}</div>
                 </div>
               ))}
+            </div>
             </div>
 
             {/* Amanecer / Atardecer */}

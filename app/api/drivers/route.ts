@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const { data: drivers, error } = await supabaseAdmin
       .from('drivers')
-      .select('id, name, employee_id, active')
+      .select('id, name, employee_id, active, phone')
       .eq('active', true)
       .order('name', { ascending: true });
 

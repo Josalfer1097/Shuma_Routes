@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
     const { data: routeDrivers } = await supabaseAdmin
       .from('route_drivers')
-      .select('id, route_id, driver_id, color, total_km, total_time_min, drivers(name)')
+      .select('id, route_id, driver_id, color, total_km, total_time_min, drivers(name, phone)')
       .in('route_id', routeIds);
 
     // 3. Conteo de entregas por status para cada ruta
@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
         created_by:   route.created_by,
         departure_time: route.departure_time,
         driver_name:  (rd?.drivers as any)?.name || null,
+        phone:        (rd?.drivers as any)?.phone || null,
         color:        rd?.color || '#2196F3',
         total_km:     rd?.total_km || 0,
         total_minutes: rd?.total_time_min || 0,

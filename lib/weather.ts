@@ -1,3 +1,12 @@
+﻿export interface HourlyForecast {
+  time: number;       // unix timestamp
+  temp: number;
+  description: string;
+  icon: string;
+  rain3h?: number;    // mm en 3 horas
+  pop: number;        // probabilidad de precipitación 0-1
+}
+
 export interface WeatherData {
   temp: number;
   feelsLike: number;
@@ -99,5 +108,34 @@ export async function getWeatherCDMX(lat: number, lng: number): Promise<WeatherD
       visibility: 0, clouds: 0, alerts: [],
       sunrise: 0, sunset: 0,
     };
+  }
+}
+
+export async function getForecastCDMX(
+  lat: number,
+  lng: number
+): Promise<HourlyForecast[]> {
+  const apiKey = (process.env.NEXT_PUBLIC_OWM_API_KEY || '').trim();
+  if (!apiKey || apiKey.length < 10) return [];
+
+  try {
+    const url =
+      `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}` +
+      `&appid=${apiKey}&units=metric&lang=es&cnt=8`; // 8 slots = pr�ximas 24h
+
+    const res  = await fetch(url, { next: { revalidate: 1800 } }); // cache 30 min
+    if (!res.ok) return [];
+    const data = await res.json();
+
+    return (data.list || []).map((item: any) => ({
+      time:        item.dt,
+      temp:        Math.round(item.main.temp),
+      description: item.weather?.[0]?.description || '',
+      icon:        item.weather?.[0]?.icon || '01d',
+      rain3h:      item.rain?.['3h'],
+      pop:         item.pop || 0,
+    }));
+  } catch {
+    return [];
   }
 }

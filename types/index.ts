@@ -252,8 +252,9 @@ export interface GlobalConfig {
   departureDepot: Depot;
   returnDepot: Depot | 'same';
   departureTime: string;       // HH:MM
-  deadlineTime: string;        // HH:MM — nuevo campo, default '17:45'
-  unloadConfig: UnloadConfig;  // nuevo campo
+  deadlineTime: string;        // HH:MM
+  unloadConfig: UnloadConfig;  // config de descarga
+  rainAlertThreshold?: number; // mm/h, default 5
 }
 
 // ─────────────────────────────────────────────
