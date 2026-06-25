@@ -246,6 +246,18 @@ export async function POST(req: NextRequest) {
         },
         created_at: now.toISOString(),
       });
+
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/push/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetRole: 'driver',
+          title: '🚛 Nueva ruta asignada',
+          body:  'Tienes una ruta nueva para hoy. Ingresa a la app.',
+          url:   '/driver',
+          tag:   'new-route',
+        }),
+      }).catch(console.error);
     }
 
     return NextResponse.json({ ok: true, saved: routes.length });

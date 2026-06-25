@@ -10,6 +10,7 @@ import {
 import { compressImage } from '@/lib/imageCompress';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import { supabase } from '@/lib/supabase-client';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 function PhotoPicker({ photoPreviews, onAdd, onRemove, fileInputRef, isCompressing, onChange }: {
   photoPreviews: string[],
@@ -106,15 +107,48 @@ export default function DriverPage() {
   const [expandedStops, setExpandedStops]         = useState<Set<string>>(new Set());
   const fileInputRef                              = useRef<HTMLInputElement>(null);
 
+  const getCacheKey = (id: string) =>
+    `shuma_route_${id}_${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })}`;
+
+  const [isOffline, setIsOffline] = useState(false);
+  const [locationEnabled, setLocationEnabled] = useState(false);
+
+  const { permission: pushPermission, subscribe: subscribePush } =
+    usePushNotifications('driver', driverId || undefined);
+
+  useEffect(() => {
+    if (route && pushPermission === 'default') {
+      const t = setTimeout(() => subscribePush(), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [route, pushPermission, subscribePush]);
+
   const fetchRoute = useCallback(async (id: string, refreshing = false) => {
     if (refreshing) setIsRefreshing(true);
+    const cacheKey = getCacheKey(id);
     try {
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
       const res   = await fetch(`/api/driver/route?driver_id=${id}&date=${today}`);
       const json  = await res.json();
-      if (json.ok && json.route) setRoute(json.route);
+      if (json.ok && json.route) {
+        setRoute(json.route);
+        setIsOffline(false);
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(json.route));
+        } catch { /* ignore quota errors */ }
+      }
     } catch {
-      setError('No se pudo cargar tu ruta.');
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          setRoute(JSON.parse(cached));
+          setIsOffline(true);
+        } else {
+          setError('Sin conexión y sin datos en caché. Conéctate a internet.');
+        }
+      } catch {
+        setError('No se pudo cargar tu ruta.');
+      }
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -136,6 +170,61 @@ export default function DriverPage() {
     }
     else { setError('No se encontró tu ID. Contacta al administrador.'); setLoading(false); }
   }, [router, fetchRoute]);
+
+  useEffect(() => {
+    const goOnline  = () => {
+      setIsOffline(false);
+      if (driverId) fetchRoute(driverId, true);
+    };
+    const goOffline = () => setIsOffline(true);
+    window.addEventListener('online',  goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online',  goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, [driverId, fetchRoute]);
+
+  useEffect(() => {
+    if (!routeStarted || !driverId || !route) return;
+    if (!navigator.geolocation) return;
+
+    const routeId = (route as any).routeId || (route as any).id || null;
+
+    const watchId = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        setLocationEnabled(true);
+        try {
+          await supabase
+            .from('driver_locations')
+            .upsert({
+              driver_id:  driverId,
+              route_id:   routeId,
+              lat,
+              lng,
+              accuracy,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'driver_id' });
+        } catch (err) {
+          console.warn('[Geo] Error al enviar ubicación:', err);
+        }
+      },
+      (err) => {
+        console.warn('[Geo] Error de geolocalización:', err.message);
+        setLocationEnabled(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 15000,
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [routeStarted, driverId, route]);
 
   useEffect(() => {
     if (route && routeStarted && !showSummary) {
@@ -674,6 +763,14 @@ export default function DriverPage() {
                     }`}
                     title={realtimeConnected ? 'Actualizaciones en tiempo real activas' : 'Sin conexión en tiempo real'}
                   />
+                  {routeStarted && (
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                        locationEnabled ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'
+                      }`}
+                      title={locationEnabled ? 'GPS activo' : 'GPS inactivo'}
+                    />
+                  )}
                   <button
                     onClick={() => fetchRoute(driverId, true)}
                     disabled={isRefreshing}
@@ -748,6 +845,26 @@ export default function DriverPage() {
             </div>
           )}
         </header>
+
+        {isOffline && (
+          <div style={{
+            background: 'rgba(245,158,11,0.12)',
+            borderBottom: '1px solid rgba(245,158,11,0.25)',
+            padding: '6px 16px',
+            display: 'flex', alignItems: 'center', gap: 8,
+            fontSize: 11.5, color: '#F59E0B',
+            fontFamily: "'DM Sans', sans-serif",
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M1 6s3.5-3 8-3 8 3 8 3"/>
+              <path d="M5 10s2-2 6-2 6 2 6 2"/>
+              <path d="M8 14s1-1 3-1 3 1 3 1"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+            Modo sin conexión — mostrando datos del caché. Tu progreso se guardará cuando recuperes señal.
+          </div>
+        )}
 
         {/* ── LISTA DE PARADAS ── */}
         <main className="flex-1 overflow-y-auto p-3 pb-24 space-y-2.5">

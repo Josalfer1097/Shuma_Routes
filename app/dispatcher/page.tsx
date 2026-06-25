@@ -27,6 +27,7 @@ import FontScaleButton from '@/components/dispatcher/FontScaleButton';
 import { useFontSize } from '@/lib/fontScaleContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import { supabase } from '@/lib/supabase-client';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 import type { MapViewRef } from '@/components/dispatcher/MapView';
 
@@ -373,6 +374,16 @@ export default function DispatcherPage() {
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('');
   const [liveDeliveryStatus, setLiveDeliveryStatus] = useState<Record<string, string>>({});
+  const [driverLocations, setDriverLocations] = useState<Record<string, { lat: number; lng: number; updated_at: string }>>({});
+
+  const { permission: pushPermission, subscribe: subscribePush } = usePushNotifications('admin');
+
+  useEffect(() => {
+    if (pushPermission === 'default') {
+      const t = setTimeout(() => subscribePush(), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [pushPermission, subscribePush]);
 
   const fetchActiveRoutes = useCallback(async () => {
     setLoadingActiveRoutes(true);
@@ -530,8 +541,29 @@ export default function DispatcherPage() {
         }
       });
 
+    // ── Realtime: escuchar ubicaciones de choferes ──
+    const locChannel = supabase
+      .channel('dispatcher_driver_locations')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'driver_locations' },
+        (payload) => {
+          const newLoc = payload.new as { driver_id: string; lat: number; lng: number; updated_at: string };
+          if (newLoc && newLoc.driver_id && newLoc.lat && newLoc.lng) {
+            setDriverLocations(prev => ({
+              ...prev,
+              [newLoc.driver_id]: { lat: newLoc.lat, lng: newLoc.lng, updated_at: newLoc.updated_at }
+            }));
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') console.log('[Realtime] Suscrito a driver_locations ✓');
+      });
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(locChannel);
     };
   }, []);
 
@@ -1383,6 +1415,7 @@ export default function DispatcherPage() {
           depot={state.depot}
           hiddenRouteIds={hiddenRouteIds}
           liveDeliveryStatus={liveDeliveryStatus}
+          driverLocations={driverLocations}
         />
 
         {/* ── Buscador de mapa (F1 o Ctrl+F) ── */}

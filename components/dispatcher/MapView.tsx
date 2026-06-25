@@ -11,6 +11,7 @@ interface Props {
   depot: { lat: number; lng: number; label: string } | null;
   hiddenRouteIds?: string[];
   liveDeliveryStatus?: Record<string, string>;
+  driverLocations?: Record<string, { lat: number; lng: number; updated_at: string }>;
 }
 
 export interface MapViewRef {
@@ -47,7 +48,7 @@ function createStopPin(number: string | number, statusColor?: string) {
 }
 
 const MapView = forwardRef<MapViewRef, Props>(function MapView(
-  { addresses, routes, depot, hiddenRouteIds = [], liveDeliveryStatus = {} },
+  { addresses, routes, depot, hiddenRouteIds = [], liveDeliveryStatus = {}, driverLocations = {} },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -55,6 +56,7 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const markersRef = useRef<any[]>([]);
   const routeLayersRef = useRef<{ [vehicleId: string]: any[] }>({});
+  const driverMarkersRef = useRef<{ [driverId: string]: any }>({});
   const [mapInitialized, setMapInitialized] = useState(false);
 
   useImperativeHandle(ref, () => ({
@@ -413,6 +415,42 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
       });
     });
   }, [hiddenRouteIds]);
+
+  // ── Actualizar marcadores de choferes ─────────────────────────
+  useEffect(() => {
+    if (!mapRef.current || !mapInitialized) return;
+    const map = mapRef.current;
+    
+    let AdvancedMarkerElement: any = google.maps.marker?.AdvancedMarkerElement;
+    if (!AdvancedMarkerElement) return;
+
+    Object.entries(driverLocations).forEach(([driverId, loc]) => {
+      const isVisible = !hiddenRouteIds.includes(driverId);
+      
+      if (!driverMarkersRef.current[driverId]) {
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-center rounded-full shadow-xl transition-all';
+        div.style.width = '36px';
+        div.style.height = '36px';
+        div.style.backgroundColor = '#2563eb';
+        div.style.border = '2px solid white';
+        div.style.color = 'white';
+        div.style.filter = 'drop-shadow(0px 4px 6px rgba(0,0,0,0.4))';
+        div.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 17h4V12h-4v5zM5 12h14v10H5V12zM3 8l9-6 9 6v4H3V8z"/></svg>`;
+
+        const marker = new AdvancedMarkerElement({
+          position: { lat: loc.lat, lng: loc.lng },
+          map: isVisible ? map : null,
+          content: div,
+        });
+        marker.zIndex = 9999;
+        driverMarkersRef.current[driverId] = marker;
+      } else {
+        driverMarkersRef.current[driverId].position = { lat: loc.lat, lng: loc.lng };
+        driverMarkersRef.current[driverId].map = isVisible ? map : null;
+      }
+    });
+  }, [driverLocations, mapInitialized, hiddenRouteIds]);
 
   return (
     <div

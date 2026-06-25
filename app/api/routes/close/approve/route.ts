@@ -42,6 +42,18 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/push/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        targetRole: 'driver',
+        title: '✅ Cierre aprobado',
+        body:  `Tu solicitud de cierre fue aprobada`,
+        url:   '/driver',
+        tag:   'route-close',
+      }),
+    }).catch(console.error);
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[close-approve]', err);
