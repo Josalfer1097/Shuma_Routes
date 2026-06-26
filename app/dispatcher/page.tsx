@@ -705,6 +705,12 @@ supabase.removeChannel(locChannel);
           }
         }
       } catch { /* ignore */ }
+
+      try {
+        localStorage.setItem('shuma_auth', '1');
+        localStorage.setItem('shuma_last_active_role', sessionStorage.getItem('shuma_role') || 'admin');
+        localStorage.setItem('shuma_last_active_time', String(Date.now()));
+      } catch {}
     }
   }, []);
 
@@ -721,6 +727,9 @@ supabase.removeChannel(locChannel);
     document.documentElement.removeAttribute('data-font-scale');
     document.documentElement.style.removeProperty('font-size');
     document.cookie = "shuma_auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    localStorage.removeItem('shuma_last_active_role');
+    localStorage.removeItem('shuma_last_active_time');
+    localStorage.removeItem('shuma_auth');
     window.location.href = '/';
   };
   const [numClusters, setNumClusters] = useState<number>(1);

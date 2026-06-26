@@ -6,26 +6,59 @@ import { useRouter } from 'next/navigation';
 import ParticleField from '@/components/ParticleField';
 
 export default function HomePage() {
+  const appVersion = process.env.npm_package_version || '7.24.0';
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [sysStatus, setSysStatus] = useState<'checking' | 'ok' | 'error'>('checking');
   const [lastRole, setLastRole] = useState<'admin' | 'driver' | null>(null);
+  const [showChangelog, setShowChangelog] = useState(false);
+  const [changelog, setChangelog] = useState<{
+    updated: string;
+    items: Array<{ type: string; text: string }>;
+  } | null>(null);
+  const [rgbVisible, setRgbVisible] = useState(() => {
+    try { return localStorage.getItem('shuma_rgb_footer') !== 'hidden'; }
+    catch { return true; }
+  });
+  const [activeSessionRole, setActiveSessionRole] = useState<string | null>(null);
+  const [pulsingCard, setPulsingCard] = useState<'admin' | 'driver' | null>(null);
+  const [sysError, setSysError] = useState<string>('');
   const router = useRouter();
+
+  useEffect(() => {
+    fetch('/changelog.json')
+      .then(r => r.json())
+      .then(setChangelog)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch('/api/health')
       .then(r => r.json())
-      .then(j => setSysStatus(j.ok ? 'ok' : 'error'))
-      .catch(() => setSysStatus('error'));
+      .then(j => {
+        if (j.ok) {
+          setSysStatus('ok');
+          setSysError('');
+        } else {
+          setSysStatus('error');
+          setSysError(j.error || 'Sin conexión a la base de datos');
+        }
+      })
+      .catch(() => {
+        setSysStatus('error');
+        setSysError('No se pudo contactar el servidor');
+      });
   }, []);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'a' || e.key === 'A') {
-        window.location.href = '/admin-login';
+        setPulsingCard('admin');
+        setTimeout(() => window.location.href = '/admin-login', 260);
       }
       if (e.key === 'c' || e.key === 'C') {
-        window.location.href = '/driver-login';
+        setPulsingCard('driver');
+        setTimeout(() => window.location.href = '/driver-login', 260);
       }
     };
     document.addEventListener('keydown', handleKey);
@@ -47,6 +80,18 @@ export default function HomePage() {
       const saved = localStorage.getItem('shuma_last_role') as 'admin' | 'driver' | null;
       if (saved) setLastRole(saved);
     } catch { /* ignore */ }
+
+    try {
+      const lsAuth = localStorage.getItem('shuma_auth');
+      const lsRole = localStorage.getItem('shuma_last_active_role');
+      const lsTime = localStorage.getItem('shuma_last_active_time');
+      if (lsAuth === '1' && lsRole && lsTime) {
+        const elapsed = Date.now() - parseInt(lsTime);
+        if (elapsed < 30 * 60 * 1000) {
+          setActiveSessionRole(lsRole);
+        }
+      }
+    } catch {}
   }, []);
 
   if (!ready) return (
@@ -140,7 +185,7 @@ export default function HomePage() {
           <circle className="stop-dot" cx="860" cy="660" r="4" style={{ animationDelay: '1.2s' }} />
         </svg>
       </div>
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 w-full max-w-md" style={{ paddingBottom: 24 }}>
         {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center mb-5">
@@ -160,26 +205,62 @@ export default function HomePage() {
           </h1>
           <p className="text-shuma-muted text-sm">
             Sistema de optimización de rutas de entrega
+            <div className="flex items-center justify-center gap-2 mt-3 mb-1 flex-wrap">
+              <div className={`w-2 h-2 rounded-full transition-colors flex-shrink-0 ${
+                sysStatus === 'ok'    ? 'bg-emerald-400 animate-pulse' :
+                sysStatus === 'error' ? 'bg-red-400' :
+                                        'bg-slate-600 animate-pulse'
+              }`} />
+              <span style={{
+                fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
+                color: sysStatus === 'ok' ? '#34d399' : sysStatus === 'error' ? '#f87171' : '#3B5270',
+                fontFamily: "'Exo 2', sans-serif",
+              }}>
+                {sysStatus === 'ok'    ? 'Sistema operativo' :
+                 sysStatus === 'error' ? `Sin conexión${sysError ? ` — ${sysError}` : ''}` :
+                                         'Verificando...'}
+              </span>
+            </div>
           </p>
-          <div className="flex items-center justify-center gap-2 mt-3 mb-1">
-            <div className={`w-2 h-2 rounded-full transition-colors ${
-              sysStatus === 'ok'       ? 'bg-emerald-400 animate-pulse' :
-              sysStatus === 'error'    ? 'bg-red-400' :
-                                         'bg-slate-600 animate-pulse'
-            }`} />
-            <span style={{
-              fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: sysStatus === 'ok' ? '#34d399' : sysStatus === 'error' ? '#f87171' : '#3B5270',
-              fontFamily: "'Exo 2', sans-serif",
-            }}>
-              {sysStatus === 'ok'    ? 'Sistema operativo' :
-               sysStatus === 'error' ? 'Sin conexión' :
-                                       'Verificando...'}
-            </span>
-          </div>
         </div>
         {/* Selector de rol */}
         <div className="space-y-3">
+          {activeSessionRole && (
+            <div style={{
+              marginBottom: 16, padding: '10px 14px',
+              background: 'rgba(33,150,243,0.06)',
+              border: '1px solid rgba(33,150,243,0.15)',
+              borderRadius: 12,
+              display: 'flex', alignItems: 'center', gap: 10,
+              animation: 'cardSlideUp 0.4s cubic-bezier(0.16,1,0.3,1) both',
+            }}>
+              <span style={{ fontSize: 18, flexShrink: 0 }}>
+                {activeSessionRole === 'driver' ? '🚛' : '🖥️'}
+              </span>
+              <div style={{ flex: 1 }}>
+                <p style={{
+                  fontSize: 12, fontWeight: 600, color: '#60a5fa',
+                  fontFamily: "'Exo 2', sans-serif", margin: 0,
+                }}>
+                  Sesión activa como{' '}
+                  {activeSessionRole === 'driver' ? 'Chofer' : 'Administrador'}
+                </p>
+                <p style={{
+                  fontSize: 10, color: '#5B7BA0', margin: '2px 0 0',
+                  fontFamily: "'DM Sans', sans-serif",
+                }}>
+                  Puede haber otra pestaña abierta con esta sesión
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveSessionRole(null)}
+                style={{
+                  background: 'none', border: 'none',
+                  color: '#5B7BA0', cursor: 'pointer', fontSize: 14, padding: 4,
+                }}
+              >✕</button>
+            </div>
+          )}
           <p className="text-center text-xs font-medium text-slate-500 uppercase tracking-widest mb-5">
             Selecciona tu rol
           </p>
@@ -191,8 +272,12 @@ export default function HomePage() {
             className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-accent transition-all duration-300 hover:shadow-lg
-                       hover:shadow-[0_0_15px_rgba(33,150,243,0.15)] hover:-translate-y-0.5"
-            style={{ animation: 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s both' }}
+                       hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[0_0_28px_rgba(33,150,243,0.28)]"
+            style={{
+              animation: pulsingCard === 'admin'
+                ? 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s both, cardPulseBlue 0.35s ease-out'
+                : 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s both'
+            }}
           >
             <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0
                             bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors duration-300">
@@ -212,12 +297,9 @@ export default function HomePage() {
                   color: '#2196F3', background: 'rgba(33,150,243,0.1)',
                   border: '1px solid rgba(33,150,243,0.2)',
                   borderRadius: 99, padding: '2px 8px',
-                  fontFamily: "'Exo 2', sans-serif",
-                  marginTop: 4,
+                  fontFamily: "'Exo 2', sans-serif", marginTop: 4,
                 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%',
-                    background: '#2196F3', display: 'inline-block' }} />
-                  Última sesión
+                  🖥️ Última sesión
                 </span>
               )}
               <p className="text-sm text-shuma-muted mt-0.5">
@@ -248,8 +330,12 @@ export default function HomePage() {
             className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-warning transition-all duration-300 hover:shadow-lg
-                       hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:-translate-y-0.5"
-            style={{ animation: 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.22s both' }}
+                       hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[0_0_28px_rgba(245,158,11,0.28)]"
+            style={{
+              animation: pulsingCard === 'driver'
+                ? 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.22s both, cardPulseAmber 0.35s ease-out'
+                : 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.22s both'
+            }}
           >
             <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0
                             bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors duration-300">
@@ -266,15 +352,12 @@ export default function HomePage() {
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,
                   fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: '#2196F3', background: 'rgba(33,150,243,0.1)',
-                  border: '1px solid rgba(33,150,243,0.2)',
+                  color: '#f59e0b', background: 'rgba(245,158,11,0.1)',
+                  border: '1px solid rgba(245,158,11,0.2)',
                   borderRadius: 99, padding: '2px 8px',
-                  fontFamily: "'Exo 2', sans-serif",
-                  marginTop: 4,
+                  fontFamily: "'Exo 2', sans-serif", marginTop: 4,
                 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%',
-                    background: '#2196F3', display: 'inline-block' }} />
-                  Última sesión
+                  🚛 Última sesión
                 </span>
               )}
               <p className="text-sm text-shuma-muted mt-0.5">
@@ -299,29 +382,60 @@ export default function HomePage() {
           </button>
         </div>
         {/* Footer RGB */}
-        <p style={{
-          textAlign: 'center',
-          fontSize: 14,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          marginTop: 32,
-          background: 'linear-gradient(90deg, #ff0000, #ff6600, #ffff00, #00ff00, #00ffff, #0066ff, #cc00ff, #ff0000)',
-          backgroundSize: '400% auto',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          animation: 'rgbRoll 5s linear infinite',
-          opacity: 0.8
-        }}>
+        <p
+          onDoubleClick={() => {
+            const next = !rgbVisible;
+            setRgbVisible(next);
+            try { localStorage.setItem('shuma_rgb_footer', next ? 'visible' : 'hidden'); }
+            catch {}
+          }}
+          title="Doble click para ocultar"
+          style={{
+            textAlign: 'center',
+            fontSize: 14,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            marginTop: 32,
+            background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
+            backgroundSize: '400% auto',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            animation: 'rgbRoll 5s linear infinite',
+            opacity: rgbVisible ? 0.8 : 0,
+            transition: 'opacity 0.5s ease',
+            cursor: 'default',
+            userSelect: 'none',
+            paddingBottom: 'env(safe-area-inset-bottom, 16px)',
+          }}
+        >
           Design &amp; Developed by Shuma Sistemas IT
         </p>
-        <p style={{
-          textAlign: 'center', fontSize: 10, color: '#3B5270',
-          marginTop: 6, fontFamily: "'DM Sans', sans-serif",
-          letterSpacing: '0.04em',
-        }}>
-          v7.24.0
-        </p>
+        <button
+          onClick={() => changelog && setShowChangelog(true)}
+          style={{
+            display: 'block', margin: '6px auto 0',
+            background: 'rgba(33,150,243,0.08)',
+            border: '1px solid rgba(33,150,243,0.2)',
+            borderRadius: 99, padding: '3px 12px',
+            fontSize: 10, color: '#2196F3',
+            fontFamily: "'DM Sans', sans-serif",
+            letterSpacing: '0.04em',
+            cursor: changelog ? 'pointer' : 'default',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => {
+            if (!changelog) return;
+            e.currentTarget.style.background = 'rgba(33,150,243,0.15)';
+            e.currentTarget.style.borderColor = 'rgba(33,150,243,0.4)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'rgba(33,150,243,0.08)';
+            e.currentTarget.style.borderColor = 'rgba(33,150,243,0.2)';
+          }}
+        >
+          v{appVersion}{changelog ? ' · Ver novedades →' : ''}
+        </button>
         <style>{`
           @keyframes rgbRoll {
             from { background-position: 0% center; }
@@ -335,8 +449,143 @@ export default function HomePage() {
             from { opacity: 1; transform: scale(1); }
             to   { opacity: 0; transform: scale(0.98); }
           }
+          @keyframes cardPulseBlue {
+            0%   { box-shadow: 0 0 0 0 rgba(33,150,243,0.6); }
+            70%  { box-shadow: 0 0 0 14px rgba(33,150,243,0); }
+            100% { box-shadow: 0 0 0 0 rgba(33,150,243,0); }
+          }
+          @keyframes cardPulseAmber {
+            0%   { box-shadow: 0 0 0 0 rgba(245,158,11,0.6); }
+            70%  { box-shadow: 0 0 0 14px rgba(245,158,11,0); }
+            100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+          }
         `}</style>
       </div>
+
+      {showChangelog && changelog && (
+        <div
+          onClick={() => setShowChangelog(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(5,12,28,0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'center', padding: 16,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'linear-gradient(160deg, #0D1E38, #0A1628)',
+              border: '1px solid rgba(33,150,243,0.2)',
+              borderRadius: 20, width: '100%', maxWidth: 480,
+              maxHeight: '80vh', overflow: 'hidden',
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+              animation: 'cardSlideUp 0.35s cubic-bezier(0.16,1,0.3,1) forwards',
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '20px 24px 16px',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+            }}>
+              <div>
+                <h2 style={{
+                  fontSize: 16, fontWeight: 700, color: '#E8EFF8',
+                  fontFamily: "'Exo 2', sans-serif", margin: 0,
+                }}>
+                  📋 Novedades v{appVersion}
+                </h2>
+                <p style={{
+                  fontSize: 11, color: '#5B7BA0', margin: '4px 0 0',
+                  fontFamily: "'DM Sans', sans-serif",
+                }}>
+                  Actualizado:{' '}
+                  {new Date(changelog.updated + 'T12:00:00').toLocaleDateString('es-MX', {
+                    day: 'numeric', month: 'long', year: 'numeric',
+                  })}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowChangelog(false)}
+                style={{
+                  background: 'none', border: 'none', color: '#5B7BA0',
+                  cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4,
+                }}
+              >✕</button>
+            </div>
+
+            {/* Lista */}
+            <div style={{ overflowY: 'auto', padding: '16px 24px 24px', flex: 1 }}>
+              {changelog.items.map((item, i) => {
+                const config: Record<string, {
+                  color: string; bg: string; border: string; icon: string; label: string;
+                }> = {
+                  new:     { color: '#34d399', bg: 'rgba(16,185,129,0.08)',
+                             border: 'rgba(16,185,129,0.2)',  icon: '✨', label: 'Nuevo' },
+                  improve: { color: '#fbbf24', bg: 'rgba(245,158,11,0.08)',
+                             border: 'rgba(245,158,11,0.2)',  icon: '⚡', label: 'Mejora' },
+                  fix:     { color: '#60a5fa', bg: 'rgba(33,150,243,0.08)',
+                             border: 'rgba(33,150,243,0.2)',  icon: '🔧', label: 'Fix' },
+                  bug:     { color: '#f87171', bg: 'rgba(239,68,68,0.08)',
+                             border: 'rgba(239,68,68,0.2)',   icon: '🐛', label: 'Bug' },
+                };
+                const c = config[item.type] || {
+                  color: '#5B7BA0', bg: 'transparent',
+                  border: 'rgba(255,255,255,0.06)', icon: '•', label: '',
+                };
+                return (
+                  <div key={i} style={{
+                    display: 'flex', gap: 10, marginBottom: 8,
+                    padding: '8px 12px',
+                    background: c.bg,
+                    border: `1px solid ${c.border}`,
+                    borderRadius: 10,
+                  }}>
+                    <span style={{ flexShrink: 0, fontSize: 14 }}>{c.icon}</span>
+                    <div>
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+                        textTransform: 'uppercase', color: c.color,
+                        fontFamily: "'Exo 2', sans-serif",
+                      }}>
+                        {c.label}
+                      </span>
+                      <p style={{
+                        fontSize: 12, color: '#A8BFE0', margin: '2px 0 0',
+                        fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5,
+                      }}>
+                        {item.text}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{
+              padding: '12px 24px',
+              borderTop: '1px solid rgba(255,255,255,0.06)',
+              textAlign: 'center',
+            }}>
+              <button
+                onClick={() => setShowChangelog(false)}
+                style={{
+                  background: 'rgba(33,150,243,0.1)',
+                  border: '1px solid rgba(33,150,243,0.2)',
+                  borderRadius: 10, padding: '8px 24px',
+                  color: '#60a5fa', fontSize: 12, cursor: 'pointer',
+                  fontFamily: "'Exo 2', sans-serif", fontWeight: 600,
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

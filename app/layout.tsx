@@ -39,6 +39,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className={`${exo2.variable} ${dmSans.variable}`}>
+      <head>
+        <link rel="preconnect" href="https://krejdjxllpgpcqygdjcd.supabase.co" />
+        <link rel="preconnect" href="https://maps.googleapis.com" />
+        <link rel="preconnect" href="https://api.openweathermap.org" />
+        <link rel="dns-prefetch" href="https://krejdjxllpgpcqygdjcd.supabase.co" />
+        <link rel="dns-prefetch" href="https://maps.googleapis.com" />
+      </head>
       <body className="antialiased font-sans">
         <FontScaleProvider>
           <AuthGuard>

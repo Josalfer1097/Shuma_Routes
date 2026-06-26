@@ -169,6 +169,12 @@ export default function DriverPage() {
       if (started === 'true') setRouteStarted(true);
     }
     else { setError('No se encontró tu ID. Contacta al administrador.'); setLoading(false); }
+
+    try {
+      localStorage.setItem('shuma_auth', '1');
+      localStorage.setItem('shuma_last_active_role', sessionStorage.getItem('shuma_role') || 'driver');
+      localStorage.setItem('shuma_last_active_time', String(Date.now()));
+    } catch {}
   }, [router, fetchRoute]);
 
   useEffect(() => {
@@ -444,7 +450,13 @@ export default function DriverPage() {
     });
   };
 
-  const handleLogout = () => { sessionStorage.clear(); router.push('/'); };
+  const handleLogout = () => {
+    localStorage.removeItem('shuma_last_active_role');
+    localStorage.removeItem('shuma_last_active_time');
+    localStorage.removeItem('shuma_auth');
+    sessionStorage.clear();
+    router.push('/');
+  };
 
   const handleStartRoute = async () => {
     if (!route || isStarting) return;
