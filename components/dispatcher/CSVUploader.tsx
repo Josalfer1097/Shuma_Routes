@@ -34,6 +34,28 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
   const [fileName, setFileName] = useState<string | null>(persistedFileName || null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const downloadTemplate = () => {
+    const headers = ['nombre', 'direccion', 'factura', 'valor'];
+    const examples = [
+      ['Ferretería El Clavo', 'Av. Insurgentes Sur 1234 Col. Del Valle CDMX', 'FAC-001', '5800'],
+      ['Materiales Juárez', 'Calle Madero 456 Centro Histórico CDMX', 'FAC-002', '12300'],
+      ['Constructora Norte', 'Blvd. Manuel Ávila Camacho 789 Naucalpan Edo. Mex.', 'FAC-003', '8750'],
+      ['Distribuidora Sur', 'Calz. de Tlalpan 321 Coyoacán CDMX', 'FAC-004', ''],
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      ...examples.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href     = URL.createObjectURL(blob);
+    link.download = 'shuma_rutas_template.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
   useEffect(() => {
     if (persistedAddresses && persistedAddresses.length > 0 && preview.length === 0) {
       setPreview(persistedAddresses);
@@ -162,6 +184,41 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
           Columnas requeridas: <code className="text-blue-400">nombre, direccion</code>
           {'  '}Opcional: <code className="text-amber-400">factura, valor</code>
         </p>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); downloadTemplate(); }}
+          style={{
+            marginTop: 12,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '6px 14px',
+            background: 'rgba(33,150,243,0.08)',
+            border: '1px solid rgba(33,150,243,0.25)',
+            borderRadius: 8,
+            color: '#2196F3',
+            fontSize: 11,
+            fontFamily: "'Exo 2', sans-serif",
+            fontWeight: 600,
+            letterSpacing: '0.08em',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(33,150,243,0.15)';
+            e.currentTarget.style.borderColor = 'rgba(33,150,243,0.5)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'rgba(33,150,243,0.08)';
+            e.currentTarget.style.borderColor = 'rgba(33,150,243,0.25)';
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Descargar template de ejemplo
+        </button>
         <input
           ref={inputRef}
           type="file"

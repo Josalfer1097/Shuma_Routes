@@ -41,6 +41,38 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   const PAGE_SIZE = 50; // registros por página
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
+  const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    // No iniciar drag si se hace click en botones del header
+    if ((e.target as HTMLElement).closest('button')) return;
+    setIsDragging(true);
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origX:  modalPos.x,
+      origY:  modalPos.y,
+    };
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      setModalPos({
+        x: dragRef.current.origX + (ev.clientX - dragRef.current.startX),
+        y: dragRef.current.origY + (ev.clientY - dragRef.current.startY),
+      });
+    };
+    const onUp = () => {
+      setIsDragging(false);
+      dragRef.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   const [colWidths, setColWidths] = useState({
     fecha:   200,
     usuario: 130,
@@ -172,13 +204,35 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
 
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
+          ref={modalRef}
+          className="bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+          style={{
+            width: '90vw',
+            maxWidth: 1100,
+            maxHeight: '90vh',
+            position: 'relative',
+            transform: `translate(${modalPos.x}px, ${modalPos.y}px)`,
+            transition: isDragging ? 'none' : 'transform 0.1s ease',
+            resize: 'both',
+            overflow: 'auto',
+            minWidth: 600,
+            minHeight: 400,
+          }}
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between p-6 border-b border-shuma-border">
+          <div
+            className="flex items-center justify-between p-6 border-b border-shuma-border"
+            onMouseDown={handleDragStart}
+            style={{ cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }}
+          >
             <div>
-              <h2 className="text-xl font-bold text-shuma-text">📊 Bitácora de Auditoría</h2>
-              <p className="text-xs text-shuma-muted mt-1">CDMX • Filtrable y exportable</p>
+              <h2 className="text-xl font-bold text-shuma-text">🔒 Bitácora de Auditoría</h2>
+              <p className="text-xs text-shuma-muted mt-1">
+                CDMX • Filtrable y exportable
+                <span style={{ marginLeft: 8, opacity: 0.4, fontSize: 10 }}>
+                  ↕↔ Arrastra para mover · ↘ Esquina para redimensionar
+                </span>
+              </p>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-shuma-surface rounded-lg transition-colors">
               <X className="w-5 h-5 text-shuma-muted" />
@@ -329,7 +383,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                           onClick={() => hasMetadata && toggleExpand(log.id)}
                           className={`hover:bg-shuma-surface/50 transition-colors ${hasMetadata ? 'cursor-pointer' : ''} ${rowIdx % 2 === 0 ? '' : 'bg-slate-900/30'}`}
                         >
-                          <td className="px-4 py-2 text-shuma-text" style={{ width: colWidths.fecha }}>
+                          <td className="px-4 py-2 text-shuma-text" style={{ width: colWidths.fecha, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <div className="flex items-center gap-2">
                               {hasMetadata ? (
                                 <span className="text-shuma-muted shrink-0">
@@ -339,8 +393,8 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                               {formatDate(log.created_at)}
                             </div>
                           </td>
-                          <td className="px-4 py-2 text-blue-400 font-medium" style={{ width: colWidths.usuario }}>{log.user_name}</td>
-                          <td className="px-4 py-2" style={{ width: colWidths.rol }}>
+                          <td className="px-4 py-2 text-blue-400 font-medium" style={{ width: colWidths.usuario, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.user_name}</td>
+                          <td className="px-4 py-2" style={{ width: colWidths.rol, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide border ${
                               log.user_role === 'admin'
                                 ? 'bg-blue-500/10 text-blue-400 border-blue-500/25'
@@ -349,14 +403,14 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                               {log.user_role === 'admin' ? 'ADMIN' : 'CHOFER'}
                             </span>
                           </td>
-                          <td className="px-4 py-2 text-cyan-400" style={{ width: colWidths.modulo }}>{log.module}</td>
-                          <td className="px-4 py-2 text-shuma-text" style={{ width: colWidths.accion }}>
+                          <td className="px-4 py-2 text-cyan-400" style={{ width: colWidths.modulo, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.module}</td>
+                          <td className="px-4 py-2 text-shuma-text" style={{ width: colWidths.accion, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <div className="flex items-center gap-1.5">
                               {getActionIcon(log.action, log.module)}
                               {log.action}
                             </div>
                           </td>
-                          <td className="px-4 py-2 text-shuma-muted" style={{ width: colWidths.ip }}>{log.ip_address}</td>
+                          <td className="px-4 py-2 text-shuma-muted" style={{ width: colWidths.ip, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.ip_address}</td>
                         </tr>
                         {isExpanded && hasMetadata && (
                           <tr className="bg-slate-900/40 border-b border-shuma-border/50">
