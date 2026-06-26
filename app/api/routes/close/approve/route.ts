@@ -54,6 +54,23 @@ export async function POST(req: NextRequest) {
       }),
     }).catch(console.error);
 
+    await supabaseAdmin.from('audit_log').insert({
+      action:    'Cierre de ruta aprobado',
+      entity:    'ruta',
+      entity_id: routeId,
+      user_name: adminName,
+      user_role: 'admin',
+      ip_address: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
+      user_agent: req.headers.get('user-agent') || 'unknown',
+      module:    'Rutas',
+      metadata: {
+        ruta_code: routeData?.route_code || null,
+        solicitado_por: routeData?.closure_requested_by || null,
+        accion: 'aprobado',
+      },
+      created_at: new Date().toISOString(),
+    }).then(({error}) => { if (error) console.error(error); });
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[close-approve]', err);

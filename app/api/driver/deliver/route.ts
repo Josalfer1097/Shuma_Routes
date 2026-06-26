@@ -82,6 +82,25 @@ export async function POST(req: NextRequest) {
       created_at: new Date().toISOString(),
     });
 
+    // Notificar al admin cuando hay una entrega completada o fallida
+    if (status === 'completed' || status === 'failed') {
+      const notifTitle = status === 'completed'
+        ? '✅ Entrega completada'
+        : '❌ Entrega fallida';
+      const notifBody = status === 'completed'
+        ? `${driverName} completó la entrega ${delivery?.invoice || ''} — ${delivery?.client_name || ''}`
+        : `${driverName} no pudo entregar ${delivery?.invoice || ''} — ${notes || 'Sin motivo'}`;
+
+      await supabaseAdmin.from('notifications').insert({
+        type:        status === 'completed' ? 'delivery_completed' : 'delivery_failed',
+        title:       notifTitle,
+        body:        notifBody,
+        entity_id:   deliveryId,
+        target_role: 'admin',
+        read:        false,
+      }).then(({error}) => { if (error) console.error(error); }); // No bloquear si falla
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[driver/deliver] Error:', err);

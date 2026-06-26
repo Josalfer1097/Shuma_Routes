@@ -36,6 +36,30 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const { data: driverInfo } = await supabaseAdmin
+      .from('drivers')
+      .select('name')
+      .eq('id', driverId)
+      .single();
+    const driverName = driverInfo?.name || driverId;
+
+    await supabaseAdmin.from('audit_log').insert({
+      action:    'Solicitud de reapertura',
+      entity:    'entrega',
+      entity_id: deliveryId,
+      user_name: driverName,
+      user_role: 'driver',
+      ip_address: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
+      user_agent: req.headers.get('user-agent') || 'unknown',
+      module:    'Entregas',
+      metadata: {
+        factura:  deliveryData?.invoice || null,
+        motivo:   reason || 'Sin motivo',
+        estado:   'pending',
+      },
+      created_at: new Date().toISOString(),
+    }).then(({error}) => { if (error) console.error(error); });
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[reopen-request]', err);

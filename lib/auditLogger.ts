@@ -6,7 +6,8 @@ export async function logAction(
   userRole: string,
   module: string,
   metadata?: Record<string, unknown>,
-  ipAddress?: string   // ← pasar desde server-side cuando se tenga
+  ipAddress?: string,
+  userAgent?: string
 ) {
   try {
     const isServer = typeof window === 'undefined';
@@ -21,7 +22,7 @@ export async function logAction(
         user_name: userName,
         user_role: userRole,
         ip_address: ipAddress || 'unknown',
-        user_agent: 'server',
+        user_agent: userAgent || 'server',
         module: module || 'general',
         metadata,
         created_at: new Date().toISOString(),

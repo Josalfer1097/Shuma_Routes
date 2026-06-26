@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+function parseDevice(ua: string): string {
+  if (!ua || ua === 'unknown') return 'Desconocido';
+  if (/iPhone/i.test(ua))  return '📱 iPhone';
+  if (/iPad/i.test(ua))    return '📱 iPad';
+  if (/Android.*Mobile/i.test(ua)) return '📱 Android';
+  if (/Android/i.test(ua)) return '📱 Android Tablet';
+  if (/Macintosh/i.test(ua)) return '💻 Mac';
+  if (/Windows/i.test(ua))   return '🖥️ Windows';
+  if (/Linux/i.test(ua))     return '🖥️ Linux';
+  return '🖥️ Escritorio';
+}
+
 export async function POST(req: NextRequest) {
   const { username, password } = await req.json();
 
@@ -24,6 +36,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Contraseña incorrecta' }, { status: 401 });
   }
 
+  const ua = req.headers.get('user-agent') || 'unknown';
+
   // Registrar en audit_log
   await supabaseAdmin.from('audit_log').insert({
     action: 'login_success',
@@ -31,8 +45,12 @@ export async function POST(req: NextRequest) {
     user_name: data.username,
     user_role: 'driver',
     ip_address: req.headers.get('x-forwarded-for') || 'unknown',
-    user_agent: req.headers.get('user-agent') || 'unknown',
-    metadata: { full_name: data.full_name, driver_id: data.driver_id }
+    user_agent: ua,
+    metadata: { 
+      full_name: data.full_name, 
+      driver_id: data.driver_id,
+      device: parseDevice(ua)
+    }
   });
 
   await supabaseAdmin

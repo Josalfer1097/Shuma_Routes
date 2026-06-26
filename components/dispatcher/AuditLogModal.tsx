@@ -41,6 +41,31 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   const PAGE_SIZE = 50; // registros por página
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
+  const [colWidths, setColWidths] = useState({
+    fecha:   200,
+    usuario: 130,
+    rol:     90,
+    modulo:  110,
+    accion:  200,
+    ip:      120,
+  });
+
+  const startResize = (col: keyof typeof colWidths, e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = colWidths[col];
+    const onMove = (ev: MouseEvent) => {
+      const diff = ev.clientX - startX;
+      setColWidths(prev => ({ ...prev, [col]: Math.max(60, startW + diff) }));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   useEffect(() => {
     if (initialEntityId) {
       setFilterEntityId(initialEntityId);
@@ -260,11 +285,36 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
             ) : logs.length === 0 ? (
               <div className="flex items-center justify-center h-40 text-shuma-muted text-sm">No hay registros</div>
             ) : (
-              <table className="w-full text-xs">
+              <table className="w-full text-xs" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                 <thead className="sticky top-0 bg-shuma-surface border-b border-shuma-border">
                   <tr>
-                    {['Fecha/Hora (CDMX)', 'Usuario', 'Rol', 'Módulo', 'Acción', 'IP'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left font-semibold text-shuma-muted">{h}</th>
+                    {([
+                      { key: 'fecha',   label: 'Fecha/Hora (CDMX)' },
+                      { key: 'usuario', label: 'Usuario' },
+                      { key: 'rol',     label: 'Rol' },
+                      { key: 'modulo',  label: 'Módulo' },
+                      { key: 'accion',  label: 'Acción' },
+                      { key: 'ip',      label: 'IP' },
+                    ] as const).map(({ key, label }) => (
+                      <th
+                        key={key}
+                        style={{ width: colWidths[key], minWidth: 60, position: 'relative', userSelect: 'none' }}
+                        className="px-4 py-3 text-left font-semibold text-shuma-muted"
+                      >
+                        {label}
+                        {/* Handle de resize */}
+                        <span
+                          onMouseDown={(e) => startResize(key, e)}
+                          style={{
+                            position: 'absolute', right: 0, top: 0, bottom: 0,
+                            width: 6, cursor: 'col-resize',
+                            background: 'transparent',
+                            borderRight: '2px solid rgba(33,150,243,0.15)',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.borderRightColor = 'rgba(33,150,243,0.5)')}
+                          onMouseLeave={e => (e.currentTarget.style.borderRightColor = 'rgba(33,150,243,0.15)')}
+                        />
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -279,7 +329,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                           onClick={() => hasMetadata && toggleExpand(log.id)}
                           className={`hover:bg-shuma-surface/50 transition-colors ${hasMetadata ? 'cursor-pointer' : ''} ${rowIdx % 2 === 0 ? '' : 'bg-slate-900/30'}`}
                         >
-                          <td className="px-4 py-2 text-shuma-text">
+                          <td className="px-4 py-2 text-shuma-text" style={{ width: colWidths.fecha }}>
                             <div className="flex items-center gap-2">
                               {hasMetadata ? (
                                 <span className="text-shuma-muted shrink-0">
@@ -289,8 +339,8 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                               {formatDate(log.created_at)}
                             </div>
                           </td>
-                          <td className="px-4 py-2 text-blue-400 font-medium">{log.user_name}</td>
-                          <td className="px-4 py-2">
+                          <td className="px-4 py-2 text-blue-400 font-medium" style={{ width: colWidths.usuario }}>{log.user_name}</td>
+                          <td className="px-4 py-2" style={{ width: colWidths.rol }}>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide border ${
                               log.user_role === 'admin'
                                 ? 'bg-blue-500/10 text-blue-400 border-blue-500/25'
@@ -299,14 +349,14 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                               {log.user_role === 'admin' ? 'ADMIN' : 'CHOFER'}
                             </span>
                           </td>
-                          <td className="px-4 py-2 text-cyan-400">{log.module}</td>
-                          <td className="px-4 py-2 text-shuma-text">
+                          <td className="px-4 py-2 text-cyan-400" style={{ width: colWidths.modulo }}>{log.module}</td>
+                          <td className="px-4 py-2 text-shuma-text" style={{ width: colWidths.accion }}>
                             <div className="flex items-center gap-1.5">
                               {getActionIcon(log.action, log.module)}
                               {log.action}
                             </div>
                           </td>
-                          <td className="px-4 py-2 text-shuma-muted">{log.ip_address}</td>
+                          <td className="px-4 py-2 text-shuma-muted" style={{ width: colWidths.ip }}>{log.ip_address}</td>
                         </tr>
                         {isExpanded && hasMetadata && (
                           <tr className="bg-slate-900/40 border-b border-shuma-border/50">
@@ -338,19 +388,61 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                                   }
                                   
                                   // Valores normales
+                                  const HIDDEN_KEYS = [
+                                    'driver_id', 'route_driver_id', 'ruta_id', 'delivery_id',
+                                    'request_id', 'entity_id', 'user_id', 'route_id',
+                                  ];
+
+                                  const KEY_LABELS: Record<string, string> = {
+                                    ruta_code:         'Código de Ruta',
+                                    ruta_fecha:        'Fecha de Ruta',
+                                    factura:           'Factura',
+                                    cliente:           'Cliente',
+                                    direccion:         'Dirección',
+                                    parada:            'N° Parada',
+                                    valor_mercancia:   'Valor Mercancía',
+                                    motivo_fallo:      'Motivo',
+                                    entrega_parcial:   'Entrega Parcial',
+                                    cantidad_parcial:  'Cantidad Parcial',
+                                    fotos_evidencia:   'Fotos',
+                                    estado_anterior:   'Estado Anterior',
+                                    estado_nuevo:      'Estado Nuevo',
+                                    entregas_activadas:'Entregas Activadas',
+                                    full_name:         'Nombre Completo',
+                                    reason:            'Motivo',
+                                    device:            'Dispositivo',
+                                    browser:           'Navegador',
+                                    consent_type:      'Tipo Consentimiento',
+                                    timestamp:         'Timestamp',
+                                  };
+
+                                  if (HIDDEN_KEYS.includes(key)) return null;
+                                  if ((key === 'foto_evidencia' || key === 'fotos_evidencia') && value === 'No') return null;
+                                  if (value === null || value === 'null' || value === undefined) return null;
+                                  if (value === false || value === 'false') return null;
+
                                   const strVal = String(value);
                                   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strVal);
+                                  if (isUUID && !KEY_LABELS[key]) return null;
+
+                                  const displayKey = KEY_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                  const displayValue = strVal;
+
+                                  const isMonetary = key === 'valor_mercancia' && !isNaN(Number(value));
+                                  const isDateStr = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(strVal);
                                   
-                                  if (key === 'ruta_id' && log.metadata?.ruta_code) {
-                                    return null;
-                                  }
-                                  
-                                  const displayValue = isUUID ? `${strVal.substring(0, 8)}...` : strVal;
+                                  const formattedValue = isDateStr
+                                    ? new Date(strVal).toLocaleString('es-MX', {
+                                        timeZone: 'America/Mexico_City',
+                                        dateStyle: 'short', timeStyle: 'medium'
+                                      })
+                                    : isMonetary ? `$${Number(value).toLocaleString('es-MX')}`
+                                    : displayValue;
 
                                   return (
                                     <div key={key}>
-                                      <p className="text-[10px] text-shuma-muted font-bold uppercase tracking-wider">{key.replace(/_/g, ' ')}</p>
-                                      <p className="text-sm text-shuma-text mt-0.5 font-medium" title={isUUID ? strVal : undefined}>{displayValue}</p>
+                                      <p className="text-[10px] text-shuma-muted font-bold uppercase tracking-wider">{displayKey}</p>
+                                      <p className="text-sm text-shuma-text mt-0.5 font-medium" title={isUUID ? strVal : undefined}>{formattedValue}</p>
                                     </div>
                                   );
                                 })}

@@ -49,6 +49,22 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    await supabaseAdmin.from('audit_log').insert({
+      action:    'Reapertura de entrega aprobada',
+      entity:    'entrega',
+      entity_id: request.delivery_id,
+      user_name: adminName,
+      user_role: 'admin',
+      ip_address: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
+      user_agent: req.headers.get('user-agent') || 'unknown',
+      module:    'Entregas',
+      metadata: {
+        factura: deliveryData?.invoice || null,
+        accion: 'aprobado',
+      },
+      created_at: new Date().toISOString(),
+    }).then(({error}) => { if (error) console.error(error); });
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[reopen-approve]', err);
