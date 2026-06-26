@@ -10,7 +10,6 @@ export default function HomePage() {
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [sysStatus, setSysStatus] = useState<'checking' | 'ok' | 'error'>('checking');
-  const [lastRole, setLastRole] = useState<'admin' | 'driver' | null>(null);
   const [showChangelog, setShowChangelog] = useState(false);
   const [changelog, setChangelog] = useState<{
     updated: string;
@@ -20,7 +19,6 @@ export default function HomePage() {
     try { return localStorage.getItem('shuma_rgb_footer') !== 'hidden'; }
     catch { return true; }
   });
-  const [activeSessionRole, setActiveSessionRole] = useState<string | null>(null);
   const [pulsingCard, setPulsingCard] = useState<'admin' | 'driver' | null>(null);
   const [sysError, setSysError] = useState<string>('');
   const router = useRouter();
@@ -76,22 +74,6 @@ export default function HomePage() {
         router.push('/dispatcher');
       }
     }
-    try {
-      const saved = localStorage.getItem('shuma_last_role') as 'admin' | 'driver' | null;
-      if (saved) setLastRole(saved);
-    } catch { /* ignore */ }
-
-    try {
-      const lsAuth = localStorage.getItem('shuma_auth');
-      const lsRole = localStorage.getItem('shuma_last_active_role');
-      const lsTime = localStorage.getItem('shuma_last_active_time');
-      if (lsAuth === '1' && lsRole && lsTime) {
-        const elapsed = Date.now() - parseInt(lsTime);
-        if (elapsed < 30 * 60 * 1000) {
-          setActiveSessionRole(lsRole);
-        }
-      }
-    } catch {}
   }, []);
 
   if (!ready) return (
@@ -225,48 +207,11 @@ export default function HomePage() {
         </div>
         {/* Selector de rol */}
         <div className="space-y-3">
-          {activeSessionRole && (
-            <div style={{
-              marginBottom: 16, padding: '10px 14px',
-              background: 'rgba(33,150,243,0.06)',
-              border: '1px solid rgba(33,150,243,0.15)',
-              borderRadius: 12,
-              display: 'flex', alignItems: 'center', gap: 10,
-              animation: 'cardSlideUp 0.4s cubic-bezier(0.16,1,0.3,1) both',
-            }}>
-              <span style={{ fontSize: 18, flexShrink: 0 }}>
-                {activeSessionRole === 'driver' ? '🚛' : '🖥️'}
-              </span>
-              <div style={{ flex: 1 }}>
-                <p style={{
-                  fontSize: 12, fontWeight: 600, color: '#60a5fa',
-                  fontFamily: "'Exo 2', sans-serif", margin: 0,
-                }}>
-                  Sesión activa como{' '}
-                  {activeSessionRole === 'driver' ? 'Chofer' : 'Administrador'}
-                </p>
-                <p style={{
-                  fontSize: 10, color: '#5B7BA0', margin: '2px 0 0',
-                  fontFamily: "'DM Sans', sans-serif",
-                }}>
-                  Puede haber otra pestaña abierta con esta sesión
-                </p>
-              </div>
-              <button
-                onClick={() => setActiveSessionRole(null)}
-                style={{
-                  background: 'none', border: 'none',
-                  color: '#5B7BA0', cursor: 'pointer', fontSize: 14, padding: 4,
-                }}
-              >✕</button>
-            </div>
-          )}
           <p className="text-center text-xs font-medium text-slate-500 uppercase tracking-widest mb-5">
             Selecciona tu rol
           </p>
           <button
             onClick={() => {
-              try { localStorage.setItem('shuma_last_role', 'admin'); } catch {}
               setLeaving(true); setTimeout(() => router.push('/admin-login'), 280);
             }}
             className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
@@ -290,18 +235,6 @@ export default function HomePage() {
               <h2 className="font-semibold text-shuma-text group-hover:text-shuma-accent transition-colors">
                 Soy Administrador
               </h2>
-              {lastRole === 'admin' && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: '#2196F3', background: 'rgba(33,150,243,0.1)',
-                  border: '1px solid rgba(33,150,243,0.2)',
-                  borderRadius: 99, padding: '2px 8px',
-                  fontFamily: "'Exo 2', sans-serif", marginTop: 4,
-                }}>
-                  🖥️ Última sesión
-                </span>
-              )}
               <p className="text-sm text-shuma-muted mt-0.5">
                 Gestión de rutas, choferes y operaciones
               </p>
@@ -324,7 +257,6 @@ export default function HomePage() {
           </button>
           <button
             onClick={() => {
-              try { localStorage.setItem('shuma_last_role', 'driver'); } catch {}
               setLeaving(true); setTimeout(() => router.push('/driver-login'), 280);
             }}
             className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
@@ -348,18 +280,6 @@ export default function HomePage() {
               <h2 className="font-semibold text-shuma-text group-hover:text-shuma-warning transition-colors">
                 Soy Chofer
               </h2>
-              {lastRole === 'driver' && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: '#f59e0b', background: 'rgba(245,158,11,0.1)',
-                  border: '1px solid rgba(245,158,11,0.2)',
-                  borderRadius: 99, padding: '2px 8px',
-                  fontFamily: "'Exo 2', sans-serif", marginTop: 4,
-                }}>
-                  🚛 Última sesión
-                </span>
-              )}
               <p className="text-sm text-shuma-muted mt-0.5">
                 Ver mi ruta y marcar entregas completadas
               </p>
