@@ -41,7 +41,6 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
   const [selectedDriverId,  setSelectedDriverId]  = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [capacity,   setCapacity]   = useState('');
-  const [invoices,   setInvoices]   = useState('');
   const [formError,  setFormError]  = useState<string | null>(null);
 
   const [driverSearch, setDriverSearch]       = useState('');
@@ -103,7 +102,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
       color:       DRIVER_COLORS[vehicles.length % DRIVER_COLORS.length],
       depot:       { id: '', name: '', address: '', lat: 0, lng: 0 },
       endDepot:    { id: '', name: '', address: '', lat: 0, lng: 0 },
-      invoices:    invoices.trim(),
+      invoices:    '',
     };
 
     onAdd(newVehicle);
@@ -117,7 +116,6 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
     );
     setSelectedVehicleId(nextVehicle?.id || '');
     setCapacity('');
-    setInvoices('');
   };
 
   if (loadingDB) return (
@@ -333,8 +331,8 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
               )}
             </div>
 
-            {/* Capacidad y Facturas */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* Capacidad */}
+            <div className="grid grid-cols-1 gap-2">
               <div>
                 <label className="block text-xs font-medium text-shuma-muted mb-1">Bultos máximos</label>
                 <input
@@ -343,16 +341,6 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                   onChange={e => setCapacity(e.target.value)}
                   placeholder="Sin límite"
                   min="1"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-shuma-muted mb-1">Factura(s)</label>
-                <input
-                  type="text"
-                  value={invoices}
-                  onChange={e => setInvoices(e.target.value)}
-                  placeholder="Ej: F-001, F-002"
                   className={inputCls}
                 />
               </div>
@@ -398,11 +386,8 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                     <span className="ml-1.5 text-xs text-shuma-muted font-normal">· {v.matricula}</span>
                   </p>
                   <p className="text-xs text-shuma-muted">
-                    {v.type}{v.capacity < 9999 && ` · Máx ${v.capacity} bultos`}
+                    {v.type}{v.capacity < 9999 && ` — Máx ${v.capacity} bultos`}
                   </p>
-                  {v.invoices && (
-                    <p className="text-xs text-amber-400/80 truncate mt-0.5">📄 {v.invoices}</p>
-                  )}
                 </div>
                 <button
                   onClick={() => onRemove(v.id)}

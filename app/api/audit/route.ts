@@ -60,10 +60,14 @@ export async function GET(req: NextRequest) {
     if (entity_id) query = query.eq('entity_id', entity_id);
 
     // Búsqueda full-text: busca en action, user_name y metadata::text
+    const orClauses: string[] = [];
+
     if (search) {
       const term = `%${search}%`;
-      query = query.or(
-        `action.ilike.${term},user_name.ilike.${term},metadata::text.ilike.${term}`
+      orClauses.push(
+        `action.ilike.${term}`,
+        `user_name.ilike.${term}`,
+        `metadata::text.ilike.${term}`
       );
     }
 
@@ -74,12 +78,12 @@ export async function GET(req: NextRequest) {
         ruta:    ['Ruta aceptada y guardada', 'Ruta iniciada', 'Ruta cerrada', 'Ruta reabierta', 'Alias actualizado'],
         sistema: ['Cookies aceptadas', 'Sesión iniciada', 'Sesión cerrada'],
       };
-      const actions = typeMap[actionType];
-      if (actions && actions.length > 0) {
-        // Buscar cualquiera de esas acciones
-        const orClause = actions.map(a => `action.ilike.%${a}%`).join(',');
-        query = query.or(orClause);
-      }
+      const actions = typeMap[actionType] || [];
+      actions.forEach(a => orClauses.push(`action.ilike.%${a}%`));
+    }
+
+    if (orClauses.length > 0) {
+      query = query.or(orClauses.join(','));
     }
 
     const { data, error, count } = await query;

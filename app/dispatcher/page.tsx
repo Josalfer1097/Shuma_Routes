@@ -273,6 +273,14 @@ export default function DispatcherPage() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [geocodingDone, setGeocodingDone] = useState(false);
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+  const hasShownOptimTip = useRef(false);
+  const [configSaved, setConfigSaved] = useState(false);
+  const [testMode, setTestMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try { return sessionStorage.getItem('shuma_test_mode') === 'true'; } catch { return false; }
+    }
+    return false;
+  });
 
   const { logout } = useAuth();
   const router = useRouter();
@@ -860,7 +868,7 @@ supabase.removeChannel(locChannel);
         const timeStr = v.departureTime || state.globalConfig?.departureTime || '08:00';
         const [h, m] = timeStr.split(':').map(Number);
         const targetMins = (h || 0) * 60 + (m || 0);
-        if (targetMins < currentMins) {
+        if (!testMode && targetMins < currentMins) {
           dispatch({ type: 'SET_ERROR', payload: `La hora de salida de ${v.driverName} ya pasó. Ajusta la hora antes de optimizar.` });
           setIsOptimizing(false);
           return;
@@ -972,7 +980,7 @@ supabase.removeChannel(locChannel);
         const timeStr = route?.departureTime || v.departureTime || state.globalConfig?.departureTime || '08:00';
         const [h, m] = timeStr.split(':').map(Number);
         const targetMins = (h || 0) * 60 + (m || 0);
-        if (targetMins < currentMins) {
+        if (!testMode && targetMins < currentMins) {
           dispatch({ type: 'SET_ERROR', payload: `La hora de salida de ${v.driverName} ya pasó. Ajusta la hora antes de optimizar.` });
           setIsOptimizing(false);
           return;
@@ -1046,7 +1054,7 @@ supabase.removeChannel(locChannel);
       const timeStr = route?.departureTime || vehicle.departureTime || state.globalConfig?.departureTime || '08:00';
       const [h, m] = timeStr.split(':').map(Number);
       const targetMins = (h || 0) * 60 + (m || 0);
-      if (targetMins < currentMins) {
+      if (!testMode && targetMins < currentMins) {
         dispatch({ type: 'SET_ERROR', payload: `La hora de salida de ${vehicle.driverName} ya pasó. Ajusta la hora antes de optimizar.` });
         setIsOptimizing(false);
         return;
@@ -1081,7 +1089,7 @@ supabase.removeChannel(locChannel);
 
   // ── Determine completed tabs ──
   const isTabCompleted = (tabId: string): boolean => {
-    if (tabId === 'config' && state.globalConfig) return true;
+    if (tabId === 'config') return configSaved;
     if (tabId === 'upload' && state.addresses.length > 0) return true;
     if (tabId === 'zones' && state.clusters.length > 0 && state.routes.length > 0) return true;
     return false;
@@ -2172,11 +2180,11 @@ supabase.removeChannel(locChannel);
         footer={
           activeTab === 'config' ? (
             <>
-              <button className="so-btn-ghost" onClick={() => setIsSlideOverOpen(false)}>
+              <button className="so-btn-danger" onClick={() => setIsSlideOverOpen(false)}>
                 Cancelar
               </button>
               <button
-                className="so-btn-primary"
+                className="so-btn-success"
                 id="config-submit-btn"
                 onClick={() => {
                   const btn = document.getElementById('config-save-trigger');
@@ -2199,6 +2207,7 @@ supabase.removeChannel(locChannel);
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setOptimizeMode('zones')}
+                      title="Tú defines cuántas zonas y qué chofer cubre cada área. Google optimiza el orden dentro de cada zona."
                       className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all ${
                         optimizeMode === 'zones'
                           ? 'bg-blue-500/15 border-blue-500/50 text-blue-400'
@@ -2213,13 +2222,25 @@ supabase.removeChannel(locChannel);
                     </button>
                     <button
                       onClick={() => setOptimizeMode('google')}
-                      className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all ${
+                      title="Google analiza todas las entregas y las distribuye entre tus choferes de forma óptima, minimizando tiempo y distancia total."
+                      className={`p-3 rounded-xl border text-xs font-semibold text-left transition-all relative ${
                         optimizeMode === 'google'
                           ? 'bg-amber-500/15 border-amber-500/50 text-amber-400'
                           : 'bg-shuma-surface border-shuma-border text-shuma-muted hover:border-amber-500/30'
                       }`}
                     >
-                      <div className="text-base mb-1">⚡</div>
+                      <div className="text-base mb-1" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        ⚡
+                        <span style={{
+                          fontSize: 8, fontWeight: 700, letterSpacing: '0.1em',
+                          background: 'rgba(245,158,11,0.2)', color: '#fbbf24',
+                          border: '1px solid rgba(245,158,11,0.3)',
+                          borderRadius: 99, padding: '1px 6px',
+                          textTransform: 'uppercase', marginBottom: 2,
+                        }}>
+                          Recomendado
+                        </span>
+                      </div>
                       <div>Google Intelligence</div>
                       <div className="text-[10px] opacity-70 mt-0.5 font-normal">
                         Google distribuye y ordena todo
@@ -2362,6 +2383,16 @@ supabase.removeChannel(locChannel);
               dispatch({ type: 'SET_GLOBAL_CONFIG', payload: conf });
               dispatch({ type: 'SET_STEP', payload: 'upload' });
               setActiveTab('upload');
+              setConfigSaved(true);
+              if (!hasShownOptimTip.current) {
+                hasShownOptimTip.current = true;
+                setTimeout(() => {
+                  showToast(
+                    '💡 Al cargar tus direcciones, elige entre Zonas manuales (tú controlas los grupos) o Google Intelligence (Google distribuye todo automáticamente)',
+                    'ok'
+                  );
+                }, 800);
+              }
             }}
             onReset={() => {
               if (confirm('¿Estás seguro de reiniciar toda la configuración y vaciar los datos actuales?')) {
@@ -2941,6 +2972,7 @@ function ConfigPanel({
   const [deadlineTime, setDeadlineTime] = useState(currentConfig?.deadlineTime || '17:45');
   const [unloadConfig, setUnloadConfig] = useState(currentConfig?.unloadConfig || { truckLarge: 20, truckSmall: 18, van: 15 });
   const [rainThreshold, setRainThreshold] = useState(currentConfig?.rainAlertThreshold ?? 5);
+  const [testMode, setTestMode] = useState(() => { try { return sessionStorage.getItem('shuma_test_mode') === 'true'; } catch { return false; } });
   const [time, setTime] = useState(() => {
     if (currentConfig?.departureTime) return currentConfig.departureTime;
     const now = new Date();
@@ -2995,14 +3027,14 @@ function ConfigPanel({
                   const now = new Date();
                   const currentMins = now.getHours() * 60 + now.getMinutes();
                   const [h, m] = (time || '08:00').split(':').map(Number);
-                  return (h * 60 + m) < currentMins ? { borderColor: '#EF4444', color: '#EF4444' } : {};
+                  return (!testMode && (h * 60 + m) < currentMins) ? { borderColor: '#EF4444', color: '#EF4444' } : {};
                 })()}
               />
               {(() => {
                 const now = new Date();
                 const currentMins = now.getHours() * 60 + now.getMinutes();
                 const [h, m] = (time || '08:00').split(':').map(Number);
-                return (h * 60 + m) < currentMins ? (
+                return (!testMode && (h * 60 + m) < currentMins) ? (
                   <p style={{ color: '#EF4444', fontSize: 10, marginTop: 4 }}>⚠️ Esta hora ya pasó</p>
                 ) : null;
               })()}
@@ -3016,6 +3048,48 @@ function ConfigPanel({
                 className="so-input"
               />
             </div>
+          </div>
+
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '8px 10px', borderRadius: 8,
+            background: testMode ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.02)',
+            border: `1px solid ${testMode ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.06)'}`,
+            marginTop: 8,
+          }}>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 600, color: testMode ? '#fbbf24' : '#5B7BA0',
+                fontFamily: "'Exo 2', sans-serif", margin: 0 }}>
+                🧪 Modo Prueba
+              </p>
+              <p style={{ fontSize: 9, color: '#3B5270', margin: '2px 0 0',
+                fontFamily: "'DM Sans', sans-serif" }}>
+                Permite horas de salida pasadas
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !testMode;
+                setTestMode(next);
+                try { sessionStorage.setItem('shuma_test_mode', String(next)); } catch {}
+              }}
+              style={{
+                width: 36, height: 20, borderRadius: 99, cursor: 'pointer',
+                background: testMode ? '#f59e0b' : 'rgba(255,255,255,0.1)',
+                border: 'none', position: 'relative', transition: 'background 0.2s',
+                flexShrink: 0,
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 2,
+                left: testMode ? 18 : 2,
+                width: 16, height: 16, borderRadius: '50%',
+                background: 'white',
+                transition: 'left 0.2s',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+              }} />
+            </button>
           </div>
         </div>
       </div>
@@ -3090,7 +3164,7 @@ function ConfigPanel({
       <div className="pt-4 border-t border-shuma-border mt-6">
         <button
           onClick={onReset}
-          className="w-full py-2.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20 font-semibold text-sm transition-colors"
+          className="so-btn-warn"
         >
           🗑️ Reiniciar Configuración
         </button>
