@@ -9,7 +9,6 @@ export default function HomePage() {
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [sysStatus, setSysStatus] = useState<'checking' | 'ok' | 'error'>('checking');
-  const [lastRole, setLastRole] = useState<'admin' | 'driver' | null>(null);
   const [showChangelog, setShowChangelog] = useState(false);
   const [changelog, setChangelog] = useState<{
     updated: string;
@@ -55,10 +54,6 @@ export default function HomePage() {
         router.push('/dispatcher');
       }
     }
-    try {
-      const saved = localStorage.getItem('shuma_last_role') as 'admin' | 'driver' | null;
-      if (saved) setLastRole(saved);
-    } catch { /* ignore */ }
   }, []);
 
   if (!ready) return (
@@ -197,7 +192,6 @@ export default function HomePage() {
           </p>
           <button
             onClick={() => {
-              try { localStorage.setItem('shuma_last_role', 'admin'); } catch {}
               setLeaving(true); setTimeout(() => router.push('/admin-login'), 280);
             }}
             className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
@@ -217,21 +211,6 @@ export default function HomePage() {
               <h2 className="font-semibold text-shuma-text group-hover:text-shuma-accent transition-colors">
                 Soy Administrador
               </h2>
-              {lastRole === 'admin' && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: '#2196F3', background: 'rgba(33,150,243,0.1)',
-                  border: '1px solid rgba(33,150,243,0.2)',
-                  borderRadius: 99, padding: '2px 8px',
-                  fontFamily: "'Exo 2', sans-serif",
-                  marginTop: 4,
-                }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%',
-                    background: '#2196F3', display: 'inline-block' }} />
-                  Última sesión
-                </span>
-              )}
               <p className="text-sm text-shuma-muted mt-0.5">
                 Gestión de rutas, choferes y operaciones
               </p>
@@ -254,7 +233,6 @@ export default function HomePage() {
           </button>
           <button
             onClick={() => {
-              try { localStorage.setItem('shuma_last_role', 'driver'); } catch {}
               setLeaving(true); setTimeout(() => router.push('/driver-login'), 280);
             }}
             className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
@@ -274,21 +252,6 @@ export default function HomePage() {
               <h2 className="font-semibold text-shuma-text group-hover:text-shuma-warning transition-colors">
                 Soy Chofer
               </h2>
-              {lastRole === 'driver' && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-                  color: '#2196F3', background: 'rgba(33,150,243,0.1)',
-                  border: '1px solid rgba(33,150,243,0.2)',
-                  borderRadius: 99, padding: '2px 8px',
-                  fontFamily: "'Exo 2', sans-serif",
-                  marginTop: 4,
-                }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%',
-                    background: '#2196F3', display: 'inline-block' }} />
-                  Última sesión
-                </span>
-              )}
               <p className="text-sm text-shuma-muted mt-0.5">
                 Ver mi ruta y marcar entregas completadas
               </p>
