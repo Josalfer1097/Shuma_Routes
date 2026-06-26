@@ -45,8 +45,10 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   const handleDragStart = (e: React.MouseEvent) => {
+    if (isMaximized) return;
     // No iniciar drag si se hace click en botones del header
     if ((e.target as HTMLElement).closest('button')) return;
     setIsDragging(true);
@@ -73,6 +75,15 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     document.addEventListener('mouseup', onUp);
   };
 
+  const COL_MAX_WIDTHS = {
+    fecha:   280,
+    usuario: 200,
+    rol:     120,
+    modulo:  160,
+    accion:  350,
+    ip:      160,
+  };
+
   const [colWidths, setColWidths] = useState({
     fecha:   200,
     usuario: 130,
@@ -88,7 +99,13 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     const startW = colWidths[col];
     const onMove = (ev: MouseEvent) => {
       const diff = ev.clientX - startX;
-      setColWidths(prev => ({ ...prev, [col]: Math.max(60, startW + diff) }));
+      setColWidths(prev => ({
+        ...prev,
+        [col]: Math.min(
+          COL_MAX_WIDTHS[col],
+          Math.max(60, startW + diff)
+        )
+      }));
     };
     const onUp = () => {
       document.removeEventListener('mousemove', onMove);
@@ -206,7 +223,19 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
         <div
           ref={modalRef}
           className="bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-          style={{
+          style={isMaximized ? {
+            width: 'calc(100vw - 32px)',
+            height: 'calc(100vh - 32px)',
+            maxWidth: 'none',
+            maxHeight: 'none',
+            position: 'relative',
+            transform: 'none',
+            transition: 'none',
+            resize: 'none',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          } : {
             width: '90vw',
             maxWidth: 1100,
             maxHeight: '90vh',
@@ -217,6 +246,8 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
             overflow: 'auto',
             minWidth: 600,
             minHeight: 400,
+            display: 'flex',
+            flexDirection: 'column',
           }}
           onClick={e => e.stopPropagation()}
         >
@@ -234,9 +265,39 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                 </span>
               </p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-shuma-surface rounded-lg transition-colors">
-              <X className="w-5 h-5 text-shuma-muted" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  setIsMaximized(m => !m);
+                  if (!isMaximized) setModalPos({ x: 0, y: 0 }); // centrar al maximizar
+                }}
+                className="p-2 hover:bg-shuma-surface rounded-lg transition-colors"
+                title={isMaximized ? 'Restaurar' : 'Maximizar'}
+              >
+                {isMaximized ? (
+                  // Ícono restaurar (dos cuadros)
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                    className="text-shuma-muted">
+                    <rect x="8" y="8" width="13" height="13" rx="1"/>
+                    <path d="M4 16V4h12"/>
+                  </svg>
+                ) : (
+                  // Ícono maximizar (cuadro con flecha)
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                    className="text-shuma-muted">
+                    <polyline points="15 3 21 3 21 9"/>
+                    <polyline points="9 21 3 21 3 15"/>
+                    <line x1="21" y1="3" x2="14" y2="10"/>
+                    <line x1="3" y1="21" x2="10" y2="14"/>
+                  </svg>
+                )}
+              </button>
+              <button onClick={onClose} className="p-2 hover:bg-shuma-surface rounded-lg transition-colors">
+                <X className="w-5 h-5 text-shuma-muted" />
+              </button>
+            </div>
           </div>
 
           <div className="p-4 border-b border-shuma-border/50 bg-shuma-surface/50 flex flex-col gap-3">

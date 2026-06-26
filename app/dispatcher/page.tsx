@@ -2367,7 +2367,7 @@ supabase.removeChannel(locChannel);
             const { label, icon } = tabMeta[i];
             const isActive = activeTab === s;
             const stepsOrder = ['config','upload','zones','routes'];
-            const isDone = stepsOrder.indexOf(activeTab) > stepsOrder.indexOf(s) || isTabCompleted(s);
+            const isDone = isTabCompleted(s);
             return (
               <button key={s}
                 onClick={() => {
