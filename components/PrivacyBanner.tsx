@@ -14,7 +14,7 @@ export default function PrivacyBanner() {
         // Re-mostrar si han pasado más de 180 días
         const ts = parseInt(consent);
         const daysSince = (Date.now() - ts) / (1000 * 60 * 60 * 24);
-        if (daysSince > 180) {
+        if (daysSince > 30) {
           localStorage.removeItem('shuma_privacy_consent');
           setVisible(true);
         }

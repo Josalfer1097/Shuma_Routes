@@ -1,0 +1,18 @@
+{
+  "updated": "2026-06-26",
+  "items": [
+    { "type": "new",     "text": "Web Push Notifications — choferes reciben alertas de cierre y nuevas rutas" },
+    { "type": "new",     "text": "Geolocalización en tiempo real — marcadores de choferes en el mapa del admin" },
+    { "type": "new",     "text": "Modo offline para chofer — ruta disponible sin conexión con banner de aviso" },
+    { "type": "new",     "text": "Bitácora: columnas redimensionables, ventana movible y maximizable" },
+    { "type": "new",     "text": "Botón Descargar template CSV en el uploader de direcciones" },
+    { "type": "improve", "text": "Camión animado SVG con entrega de paquete al terminar geocodificación" },
+    { "type": "improve", "text": "Dashboard: filtro Hoy/7d/30d, comparación vs período anterior y drill-down en KPIs" },
+    { "type": "improve", "text": "Histórico: comparar dos rutas side-by-side y mapa miniatura por ruta" },
+    { "type": "improve", "text": "Notificaciones: filtro Todas/Nuevas/Leídas, marcar individual y deep link" },
+    { "type": "improve", "text": "Bitácora: búsqueda full-text en acción, usuario y metadata" },
+    { "type": "fix",     "text": "Botones footer SlideOver con colores: Cancelar rojo, Guardar verde, Reiniciar ámbar" },
+    { "type": "fix",     "text": "Selector de choferes con búsqueda en tiempo real" },
+    { "type": "bug",     "text": "Stepper marca tabs en verde sin haber configurado nada — EN REVISIÓN" }
+  ]
+}

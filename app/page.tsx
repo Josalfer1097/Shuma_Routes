@@ -6,22 +6,23 @@ import { useRouter } from 'next/navigation';
 import ParticleField from '@/components/ParticleField';
 
 export default function HomePage() {
-  const appVersion = process.env.npm_package_version || '7.24.0';
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [sysStatus, setSysStatus] = useState<'checking' | 'ok' | 'error'>('checking');
+  const [lastRole, setLastRole] = useState<'admin' | 'driver' | null>(null);
   const [showChangelog, setShowChangelog] = useState(false);
   const [changelog, setChangelog] = useState<{
     updated: string;
     items: Array<{ type: string; text: string }>;
   } | null>(null);
-  const [rgbVisible, setRgbVisible] = useState(() => {
-    try { return localStorage.getItem('shuma_rgb_footer') !== 'hidden'; }
-    catch { return true; }
-  });
-  const [pulsingCard, setPulsingCard] = useState<'admin' | 'driver' | null>(null);
-  const [sysError, setSysError] = useState<string>('');
   const router = useRouter();
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(j => setSysStatus(j.ok ? 'ok' : 'error'))
+      .catch(() => setSysStatus('error'));
+  }, []);
 
   useEffect(() => {
     fetch('/changelog.json')
@@ -31,32 +32,12 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    fetch('/api/health')
-      .then(r => r.json())
-      .then(j => {
-        if (j.ok) {
-          setSysStatus('ok');
-          setSysError('');
-        } else {
-          setSysStatus('error');
-          setSysError(j.error || 'Sin conexión a la base de datos');
-        }
-      })
-      .catch(() => {
-        setSysStatus('error');
-        setSysError('No se pudo contactar el servidor');
-      });
-  }, []);
-
-  useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'a' || e.key === 'A') {
-        setPulsingCard('admin');
-        setTimeout(() => window.location.href = '/admin-login', 260);
+        window.location.href = '/admin-login';
       }
       if (e.key === 'c' || e.key === 'C') {
-        setPulsingCard('driver');
-        setTimeout(() => window.location.href = '/driver-login', 260);
+        window.location.href = '/driver-login';
       }
     };
     document.addEventListener('keydown', handleKey);
@@ -74,6 +55,10 @@ export default function HomePage() {
         router.push('/dispatcher');
       }
     }
+    try {
+      const saved = localStorage.getItem('shuma_last_role') as 'admin' | 'driver' | null;
+      if (saved) setLastRole(saved);
+    } catch { /* ignore */ }
   }, []);
 
   if (!ready) return (
@@ -167,7 +152,7 @@ export default function HomePage() {
           <circle className="stop-dot" cx="860" cy="660" r="4" style={{ animationDelay: '1.2s' }} />
         </svg>
       </div>
-      <div className="relative z-10 w-full max-w-md" style={{ paddingBottom: 24 }}>
+      <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center mb-5">
@@ -187,23 +172,23 @@ export default function HomePage() {
           </h1>
           <p className="text-shuma-muted text-sm">
             Sistema de optimización de rutas de entrega
-            <div className="flex items-center justify-center gap-2 mt-3 mb-1 flex-wrap">
-              <div className={`w-2 h-2 rounded-full transition-colors flex-shrink-0 ${
-                sysStatus === 'ok'    ? 'bg-emerald-400 animate-pulse' :
-                sysStatus === 'error' ? 'bg-red-400' :
-                                        'bg-slate-600 animate-pulse'
-              }`} />
-              <span style={{
-                fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
-                color: sysStatus === 'ok' ? '#34d399' : sysStatus === 'error' ? '#f87171' : '#3B5270',
-                fontFamily: "'Exo 2', sans-serif",
-              }}>
-                {sysStatus === 'ok'    ? 'Sistema operativo' :
-                 sysStatus === 'error' ? `Sin conexión${sysError ? ` — ${sysError}` : ''}` :
-                                         'Verificando...'}
-              </span>
-            </div>
           </p>
+          <div className="flex items-center justify-center gap-2 mt-3 mb-1">
+            <div className={`w-2 h-2 rounded-full transition-colors ${
+              sysStatus === 'ok'       ? 'bg-emerald-400 animate-pulse' :
+              sysStatus === 'error'    ? 'bg-red-400' :
+                                         'bg-slate-600 animate-pulse'
+            }`} />
+            <span style={{
+              fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: sysStatus === 'ok' ? '#34d399' : sysStatus === 'error' ? '#f87171' : '#3B5270',
+              fontFamily: "'Exo 2', sans-serif",
+            }}>
+              {sysStatus === 'ok'    ? 'Sistema operativo' :
+               sysStatus === 'error' ? 'Sin conexión' :
+                                       'Verificando...'}
+            </span>
+          </div>
         </div>
         {/* Selector de rol */}
         <div className="space-y-3">
@@ -212,17 +197,14 @@ export default function HomePage() {
           </p>
           <button
             onClick={() => {
+              try { localStorage.setItem('shuma_last_role', 'admin'); } catch {}
               setLeaving(true); setTimeout(() => router.push('/admin-login'), 280);
             }}
             className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-accent transition-all duration-300 hover:shadow-lg
-                       hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[0_0_28px_rgba(33,150,243,0.28)]"
-            style={{
-              animation: pulsingCard === 'admin'
-                ? 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s both, cardPulseBlue 0.35s ease-out'
-                : 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s both'
-            }}
+                       hover:shadow-[0_0_15px_rgba(33,150,243,0.15)] hover:-translate-y-0.5"
+            style={{ animation: 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s both' }}
           >
             <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0
                             bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors duration-300">
@@ -235,6 +217,21 @@ export default function HomePage() {
               <h2 className="font-semibold text-shuma-text group-hover:text-shuma-accent transition-colors">
                 Soy Administrador
               </h2>
+              {lastRole === 'admin' && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+                  color: '#2196F3', background: 'rgba(33,150,243,0.1)',
+                  border: '1px solid rgba(33,150,243,0.2)',
+                  borderRadius: 99, padding: '2px 8px',
+                  fontFamily: "'Exo 2', sans-serif",
+                  marginTop: 4,
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%',
+                    background: '#2196F3', display: 'inline-block' }} />
+                  Última sesión
+                </span>
+              )}
               <p className="text-sm text-shuma-muted mt-0.5">
                 Gestión de rutas, choferes y operaciones
               </p>
@@ -257,17 +254,14 @@ export default function HomePage() {
           </button>
           <button
             onClick={() => {
+              try { localStorage.setItem('shuma_last_role', 'driver'); } catch {}
               setLeaving(true); setTimeout(() => router.push('/driver-login'), 280);
             }}
             className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-warning transition-all duration-300 hover:shadow-lg
-                       hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[0_0_28px_rgba(245,158,11,0.28)]"
-            style={{
-              animation: pulsingCard === 'driver'
-                ? 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.22s both, cardPulseAmber 0.35s ease-out'
-                : 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.22s both'
-            }}
+                       hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:-translate-y-0.5"
+            style={{ animation: 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.22s both' }}
           >
             <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0
                             bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors duration-300">
@@ -280,6 +274,21 @@ export default function HomePage() {
               <h2 className="font-semibold text-shuma-text group-hover:text-shuma-warning transition-colors">
                 Soy Chofer
               </h2>
+              {lastRole === 'driver' && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+                  color: '#2196F3', background: 'rgba(33,150,243,0.1)',
+                  border: '1px solid rgba(33,150,243,0.2)',
+                  borderRadius: 99, padding: '2px 8px',
+                  fontFamily: "'Exo 2', sans-serif",
+                  marginTop: 4,
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%',
+                    background: '#2196F3', display: 'inline-block' }} />
+                  Última sesión
+                </span>
+              )}
               <p className="text-sm text-shuma-muted mt-0.5">
                 Ver mi ruta y marcar entregas completadas
               </p>
@@ -302,33 +311,20 @@ export default function HomePage() {
           </button>
         </div>
         {/* Footer RGB */}
-        <p
-          onDoubleClick={() => {
-            const next = !rgbVisible;
-            setRgbVisible(next);
-            try { localStorage.setItem('shuma_rgb_footer', next ? 'visible' : 'hidden'); }
-            catch {}
-          }}
-          title="Doble click para ocultar"
-          style={{
-            textAlign: 'center',
-            fontSize: 14,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            marginTop: 32,
-            background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
-            backgroundSize: '400% auto',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            animation: 'rgbRoll 5s linear infinite',
-            opacity: rgbVisible ? 0.8 : 0,
-            transition: 'opacity 0.5s ease',
-            cursor: 'default',
-            userSelect: 'none',
-            paddingBottom: 'env(safe-area-inset-bottom, 16px)',
-          }}
-        >
+        <p style={{
+          textAlign: 'center',
+          fontSize: 14,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          marginTop: 32,
+          background: 'linear-gradient(90deg, #ff0000, #ff6600, #ffff00, #00ff00, #00ffff, #0066ff, #cc00ff, #ff0000)',
+          backgroundSize: '400% auto',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          animation: 'rgbRoll 5s linear infinite',
+          opacity: 0.8
+        }}>
           Design &amp; Developed by Shuma Sistemas IT
         </p>
         <button
@@ -369,19 +365,10 @@ export default function HomePage() {
             from { opacity: 1; transform: scale(1); }
             to   { opacity: 0; transform: scale(0.98); }
           }
-          @keyframes cardPulseBlue {
-            0%   { box-shadow: 0 0 0 0 rgba(33,150,243,0.6); }
-            70%  { box-shadow: 0 0 0 14px rgba(33,150,243,0); }
-            100% { box-shadow: 0 0 0 0 rgba(33,150,243,0); }
-          }
-          @keyframes cardPulseAmber {
-            0%   { box-shadow: 0 0 0 0 rgba(245,158,11,0.6); }
-            70%  { box-shadow: 0 0 0 14px rgba(245,158,11,0); }
-            100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
-          }
         `}</style>
       </div>
 
+      {/* ── Modal de changelog ── */}
       {showChangelog && changelog && (
         <div
           onClick={() => setShowChangelog(false)}
@@ -437,10 +424,10 @@ export default function HomePage() {
               >✕</button>
             </div>
 
-            {/* Lista */}
-            <div style={{ overflowY: 'auto', padding: '16px 24px 24px', flex: 1 }}>
+            {/* Lista de cambios */}
+            <div style={{ overflowY: 'auto', padding: '16px 24px', flex: 1 }}>
               {changelog.items.map((item, i) => {
-                const config: Record<string, {
+                const cfgMap: Record<string, {
                   color: string; bg: string; border: string; icon: string; label: string;
                 }> = {
                   new:     { color: '#34d399', bg: 'rgba(16,185,129,0.08)',
@@ -452,7 +439,7 @@ export default function HomePage() {
                   bug:     { color: '#f87171', bg: 'rgba(239,68,68,0.08)',
                              border: 'rgba(239,68,68,0.2)',   icon: '🐛', label: 'Bug' },
                 };
-                const c = config[item.type] || {
+                const c = cfgMap[item.type] || {
                   color: '#5B7BA0', bg: 'transparent',
                   border: 'rgba(255,255,255,0.06)', icon: '•', label: '',
                 };
@@ -460,8 +447,7 @@ export default function HomePage() {
                   <div key={i} style={{
                     display: 'flex', gap: 10, marginBottom: 8,
                     padding: '8px 12px',
-                    background: c.bg,
-                    border: `1px solid ${c.border}`,
+                    background: c.bg, border: `1px solid ${c.border}`,
                     borderRadius: 10,
                   }}>
                     <span style={{ flexShrink: 0, fontSize: 14 }}>{c.icon}</span>
@@ -485,6 +471,7 @@ export default function HomePage() {
               })}
             </div>
 
+            {/* Footer */}
             <div style={{
               padding: '12px 24px',
               borderTop: '1px solid rgba(255,255,255,0.06)',
