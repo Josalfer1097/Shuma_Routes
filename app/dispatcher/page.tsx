@@ -2189,6 +2189,7 @@ supabase.removeChannel(locChannel);
                 onClick={() => {
                   const btn = document.getElementById('config-save-trigger');
                   if (btn) btn.click();
+                  setConfigSaved(true);
                 }}
               >
                 Guardar y continuar →
@@ -2398,6 +2399,7 @@ supabase.removeChannel(locChannel);
               if (confirm('¿Estás seguro de reiniciar toda la configuración y vaciar los datos actuales?')) {
                 sessionStorage.removeItem('shuma_rutas_session');
                 dispatch({ type: 'RESET_STATE' });
+                setConfigSaved(false);
               }
             }}
           />
