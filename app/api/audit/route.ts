@@ -73,7 +73,11 @@ export async function GET(req: NextRequest) {
 
     if (actionType) {
       const typeMap: Record<string, string[]> = {
-        login:   ['login_success', 'login_failed', 'Cuenta bloqueada', 'Logout'],
+        login:   [
+          'login_success', 'login_failed', 'Cuenta bloqueada', 'Logout',
+          'Inicio de sesión',
+          'Sesión iniciada',
+        ],
         entrega: ['Entrega completada', 'Entrega parcial', 'Entrega fallida', 'Entrega reabierta'],
         ruta:    ['Ruta aceptada y guardada', 'Ruta iniciada', 'Ruta cerrada', 'Ruta reabierta', 'Alias actualizado'],
         sistema: ['Cookies aceptadas', 'Sesión iniciada', 'Sesión cerrada'],

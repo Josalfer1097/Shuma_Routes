@@ -3,15 +3,15 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { logAction } from '@/lib/auditLogger';
 
 function parseDevice(ua: string): string {
-  if (!ua || ua === 'unknown') return 'Desconocido';
-  if (/iPhone/i.test(ua))  return '📱 iPhone';
-  if (/iPad/i.test(ua))    return '📱 iPad';
+  if (!ua) return 'Dispositivo Desconocido';
+  if (/iPhone/i.test(ua)) return '📱 iPhone';
+  if (/iPad/i.test(ua)) return '📱 iPad';
   if (/Android.*Mobile/i.test(ua)) return '📱 Android';
   if (/Android/i.test(ua)) return '📱 Android Tablet';
   if (/Macintosh/i.test(ua)) return '💻 Mac';
-  if (/Windows/i.test(ua))   return '🖥️ Windows';
-  if (/Linux/i.test(ua))     return '🖥️ Linux';
-  return '🖥️ Escritorio';
+  if (/Windows/i.test(ua)) return '🖥️ Windows';
+  if (/Linux/i.test(ua)) return '🖥️ Linux';
+  return `💻 ${ua.substring(0, 15)}...`;
 }
 
 export async function POST(req: NextRequest) {

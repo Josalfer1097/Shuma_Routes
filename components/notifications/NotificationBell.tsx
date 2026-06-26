@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import { Bell, CheckCircle, XCircle } from 'lucide-react';
 
@@ -25,6 +25,18 @@ export default function NotificationBell({
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const bellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isOpen]);
 
   const fetchNotifications = async () => {
     try {
@@ -123,7 +135,7 @@ export default function NotificationBell({
   };
 
   return (
-    <div className="relative">
+    <div ref={bellRef} className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-shuma-muted hover:text-white transition-colors"

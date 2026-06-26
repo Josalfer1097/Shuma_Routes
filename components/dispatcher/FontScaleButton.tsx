@@ -95,6 +95,8 @@ export default function FontScaleButton() {
           left: 0,
           zIndex: 9000,
           width: 220,
+          overflow: 'hidden',
+          maxWidth: 'min(260px, calc(100vw - 32px))',
           background: '#0A1628',
           border: '1px solid #112040',
           borderRadius: 12,
@@ -130,7 +132,8 @@ export default function FontScaleButton() {
                     cursor: 'pointer',
                     display: 'flex', alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '0 8px',
+                    overflow: 'hidden', whiteSpace: 'nowrap',
+                    padding: '0 12px',
                     fontFamily: "'Exo 2', sans-serif",
                     fontSize: 10,
                     transition: 'all 0.15s',
@@ -163,10 +166,13 @@ export default function FontScaleButton() {
           {/* Vista previa */}
           <p style={{ fontSize: 9, color: '#3B5270', marginBottom: 3,
             fontFamily: "'Exo 2', sans-serif" }}>Vista previa:</p>
-          <p className="text-scale-base" style={{ color: '#94A3B8',
-            fontFamily: "'Exo 2', sans-serif" }}>
-            Rutas optimizadas.
-          </p>
+          <div style={{
+            overflow: 'hidden', maxHeight: 60,
+            color: '#94A3B8', fontFamily: "'Exo 2', sans-serif",
+            wordWrap: 'break-word'
+          }}>
+            <p className="text-scale-base" style={{ margin: 0 }}>Rutas optimizadas.</p>
+          </div>
 
           {/* Restablecer */}
           {scale !== 1 && (
@@ -230,7 +236,8 @@ export default function FontScaleButton() {
                       cursor: 'pointer',
                       display: 'flex', alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '0 14px',
+                      overflow: 'hidden', whiteSpace: 'nowrap',
+                      padding: '0 16px',
                       fontFamily: "'Exo 2', sans-serif",
                     }}
                   >

@@ -18,7 +18,8 @@ import SlideOver from '@/components/dispatcher/SlideOver';
 import { clusterDeliveries } from '@/lib/clustering';
 import type { Cluster, GlobalConfig, ClusteringConfig, Stop } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw, Search, Truck } from 'lucide-react';
 import Image from 'next/image';
 import WeatherIntelPanel from '@/components/dispatcher/WeatherIntelPanel';
@@ -264,7 +265,7 @@ const SLIDE_WIDTHS: Record<string, number> = {
 
 // ─── Componente principal ──────────────────────────────────
 
-export default function DispatcherPage() {
+function DispatcherPageContent() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const fs = useFontSize();
   const [activeTab, setActiveTab] = useState<'config' | 'upload' | 'zones' | 'routes'>('config');
@@ -273,6 +274,34 @@ export default function DispatcherPage() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [geocodingDone, setGeocodingDone] = useState(false);
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+  const [dbDriversCount, setDbDriversCount] = useState(0);
+
+  const searchParams = useSearchParams();
+  const templateId = searchParams.get('template');
+
+  useEffect(() => {
+    if (templateId) {
+      fetch(`/api/routes/template?id=${templateId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.ok && data.addresses) {
+            dispatch({ type: 'SET_ADDRESSES', payload: data.addresses });
+            if (data.vehicles) {
+              data.vehicles.forEach((v: any) => dispatch({ type: 'ADD_VEHICLE', payload: v }));
+            }
+            setActiveTab('config');
+            setIsSlideOverOpen(true);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [templateId]);
+
+  useEffect(() => {
+    fetch('/api/drivers').then(r => r.json()).then(d => {
+      if (d.ok && d.drivers) setDbDriversCount(d.drivers.length);
+    }).catch(() => {});
+  }, []);
   const hasShownOptimTip = useRef(false);
   const [configSaved, setConfigSaved] = useState(false);
   const [testMode, setTestMode] = useState(() => {
@@ -795,7 +824,11 @@ supabase.removeChannel(locChannel);
       });
     } else if (successCount > 0) {
       setGeocodingDone(true);
-      setTimeout(() => setGeocodingDone(false), 4000);
+      setTimeout(() => {
+        setGeocodingDone(false);
+        setIsSlideOverOpen(false);
+        setActiveTab('zones');
+      }, 2000);
     }
   }, [state.vehicles, state.clusteringConfig]);
 
@@ -1704,7 +1737,7 @@ supabase.removeChannel(locChannel);
                       width: 5, height: 5, borderRadius: '50%', background: '#2EBD6B',
                       boxShadow: '0 0 6px 1px rgba(46,189,107,0.6)',
                     }} />
-                    {state.vehicles?.length || 3} choferes activos
+                    {dbDriversCount || state.vehicles?.length || 0} choferes activos
                   </div>
                   <div style={{ fontSize: 10, color: '#4A6B95', fontFamily: "'DM Sans', sans-serif" }}>
                     2 bodegas
@@ -3187,5 +3220,13 @@ function ConfigPanel({
         Save
       </button>
     </div>
+  );
+}
+
+export default function DispatcherPage() {
+  return (
+    <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center text-white bg-[#060D14]">Cargando...</div>}>
+      <DispatcherPageContent />
+    </Suspense>
   );
 }

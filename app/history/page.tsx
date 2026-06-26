@@ -248,6 +248,7 @@ export default function HistoryPage() {
                         {isDone && !hasFails ? '✓ Completada'
                           : isDone ? '⚠ Con incidencias'
                           : pending > 0 ? `● ${pending} pendientes`
+                          : total === 0 ? '○ Sin entregas'
                           : '● En curso'}
                       </span>
                     </div>
@@ -275,7 +276,7 @@ export default function HistoryPage() {
                         onClick={() => setExpandedRoute(isExpanded ? null : route.id)}
                         className="flex-1 text-xs text-slate-300 hover:text-white py-1.5 rounded-lg hover:bg-slate-700 transition-colors border border-shuma-border"
                       >
-                        {isExpanded ? 'Ocultar Paradas' : 'Ver Paradas'}
+                        {isExpanded ? 'Ocultar Entregas' : 'Ver Entregas'}
                       </button>
                       <button
                         onClick={() => handleDownloadPDF(route)}
@@ -339,13 +340,13 @@ export default function HistoryPage() {
                                 fontFamily: "'DM Sans', sans-serif",
                                 letterSpacing: '0.05em',
                               }}>
-                                {route.deliveries.filter((d: any) => d.address?.lat).length} paradas
+                                {route.deliveries.filter((d: any) => d.address?.lat).length} entregas
                               </div>
                             </div>
                           ) : null;
                         })()}
                         {route.deliveries.length === 0 ? (
-                          <p className="text-xs text-shuma-muted text-center py-2">No hay paradas en esta ruta</p>
+                          <p className="text-xs text-shuma-muted text-center py-2">No hay entregas en esta ruta</p>
                         ) : (
                           route.deliveries.map((del, i) => (
                             <div key={del.address?.id || i} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-800/50 border border-slate-700/50">
