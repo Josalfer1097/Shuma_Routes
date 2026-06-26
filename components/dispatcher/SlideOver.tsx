@@ -367,7 +367,6 @@ export default function SlideOver({
         .so-btn-danger:hover {
           background: rgba(239,68,68,0.16);
           border-color: rgba(239,68,68,0.5);
-          box-shadow: 0 4px 16px rgba(239,68,68,0.2);
         }
         .so-btn-success {
           flex: 1;
@@ -386,14 +385,12 @@ export default function SlideOver({
         }
         .so-btn-success:hover {
           background: rgba(16,185,129,0.25);
-          box-shadow: 0 4px 20px rgba(16,185,129,0.2);
         }
         .so-btn-success:disabled {
           background: rgba(26,39,68,0.6);
           color: rgba(91,123,160,0.6);
           cursor: not-allowed;
           border-color: rgba(255,255,255,0.05);
-          box-shadow: none;
         }
         .so-btn-warn {
           width: 100%;
@@ -413,7 +410,6 @@ export default function SlideOver({
         .so-btn-warn:hover {
           background: rgba(245,158,11,0.16);
           border-color: rgba(245,158,11,0.5);
-          box-shadow: 0 4px 16px rgba(245,158,11,0.15);
         }
 
         @media (max-width: 767px) {
