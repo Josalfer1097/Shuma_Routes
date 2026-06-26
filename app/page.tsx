@@ -415,8 +415,8 @@ export default function HomePage() {
           onClick={() => changelog && setShowChangelog(true)}
           style={{
             display: 'block', margin: '6px auto 0',
-            background: 'rgba(33,150,243,0.08)',
-            border: '1px solid rgba(33,150,243,0.2)',
+            background: changelog ? 'rgba(33,150,243,0.08)' : 'transparent',
+            border: changelog ? '1px solid rgba(33,150,243,0.2)' : '1px solid transparent',
             borderRadius: 99, padding: '3px 12px',
             fontSize: 10, color: '#2196F3',
             fontFamily: "'DM Sans', sans-serif",
@@ -430,11 +430,11 @@ export default function HomePage() {
             e.currentTarget.style.borderColor = 'rgba(33,150,243,0.4)';
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.background = 'rgba(33,150,243,0.08)';
-            e.currentTarget.style.borderColor = 'rgba(33,150,243,0.2)';
+            e.currentTarget.style.background = changelog ? 'rgba(33,150,243,0.08)' : 'transparent';
+            e.currentTarget.style.borderColor = changelog ? 'rgba(33,150,243,0.2)' : 'transparent';
           }}
         >
-          v{appVersion}{changelog ? ' · Ver novedades →' : ''}
+          v7.24.0{changelog ? ' · Ver novedades →' : ''}
         </button>
         <style>{`
           @keyframes rgbRoll {
@@ -496,7 +496,7 @@ export default function HomePage() {
                   fontSize: 16, fontWeight: 700, color: '#E8EFF8',
                   fontFamily: "'Exo 2', sans-serif", margin: 0,
                 }}>
-                  📋 Novedades v{appVersion}
+                  📋 Novedades v7.24.0
                 </h2>
                 <p style={{
                   fontSize: 11, color: '#5B7BA0', margin: '4px 0 0',

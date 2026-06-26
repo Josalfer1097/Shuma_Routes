@@ -269,7 +269,7 @@ function DispatcherPageContent() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const fs = useFontSize();
   const [activeTab, setActiveTab] = useState<'config' | 'upload' | 'zones' | 'routes'>('config');
-  const [optimizeMode, setOptimizeMode] = useState<'zones' | 'google'>('zones');
+  const [optimizeMode, setOptimizeMode] = useState<'zones' | 'google'>('google');
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [geocodingDone, setGeocodingDone] = useState(false);
@@ -2239,7 +2239,7 @@ supabase.removeChannel(locChannel);
             </>
           ) : activeTab === 'upload' ? (
             <>
-              <button className="so-btn-ghost" onClick={() => { setActiveTab('config'); }}>
+              <button className="so-btn-danger" onClick={() => { setActiveTab('config'); }}>
                 ← Volver
               </button>
               {state.addresses.length > 0 && state.vehicles.length > 0 ? (
@@ -2315,7 +2315,8 @@ supabase.removeChannel(locChannel);
                         dispatch({ type: 'SET_STEP', payload: 'zones' });
                         setActiveTab('zones');
                       }}
-                      className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition-colors"
+                      className="so-btn-success"
+                      style={{ width: '100%' }}
                     >
                       Continuar a Zonas →
                     </button>
@@ -2323,7 +2324,7 @@ supabase.removeChannel(locChannel);
                 </div>
               ) : (
                 <button
-                  className="so-btn-primary ml-auto"
+                  className="so-btn-success ml-auto"
                   disabled={true}
                 >
                   Continuar a Zonas →
@@ -2332,7 +2333,7 @@ supabase.removeChannel(locChannel);
             </>
           ) : activeTab === 'zones' ? (
             <>
-              <button className="so-btn-ghost" onClick={() => { setActiveTab('upload'); }}>
+              <button className="so-btn-danger" onClick={() => { setActiveTab('upload'); }}>
                 ← Volver
               </button>
               <button
