@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ParticleField from "@/components/ParticleField";
+import { useEasterEgg } from '@/hooks/useEasterEgg';
+import EasterEggOverlay from '@/components/EasterEggOverlay';
 
 export interface LoginScreenProps {
   role: 'admin' | 'driver';
@@ -36,6 +38,7 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
   const [showContactHint, setShowContactHint] = useState(false);
   const router = useRouter();
   const userInputRef = useRef<HTMLInputElement>(null);
+  const easterEgg = useEasterEgg();
 
   useEffect(() => {
     if (!isBlocked) return;
@@ -883,9 +886,16 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
             Volver al inicio
           </button>
 
-          <p className="ls-footer">Design &amp; Developed by Shuma Sistemas IT</p>
+          <p
+            className="ls-footer"
+            onClick={easterEgg.registerClick}
+            style={{ cursor: 'pointer', userSelect: 'none' }}
+          >
+            Design &amp; Developed by Shuma Sistemas IT
+          </p>
         </div>
       </div>
+      {easterEgg.isActive && <EasterEggOverlay onClose={easterEgg.deactivate} />}
     </>
   );
 }

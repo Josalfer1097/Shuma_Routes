@@ -21,6 +21,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw, Search, Truck } from 'lucide-react';
+import { useEasterEgg } from '@/hooks/useEasterEgg';
+import EasterEggOverlay from '@/components/EasterEggOverlay';
 import Image from 'next/image';
 import WeatherIntelPanel from '@/components/dispatcher/WeatherIntelPanel';
 import AuditLogModal from '@/components/dispatcher/AuditLogModal';
@@ -266,6 +268,7 @@ const SLIDE_WIDTHS: Record<string, number> = {
 // ─── Componente principal ──────────────────────────────────
 
 function DispatcherPageContent() {
+  const easterEgg = useEasterEgg();
   const [state, dispatch] = useReducer(appReducer, initialState);
   const fs = useFontSize();
   const [activeTab, setActiveTab] = useState<'config' | 'upload' | 'zones' | 'routes'>('config');
@@ -1410,23 +1413,27 @@ supabase.removeChannel(locChannel);
             )}
           </div>
 
-          <span style={{
-            flex: 1,
-            textAlign: 'center',
-            fontFamily: "'Exo 2', sans-serif",
-            fontSize: fs(13),
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
-            backgroundSize: '400% auto',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            animation: 'rgbRoll 5s linear infinite',
-            opacity: 0.8,
-            pointerEvents: 'none',
-            userSelect: 'none',
-          }}>
+          <span
+            onClick={easterEgg.registerClick}
+            style={{
+              flex: 1,
+              textAlign: 'center',
+              fontFamily: "'Exo 2', sans-serif",
+              fontSize: fs(13),
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              background: 'linear-gradient(90deg,#ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)',
+              backgroundSize: '400% auto',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              animation: 'rgbRoll 5s linear infinite',
+              opacity: 0.8,
+              pointerEvents: 'auto',
+              userSelect: 'none',
+              cursor: 'pointer',
+            }}
+          >
             Design &amp; Developed by Shuma Sistemas IT
           </span>
 
@@ -3086,6 +3093,7 @@ supabase.removeChannel(locChannel);
         userRole={userRole}
         initialEntityId={auditEntityId}
       />
+      {easterEgg.isActive && <EasterEggOverlay onClose={easterEgg.deactivate} />}
     </div>
   );
 }

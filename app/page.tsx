@@ -4,6 +4,8 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ParticleField from '@/components/ParticleField';
+import { useEasterEgg } from '@/hooks/useEasterEgg';
+import EasterEggOverlay from '@/components/EasterEggOverlay';
 
 export default function HomePage() {
   const [ready, setReady] = useState(false);
@@ -12,6 +14,7 @@ export default function HomePage() {
   type ServiceStatus = { ok: boolean; label: string; error: string | null };
   type SysStatus = 'checking' | 'ok' | 'degraded' | 'error';
 
+  const easterEgg = useEasterEgg();
   const [sysStatus, setSysStatus] = useState<SysStatus>('checking');
   const [sysServices, setSysServices] = useState<Record<string, ServiceStatus> | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -410,20 +413,25 @@ export default function HomePage() {
           </button>
         </div>
         {/* Footer RGB */}
-        <p style={{
-          textAlign: 'center',
-          fontSize: 14,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          marginTop: 32,
-          background: 'linear-gradient(90deg, #ff0000, #ff6600, #ffff00, #00ff00, #00ffff, #0066ff, #cc00ff, #ff0000)',
-          backgroundSize: '400% auto',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          animation: 'rgbRoll 5s linear infinite',
-          opacity: 0.8
-        }}>
+        <p
+          onClick={easterEgg.registerClick}
+          style={{
+            textAlign: 'center',
+            fontSize: 14,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            marginTop: 32,
+            background: 'linear-gradient(90deg, #ff0000, #ff6600, #ffff00, #00ff00, #00ffff, #0066ff, #cc00ff, #ff0000)',
+            backgroundSize: '400% auto',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            animation: 'rgbRoll 5s linear infinite',
+            opacity: 0.8,
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}
+        >
           Design &amp; Developed by Shuma Sistemas IT
         </p>
         <button
@@ -449,7 +457,7 @@ export default function HomePage() {
             e.currentTarget.style.borderColor = changelog ? 'rgba(33,150,243,0.2)' : 'transparent';
           }}
         >
-          v7.26.0{changelog ? ' · Ver novedades →' : ''}
+          v7.27.0{changelog ? ' · Ver novedades →' : ''}
         </button>
         <style>{`
           @keyframes rgbRoll {
@@ -512,7 +520,7 @@ export default function HomePage() {
                   fontSize: 16, fontWeight: 700, color: '#E8EFF8',
                   fontFamily: "'Exo 2', sans-serif", margin: 0,
                 }}>
-                  📋 Novedades v7.26.0
+                  📋 Novedades v7.27.0
                 </h2>
                 <p style={{
                   fontSize: 11, color: '#5B7BA0', margin: '4px 0 0',
@@ -602,6 +610,7 @@ export default function HomePage() {
           </div>
         </div>
       )}
+      {easterEgg.isActive && <EasterEggOverlay onClose={easterEgg.deactivate} />}
     </main>
   );
 }
