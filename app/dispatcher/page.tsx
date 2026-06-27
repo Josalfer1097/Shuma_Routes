@@ -3093,6 +3093,7 @@ supabase.removeChannel(locChannel);
         userRole={userRole}
         initialEntityId={auditEntityId}
       />
+      {/* Easter egg overlay */}
       {easterEgg.isActive && <EasterEggOverlay onClose={easterEgg.deactivate} />}
     </div>
   );
