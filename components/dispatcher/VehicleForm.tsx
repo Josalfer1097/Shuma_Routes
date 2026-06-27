@@ -244,10 +244,20 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                           >
                             <div style={{
                               width: 28, height: 28, borderRadius: '50%',
-                              background: 'rgba(33,150,243,0.15)',
-                              border: '1px solid rgba(33,150,243,0.2)',
+                              background: (() => {
+                                const routeV = vehicles.find(v => v.driverName === d.name);
+                                return routeV ? `${routeV.color}20` : '#3b82f620';
+                              })(),
+                              border: `1px solid ${(() => {
+                                const routeV = vehicles.find(v => v.driverName === d.name);
+                                return routeV ? `${routeV.color}40` : '#3b82f640';
+                              })()}`,
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 11, fontWeight: 700, color: '#2196F3',
+                              fontSize: 11, fontWeight: 700, 
+                              color: (() => {
+                                const routeV = vehicles.find(v => v.driverName === d.name);
+                                return routeV ? routeV.color : '#3b82f6';
+                              })(),
                               fontFamily: "'Exo 2', sans-serif", flexShrink: 0,
                             }}>
                               {d.name.charAt(0).toUpperCase()}
@@ -310,7 +320,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                     fontFamily: "'DM Sans', sans-serif", marginBottom: 3,
                   }}>
                     <span>{VEHICLE_TYPE_LABELS[selectedVehicle.type]}</span>
-                    <span>Capacidad: {(selectedVehicle as any).max_stops || '∞'} entregas</span>
+                    <span>Capacidad: {(selectedVehicle as any).max_stops === null ? '∞' : ((selectedVehicle as any).max_stops || '∞')} entregas</span>
                   </div>
                   <div style={{
                     height: 3, borderRadius: 99,

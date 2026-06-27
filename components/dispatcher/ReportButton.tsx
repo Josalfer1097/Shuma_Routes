@@ -55,6 +55,29 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
     await generatePDFReport(routes, globalConfig, weather);
   };
 
+  const handleExportCSV = () => {
+    const header = ['ID Chofer', 'ID Route', 'Address', 'Status'];
+    const rows: string[] = [];
+    routes.forEach(route => {
+      route.stops.forEach(stop => {
+        rows.push([
+          route.vehicleId || '',
+          (route as any).id || route.vehicleId || '',
+          `"${(stop.address.raw || '').replace(/"/g, '""')}"`,
+          '1'
+        ].join(','));
+      });
+    });
+    const csvContent = [header.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `asignaciones_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-2.5">
       <button
@@ -78,6 +101,19 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
           </svg>
         )}
         {isChecking ? 'Verificando...' : 'Aceptar Ruta'}
+      </button>
+      
+      <button
+        onClick={handleExportCSV}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
+                   bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 hover:border-indigo-400
+                   text-sm font-semibold text-white transition-all duration-200
+                   shadow-lg shadow-indigo-900/30 hover:shadow-indigo-800/40"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+        </svg>
+        Exportar Asignaciones
       </button>
       
       <button

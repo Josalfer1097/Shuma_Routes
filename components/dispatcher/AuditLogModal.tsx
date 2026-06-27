@@ -24,6 +24,142 @@ interface Props {
   initialEntityId?: string;
 }
 
+interface DatePickerPopupProps {
+  month: Date;
+  selected: string; // ISO yyyy-mm-dd
+  onSelect: (iso: string) => void;
+  onMonthChange: (d: Date) => void;
+  onClose: () => void;
+  label: string;
+}
+
+function DatePickerPopup({ month, selected, onSelect, onMonthChange, onClose, label }: DatePickerPopupProps) {
+  const DAYS_LABELS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'];
+  const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  const year = month.getFullYear();
+  const m = month.getMonth();
+  const firstDay = new Date(year, m, 1).getDay();
+  const daysInMonth = new Date(year, m + 1, 0).getDate();
+  const days: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) days.push(null);
+  for (let d = 1; d <= daysInMonth; d++) days.push(d);
+
+  const toIso = (d: number) =>
+    `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+  const today = new Date();
+  const todayIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  // Quick selects
+  const quickSelects = [
+    { label: 'Hoy',        iso: todayIso },
+    { label: 'Ayer',       iso: (() => { const d = new Date(); d.setDate(d.getDate()-1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })() },
+    { label: 'Hace 7d',    iso: (() => { const d = new Date(); d.setDate(d.getDate()-7); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })() },
+    { label: 'Hace 30d',   iso: (() => { const d = new Date(); d.setDate(d.getDate()-30); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })() },
+  ];
+
+  return (
+    <div
+      style={{
+        position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 9999,
+        background: 'linear-gradient(160deg, #0D1E38, #0A1628)',
+        border: '1px solid rgba(33,150,243,0.2)',
+        borderRadius: 12, padding: 14, minWidth: 240,
+        boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
+        fontFamily: "'DM Sans', sans-serif",
+      }}
+      onMouseDown={e => e.stopPropagation()}
+    >
+      {/* Label */}
+      <p style={{ fontSize: 10, color: '#3B5270', letterSpacing: '0.1em',
+        textTransform: 'uppercase', fontFamily: "'Exo 2', sans-serif", margin: '0 0 10px' }}>
+        {label}
+      </p>
+
+      {/* Quick selects */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
+        {quickSelects.map(q => (
+          <button key={q.label} onClick={() => onSelect(q.iso)} style={{
+            fontSize: 10, padding: '3px 8px', borderRadius: 99, cursor: 'pointer',
+            background: selected === q.iso ? 'rgba(33,150,243,0.2)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${selected === q.iso ? 'rgba(33,150,243,0.5)' : 'rgba(255,255,255,0.08)'}`,
+            color: selected === q.iso ? '#60a5fa' : '#5B7BA0',
+            transition: 'all 0.15s',
+          }}>
+            {q.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Navegación de mes */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <button onClick={() => onMonthChange(new Date(year, m - 1, 1))} style={{
+          background: 'none', border: 'none', color: '#5B7BA0', cursor: 'pointer', fontSize: 16, padding: '2px 6px',
+        }}>‹</button>
+        <span style={{ fontSize: 12, fontWeight: 600, color: '#A8BFE0' }}>
+          {MONTHS[m]} {year}
+        </span>
+        <button onClick={() => onMonthChange(new Date(year, m + 1, 1))} style={{
+          background: 'none', border: 'none', color: '#5B7BA0', cursor: 'pointer', fontSize: 16, padding: '2px 6px',
+        }}>›</button>
+      </div>
+
+      {/* Grid días de la semana */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
+        {DAYS_LABELS.map(d => (
+          <div key={d} style={{ fontSize: 9, color: '#3B5270', textAlign: 'center',
+            fontFamily: "'Exo 2', sans-serif", letterSpacing: '0.05em' }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Grid días */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+        {days.map((d, i) => {
+          const iso = d ? toIso(d) : '';
+          const isSelected = iso === selected;
+          const isToday = iso === todayIso;
+          return (
+            <button
+              key={i}
+              disabled={!d}
+              onClick={() => d && onSelect(iso)}
+              style={{
+                height: 28, borderRadius: 6, border: 'none', cursor: d ? 'pointer' : 'default',
+                fontSize: 11, fontWeight: isSelected ? 700 : 400,
+                background: isSelected
+                  ? '#2196F3'
+                  : isToday
+                    ? 'rgba(33,150,243,0.12)'
+                    : 'transparent',
+                color: isSelected ? '#fff' : isToday ? '#60a5fa' : d ? '#A8BFE0' : 'transparent',
+                outline: isToday && !isSelected ? '1px solid rgba(33,150,243,0.3)' : 'none',
+                transition: 'all 0.1s',
+              }}
+              onMouseEnter={e => { if (d && !isSelected) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)'; }}
+              onMouseLeave={e => { if (d && !isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            >
+              {d || ''}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Botón cerrar */}
+      <button onClick={onClose} style={{
+        marginTop: 10, width: '100%', padding: '6px',
+        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: 8, color: '#3B5270', fontSize: 11, cursor: 'pointer',
+        fontFamily: "'DM Sans', sans-serif",
+      }}>
+        Cerrar
+      </button>
+    </div>
+  );
+}
+
 export default function AuditLogModal({ isOpen, onClose, userRole, initialEntityId }: Props) {
   const [logs, setLogs]                 = useState<AuditLogEntry[]>([]);
   const [loading, setLoading]           = useState(false);
@@ -38,6 +174,8 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage]   = useState(1);
   const [actionType, setActionType]     = useState<string>('');
+  const [showDatePicker, setShowDatePicker] = useState<'from' | 'to' | null>(null);
+  const [pickerMonth, setPickerMonth] = useState(() => new Date());
   const PAGE_SIZE = 50; // registros por página
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
@@ -215,6 +353,26 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     return <AlertCircle size={13} className="text-shuma-muted shrink-0" />;
   };
 
+  const buildCalendarDays = (month: Date) => {
+    const year = month.getFullYear();
+    const m = month.getMonth();
+    const firstDay = new Date(year, m, 1).getDay(); // 0=Dom
+    const daysInMonth = new Date(year, m + 1, 0).getDate();
+    const days: (number | null)[] = [];
+    for (let i = 0; i < firstDay; i++) days.push(null);
+    for (let d = 1; d <= daysInMonth; d++) days.push(d);
+    return { days, year, month: m };
+  };
+
+  const formatDateDisplay = (iso: string) => {
+    if (!iso) return null;
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  };
+
+  const toIso = (year: number, month: number, day: number) =>
+    `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
   return (
     <>
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
@@ -323,65 +481,144 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
               ))}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+              {/* Fila 1: buscador full-text (ocupa todo el ancho) */}
               <input
-              type="text"
-              placeholder="🔍 Buscar en acciones, usuario, detalles..."
-              value={searchText}
-              onChange={e => setSearchText(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && fetchLogs()}
-              className="col-span-2 sm:col-span-6 px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-accent/40 text-xs text-shuma-text placeholder:text-shuma-muted focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
-            />
-            <input
-              type="text"
-              placeholder="Usuario"
-              value={filterUser}
-              onChange={e => setFilterUser(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text placeholder:text-shuma-muted focus:outline-none focus:border-blue-500"
-            />
-            <select
-              value={filterModule}
-              onChange={e => setFilterModule(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text focus:outline-none focus:border-blue-500"
-            >
-              <option value="">Módulo</option>
-              <option value="Rutas">Rutas</option>
-              <option value="Entregas">Entregas</option>
-              <option value="Autenticación">Autenticación</option>
-            </select>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text focus:outline-none focus:border-blue-500"
-            />
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text focus:outline-none focus:border-blue-500"
-            />
-            <input
-              type="text"
-              placeholder="Entity ID"
-              value={filterEntityId}
-              onChange={e => setFilterEntityId(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text placeholder:text-shuma-muted focus:outline-none focus:border-blue-500"
-            />
-            <button
-              onClick={exportToCSV}
-              disabled={logs.length === 0}
-              className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600/20 border border-green-500/30 text-xs text-green-400 hover:bg-green-600/30 disabled:opacity-50 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Exportar
-            </button>
-            <button
-              onClick={() => { setFilterModule(''); setFilterUser(''); setDateFrom(''); setFilterEntityId(''); setSearchText(''); setDateTo(''); setActionType(''); }}
-              className="px-3 py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30 transition-colors"
-            >
-              Limpiar
-            </button>
+                type="text"
+                placeholder="🔍 Buscar en acciones, usuario, detalles..."
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && fetchLogs()}
+                className="w-full px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-accent/40 text-xs text-shuma-text placeholder:text-shuma-muted focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+              />
+
+              {/* Fila 2: Módulo · Desde · Hasta · Exportar · Limpiar */}
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+
+                {/* Módulo */}
+                <select
+                  value={filterModule}
+                  onChange={e => setFilterModule(e.target.value)}
+                  className="px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text focus:outline-none focus:border-blue-500"
+                  style={{ minWidth: 110 }}
+                >
+                  <option value="">Módulo</option>
+                  <option value="Rutas">Rutas</option>
+                  <option value="Entregas">Entregas</option>
+                  <option value="Autenticación">Autenticación</option>
+                  <option value="Privacidad">Privacidad</option>
+                </select>
+
+                {/* Date picker: Desde */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => {
+                      setPickerMonth(dateFrom ? new Date(dateFrom + 'T12:00:00') : new Date());
+                      setShowDatePicker(prev => prev === 'from' ? null : 'from');
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '6px 12px',
+                      background: dateFrom ? 'rgba(33,150,243,0.1)' : '#060F1D',
+                      border: `1px solid ${dateFrom ? 'rgba(33,150,243,0.4)' : '#0d1f3a'}`,
+                      borderRadius: 8, cursor: 'pointer',
+                      fontSize: 11, fontFamily: "'DM Sans', sans-serif",
+                      color: dateFrom ? '#60a5fa' : '#3B5270',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span>📅</span>
+                    <span>{dateFrom ? `Desde: ${formatDateDisplay(dateFrom)}` : 'Desde'}</span>
+                    {dateFrom && (
+                      <span
+                        onClick={e => { e.stopPropagation(); setDateFrom(''); }}
+                        style={{ marginLeft: 4, color: '#f87171', fontWeight: 700, cursor: 'pointer' }}
+                      >×</span>
+                    )}
+                  </button>
+
+                  {showDatePicker === 'from' && (
+                    <DatePickerPopup
+                      month={pickerMonth}
+                      selected={dateFrom}
+                      onSelect={iso => { setDateFrom(iso); setShowDatePicker(null); }}
+                      onMonthChange={setPickerMonth}
+                      onClose={() => setShowDatePicker(null)}
+                      label="Selecciona fecha de inicio"
+                    />
+                  )}
+                </div>
+
+                {/* Date picker: Hasta */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => {
+                      setPickerMonth(dateTo ? new Date(dateTo + 'T12:00:00') : new Date());
+                      setShowDatePicker(prev => prev === 'to' ? null : 'to');
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '6px 12px',
+                      background: dateTo ? 'rgba(33,150,243,0.1)' : '#060F1D',
+                      border: `1px solid ${dateTo ? 'rgba(33,150,243,0.4)' : '#0d1f3a'}`,
+                      borderRadius: 8, cursor: 'pointer',
+                      fontSize: 11, fontFamily: "'DM Sans', sans-serif",
+                      color: dateTo ? '#60a5fa' : '#3B5270',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span>📅</span>
+                    <span>{dateTo ? `Hasta: ${formatDateDisplay(dateTo)}` : 'Hasta'}</span>
+                    {dateTo && (
+                      <span
+                        onClick={e => { e.stopPropagation(); setDateTo(''); }}
+                        style={{ marginLeft: 4, color: '#f87171', fontWeight: 700, cursor: 'pointer' }}
+                      >×</span>
+                    )}
+                  </button>
+
+                  {showDatePicker === 'to' && (
+                    <DatePickerPopup
+                      month={pickerMonth}
+                      selected={dateTo}
+                      onSelect={iso => { setDateTo(iso); setShowDatePicker(null); }}
+                      onMonthChange={setPickerMonth}
+                      onClose={() => setShowDatePicker(null)}
+                      label="Selecciona fecha de fin"
+                    />
+                  )}
+                </div>
+
+                {/* Spacer */}
+                <div style={{ flex: 1 }} />
+
+                {/* Exportar */}
+                <button
+                  onClick={exportToCSV}
+                  disabled={logs.length === 0}
+                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600/20 border border-green-500/30 text-xs text-green-400 hover:bg-green-600/30 disabled:opacity-50 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Exportar
+                </button>
+
+                {/* Limpiar */}
+                <button
+                  onClick={() => {
+                    setFilterModule('');
+                    setFilterUser('');
+                    setDateFrom('');
+                    setFilterEntityId('');
+                    setSearchText('');
+                    setDateTo('');
+                    setActionType('');
+                  }}
+                  className="px-3 py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30 transition-colors"
+                >
+                  Limpiar
+                </button>
+              </div>
             </div>
           </div>
 

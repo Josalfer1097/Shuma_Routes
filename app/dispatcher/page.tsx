@@ -272,6 +272,11 @@ function DispatcherPageContent() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const fs = useFontSize();
   const [activeTab, setActiveTab] = useState<'config' | 'upload' | 'zones' | 'routes'>('config');
+  const setActiveTabPersisted = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    try { sessionStorage.setItem('shuma_slideover_tab', tab); } catch {}
+  };
+  const [csvSummary, setCsvSummary] = useState<{ count: number; value: number; zones: number } | null>(null);
   const [optimizeMode, setOptimizeMode] = useState<'zones' | 'google'>('google');
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -313,7 +318,7 @@ function DispatcherPageContent() {
             if (data.vehicles) {
               data.vehicles.forEach((v: any) => dispatch({ type: 'ADD_VEHICLE', payload: v }));
             }
-            setActiveTab('config');
+            setActiveTabPersisted('config');
             setIsSlideOverOpen(true);
           }
         })
@@ -334,6 +339,15 @@ function DispatcherPageContent() {
     }
     return false;
   });
+
+  useEffect(() => {
+    try {
+      const savedTab = sessionStorage.getItem('shuma_slideover_tab');
+      if (savedTab && ['config','upload','zones','routes'].includes(savedTab)) {
+        setActiveTab(savedTab as typeof activeTab);
+      }
+    } catch {}
+  }, []);
 
   const { logout } = useAuth();
   const router = useRouter();
@@ -360,6 +374,17 @@ function DispatcherPageContent() {
   const [showMapSearch, setShowMapSearch] = useState(false);
   const [mapSearchText, setMapSearchText] = useState('');
   const [mapSearchResults, setMapSearchResults] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (isSlideOverOpen && state.globalConfig?.departureDepot) {
+      const { lat, lng } = state.globalConfig.departureDepot;
+      if (lat && lng && mapViewRef.current) {
+        setTimeout(() => {
+          mapViewRef.current?.panToDelivery(lat, lng);
+        }, 300);
+      }
+    }
+  }, [isSlideOverOpen, state.globalConfig?.departureDepot]);
 
   const openAuditForRoute = (routeId: string) => {
     setAuditEntityId(routeId);
@@ -427,7 +452,7 @@ function DispatcherPageContent() {
       setHiddenRouteIds([]);
     }
     
-    setActiveTab('routes');
+    setActiveTabPersisted('routes');
     dispatch({ type: 'SET_STEP', payload: 'results' });
   };
 
@@ -717,7 +742,7 @@ supabase.removeChannel(locChannel);
             }));
             dispatch({ type: 'SET_ADDRESSES', payload: templateAddresses });
             setIsSlideOverOpen(true);
-            setActiveTab('upload');
+            setActiveTabPersisted('upload');
           }
         } catch (e) {
           console.warn('Error cargando plantilla:', e);
@@ -855,7 +880,7 @@ supabase.removeChannel(locChannel);
     dispatch({ type: 'SET_CLUSTERS', payload: generatedClusters });
     
     dispatch({ type: 'SET_STEP', payload: 'zones' });
-    setActiveTab('zones');
+    setActiveTabPersisted('zones');
     setIsSlideOverOpen(false);
 
     // Si todas las direcciones fallaron, mostramos un error global
@@ -870,7 +895,7 @@ supabase.removeChannel(locChannel);
       setTimeout(() => {
         setGeocodingDone(false);
         setIsSlideOverOpen(false);
-        setActiveTab('zones');
+        setActiveTabPersisted('zones');
       }, 2000);
     }
   }, [state.vehicles, state.clusteringConfig]);
@@ -959,7 +984,7 @@ supabase.removeChannel(locChannel);
       const routes = await optimizeRoutes(state.clusters, assignedVehicles, departureTime, undefined, state.globalConfig?.unloadConfig);
       dispatch({ type: 'SET_ROUTES', payload: routes });
       saveRoutesData(routes);
-      setActiveTab('routes');
+      setActiveTabPersisted('routes');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
       dispatch({ type: 'SET_ERROR', payload: msg });
@@ -1011,7 +1036,7 @@ supabase.removeChannel(locChannel);
 
       dispatch({ type: 'SET_ROUTES', payload: routes });
       saveRoutesData(routes);
-      setActiveTab('routes');
+      setActiveTabPersisted('routes');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
       dispatch({ type: 'SET_ERROR', payload: msg });
@@ -2160,7 +2185,7 @@ supabase.removeChannel(locChannel);
           <button
             onClick={() => {
               if (activeTab === 'routes' && state.routes.length === 0) {
-                setActiveTab('config');
+                setActiveTabPersisted('config');
                 dispatch({ type: 'SET_STEP', payload: 'config' });
               }
               setIsSlideOverOpen(true);
@@ -2346,7 +2371,7 @@ supabase.removeChannel(locChannel);
             </>
           ) : activeTab === 'upload' ? (
             <>
-              <button className="so-btn-danger" onClick={() => { setActiveTab('config'); }}>
+              <button className="so-btn-danger" onClick={() => { setActiveTabPersisted('config'); }}>
                 ← Volver
               </button>
               {state.addresses.length > 0 && state.vehicles.length > 0 ? (
@@ -2420,7 +2445,7 @@ supabase.removeChannel(locChannel);
                     <button
                       onClick={() => {
                         dispatch({ type: 'SET_STEP', payload: 'zones' });
-                        setActiveTab('zones');
+                        setActiveTabPersisted('zones');
                       }}
                       className="so-btn-success"
                       style={{ width: '100%' }}
@@ -2440,7 +2465,7 @@ supabase.removeChannel(locChannel);
             </>
           ) : activeTab === 'zones' ? (
             <>
-              <button className="so-btn-danger" onClick={() => { setActiveTab('upload'); }}>
+              <button className="so-btn-danger" onClick={() => { setActiveTabPersisted('upload'); }}>
                 ← Volver
               </button>
               <button
@@ -2472,8 +2497,33 @@ supabase.removeChannel(locChannel);
           gap: 4,
           padding: '0 0 16px 0',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
-          marginBottom: 20
+          marginBottom: 20,
+          position: 'relative'
         }}>
+          {/* Línea conectora detrás de los tabs */}
+          <div style={{
+            position: 'absolute',
+            top: 'calc(50% - 8px)',
+            left: '10%',
+            right: '10%',
+            height: 2,
+            zIndex: 0,
+            background: '#0d1f3a',
+            borderRadius: 1,
+          }}>
+            {/* Progreso coloreado */}
+            <div style={{
+              height: '100%',
+              borderRadius: 1,
+              background: 'linear-gradient(90deg, #10B981, #2196F3)',
+              transition: 'width 0.4s ease',
+              width: (() => {
+                const steps = ['config','upload','zones','routes'];
+                const completedCount = steps.filter(s => isTabCompleted(s)).length;
+                return `${(completedCount / (steps.length - 1)) * 100}%`;
+              })(),
+            }} />
+          </div>
           {(['config','upload','zones','routes'] as const).map((s, i) => {
             const tabMeta = [
               { label: 'Conf.',  icon: '⚙️' },
@@ -2492,7 +2542,7 @@ supabase.removeChannel(locChannel);
                     showToast('Agrega al menos un chofer antes de continuar');
                     return;
                   }
-                  setActiveTab(s);
+                  setActiveTabPersisted(s);
                   if (s === 'config') dispatch({ type: 'SET_STEP', payload: 'config' });
                   if (s === 'upload') dispatch({ type: 'SET_STEP', payload: 'upload' });
                   if (s === 'zones') dispatch({ type: 'SET_STEP', payload: 'zones' });
@@ -2500,8 +2550,10 @@ supabase.removeChannel(locChannel);
                 }}
                 style={{
                   flex: 1,
+                  position: 'relative',
+                  zIndex: 1,
                   padding: '8px 12px',
-                  background: isActive ? 'rgba(33,150,243,0.12)' : 'transparent',
+                  background: isActive ? 'rgba(33,150,243,0.12)' : '#050C1A',
                   border: isActive ? '1px solid rgba(33,150,243,0.3)' : '1px solid transparent',
                   borderRadius: 8,
                   color: isActive ? '#2196F3' : isDone ? '#10B981' : '#5B7BA0',
@@ -2533,7 +2585,7 @@ supabase.removeChannel(locChannel);
             onSave={(conf) => {
               dispatch({ type: 'SET_GLOBAL_CONFIG', payload: conf });
               dispatch({ type: 'SET_STEP', payload: 'upload' });
-              setActiveTab('upload');
+              setActiveTabPersisted('upload');
               setConfigSaved(true);
               if (!hasShownOptimTip.current) {
                 hasShownOptimTip.current = true;
@@ -2556,12 +2608,34 @@ supabase.removeChannel(locChannel);
         )}
 
         {activeTab === 'upload' && (
-          <CSVUploader
-            onAddressesLoaded={handleAddressesLoaded}
-            disabled={!state.globalConfig}
-            persistedAddresses={state.addresses}
-            persistedFileName={state.addresses.length > 0 ? `${state.addresses.length} direcciones cargadas` : undefined}
-          />
+          <div className="space-y-4">
+            <CSVUploader
+              onAddressesLoaded={handleAddressesLoaded}
+              disabled={!state.globalConfig}
+              persistedAddresses={state.addresses}
+              persistedFileName={state.addresses.length > 0 ? `${state.addresses.length} direcciones cargadas` : undefined}
+            />
+            {state.addresses.length > 0 && (
+              <div className="bg-[#0b172a] p-4 rounded-xl border border-shuma-border flex justify-between items-center">
+                <div className="text-xs text-slate-300">
+                  <span className="font-bold text-emerald-400">Total direcciones válidas:</span> {state.addresses.length}
+                  <span className="mx-2 text-shuma-border">|</span>
+                  <span className="font-bold text-blue-400">Volumen Total:</span> {csvSummary?.value || state.addresses.reduce((acc, curr) => acc + ((curr as any).volume || 0), 0).toFixed(2)} m³
+                  <span className="mx-2 text-shuma-border">|</span>
+                  <span className="font-bold text-purple-400">Zonas identificadas:</span> {csvSummary?.zones || new Set(state.addresses.map(a => (a as any).zone).filter(Boolean)).size}
+                </div>
+                <button
+                  className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-xs hover:bg-red-500/20 transition-colors"
+                  onClick={() => {
+                    dispatch({ type: 'SET_ADDRESSES', payload: [] });
+                    setCsvSummary(null);
+                  }}
+                >
+                  Limpiar CSV
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         {activeTab === 'zones' && (
@@ -2631,13 +2705,11 @@ supabase.removeChannel(locChannel);
                     style={{ accentColor: '#2196F3' }}
                   />
                   <div className="flex justify-between text-[10px] text-shuma-muted mt-1">
-                    <span>1</span>
+                    <span>Pocas (grandes)</span>
                     <span className="text-[10px] text-shuma-muted font-normal">
                       Arrastra para reagrupar automáticamente
                     </span>
-                    <span>{Math.max(state.vehicles.length * 2, state.addresses.length > 0
-                      ? Math.min(state.addresses.length, state.vehicles.length * 3)
-                      : state.vehicles.length * 2)}</span>
+                    <span>Muchas (pequeñas)</span>
                   </div>
                 </div>
               )}
@@ -2758,7 +2830,7 @@ supabase.removeChannel(locChannel);
                 <span className="text-[10px] text-shuma-muted">Pre-optimización Google</span>
               </div>
               <div className="space-y-2">
-                {calcularViabilidad(state.vehicles, state.clusters, state.globalConfig).map(viab => {
+                {calcularViabilidad(state.vehicles, state.clusters, state.globalConfig).map((viab, i) => {
                   let semaforo = '🟢';
                   let bgClass = 'bg-emerald-500/5';
                   let borderClass = 'border-l-emerald-500';
@@ -2769,7 +2841,7 @@ supabase.removeChannel(locChannel);
                   }
 
                   return (
-                    <div key={viab.vehicleId} className={`p-2 border-l-[3px] ${borderClass} ${bgClass} rounded-r-lg border-y border-r border-shuma-border/50`}>
+                    <div key={viab.vehicleId} className={`p-2 border-l-[3px] ${borderClass} ${bgClass} rounded-r-lg border-y border-r border-shuma-border/50`} style={{ animation: 'fadeInUp 0.4s ease forwards', animationDelay: `${i * 0.05}s`, opacity: 0 }}>
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-xs font-bold text-slate-200">{semaforo} {viab.driverName}</span>
                         <span className="text-[10px] font-medium text-shuma-muted">Límite: {viab.deadlineTime}</span>
@@ -3349,3 +3421,4 @@ export default function DispatcherPage() {
     </Suspense>
   );
 }
+
