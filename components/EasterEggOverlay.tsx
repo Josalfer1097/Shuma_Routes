@@ -21,9 +21,9 @@ interface EasterEggOverlayProps {
 }
 
 const EMOJIS = ['💀', '🚛', '💀', '🚚', '☠️', '🚛', '👻', '🚐', '💀', '🚛'];
-const GRAVITY = 0.38;
-const BOUNCE_DAMPING = 0.62;
-const FRICTION = 0.992;
+const GRAVITY = 0.72;
+const BOUNCE_DAMPING = 0.72;
+const FRICTION = 0.978;
 const LAUNCH_THRESHOLD = 6; // velocidad mínima para contar como "lanzamiento"
 
 export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOverlayProps) {
@@ -44,10 +44,10 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
       emoji,
       x: Math.random() * (window.innerWidth - 100) + 50,
       y: -Math.random() * 500 - 50,
-      vx: (Math.random() - 0.5) * 5,
-      vy: Math.random() * 3,
+      vx: (Math.random() - 0.5) * 12,
+      vy: Math.random() * 2 + 1,
       rotation: Math.random() * 360,
-      vRotation: (Math.random() - 0.5) * 10,
+      vRotation: (Math.random() - 0.5) * 22,
       size: 38 + Math.random() * 28,
       grabbed: false,
       trail: [],
@@ -115,8 +115,8 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
             b.vx -= impulse * nx;
             b.vy -= impulse * ny;
             // Añadir rotación al impacto
-            a.vRotation += (Math.random() - 0.5) * 4;
-            b.vRotation += (Math.random() - 0.5) * 4;
+            a.vRotation += (Math.random() - 0.5) * 12;
+            b.vRotation += (Math.random() - 0.5) * 12;
           }
         }
       }
@@ -155,11 +155,11 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
           item.x += item.vx;
           item.y += item.vy;
           item.rotation += item.vRotation;
-          item.vRotation *= 0.97;
+          item.vRotation *= 0.93;
 
           // Guardar estela si tiene velocidad
           const speed = Math.hypot(item.vx, item.vy);
-          if (speed > 3) {
+          if (speed > 2) {
             item.trail.push({ x: item.x, y: item.y, alpha: 0.5 });
             if (item.trail.length > 8) item.trail.shift();
           } else {
@@ -171,9 +171,9 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
           if (item.y > floor) {
             item.y = floor;
             item.vy *= -BOUNCE_DAMPING;
-            item.vx *= 0.88;
-            item.vRotation *= 0.7;
-            if (Math.abs(item.vy) < 0.8) item.vy = 0;
+            item.vx *= 0.82;
+            item.vRotation *= 0.55;
+            if (Math.abs(item.vy) < 1.2) item.vy = 0;
           }
           // Rebote paredes
           if (item.x < item.size / 2) {
@@ -352,7 +352,7 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
         background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.85) 100%)',
-        animation: 'eggVignette 4s ease-in-out infinite',
+        animation: 'eggVignette 1.8s ease-in-out infinite',
       }} />
 
       {/* Grid gótico tenue */}
@@ -361,7 +361,7 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
         backgroundImage:
           'linear-gradient(rgba(220,38,38,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(220,38,38,0.05) 1px, transparent 1px)',
         backgroundSize: '40px 40px',
-        animation: 'eggGrid 5s linear infinite',
+        animation: 'eggGrid 2s linear infinite',
       }} />
 
       {/* Velas — tamaños y delays distintos para romper simetría */}
@@ -377,7 +377,7 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
             position: 'absolute', ...pos,
             fontSize: size,
             pointerEvents: 'none',
-            animation: `eggFlame ${1.1 + i * 0.25}s ease-in-out ${delay}s infinite`,
+            animation: `eggFlame ${0.45 + i * 0.1}s ease-in-out ${delay}s infinite`,
           }}>
             🕯️
           </div>
@@ -404,7 +404,7 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
           cursor: 'pointer',
           pointerEvents: 'auto',
           transition: 'all 0.3s ease',
-          animation: isUrgent ? 'eggUrgentPulse 0.6s ease-in-out infinite' : 'none',
+          animation: isUrgent ? 'eggUrgentPulse 0.3s ease-in-out infinite' : 'none',
           transform: 'none', // el keyframe maneja el transform
         }}
       >
@@ -447,7 +447,7 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
             height: 86,
             width: 'auto',
             marginBottom: 18,
-            animation: 'eggLogoPulse 2.2s ease-in-out infinite',
+            animation: 'eggLogoPulse 1s ease-in-out infinite',
           }}
         />
         <h1 style={{
