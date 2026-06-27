@@ -12,19 +12,21 @@ interface FallingItem {
   vRotation: number;
   size: number;
   grabbed: boolean;
+  trail: Array<{ x: number; y: number; alpha: number }>;
 }
 
 interface EasterEggOverlayProps {
   onClose: () => void;
-  duration?: number; // segundos
+  duration?: number;
 }
 
-const EMOJIS = ['💀', '🚛', '💀', '🚚', '☠️', '🚛', '👻', '🚐'];
-const GRAVITY = 0.4;
-const BOUNCE_DAMPING = 0.65;
-const FRICTION = 0.99;
+const EMOJIS = ['💀', '🚛', '💀', '🚚', '☠️', '🚛', '👻', '🚐', '💀', '🚛'];
+const GRAVITY = 0.38;
+const BOUNCE_DAMPING = 0.62;
+const FRICTION = 0.992;
+const LAUNCH_THRESHOLD = 6; // velocidad mínima para contar como "lanzamiento"
 
-export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOverlayProps) {
+export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const itemsRef = useRef<FallingItem[]>([]);
   const animationRef = useRef<number>(0);
@@ -32,25 +34,24 @@ export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOve
   const mouseRef = useRef({ x: 0, y: 0, prevX: 0, prevY: 0 });
   const [countdown, setCountdown] = useState(duration);
   const [exiting, setExiting] = useState(false);
+  const [isGrabbing, setIsGrabbing] = useState(false);
+  const [launchCount, setLaunchCount] = useState(0);
 
   // Inicializar items
   useEffect(() => {
-    const count = 10;
-    const items: FallingItem[] = [];
-    for (let i = 0; i < count; i++) {
-      items.push({
-        id: i,
-        emoji: EMOJIS[i % EMOJIS.length],
-        x: Math.random() * (window.innerWidth - 100) + 50,
-        y: -Math.random() * 400 - 50,
-        vx: (Math.random() - 0.5) * 4,
-        vy: Math.random() * 2,
-        rotation: Math.random() * 360,
-        vRotation: (Math.random() - 0.5) * 8,
-        size: 40 + Math.random() * 30,
-        grabbed: false,
-      });
-    }
+    const items: FallingItem[] = EMOJIS.map((emoji, i) => ({
+      id: i,
+      emoji,
+      x: Math.random() * (window.innerWidth - 100) + 50,
+      y: -Math.random() * 500 - 50,
+      vx: (Math.random() - 0.5) * 5,
+      vy: Math.random() * 3,
+      rotation: Math.random() * 360,
+      vRotation: (Math.random() - 0.5) * 10,
+      size: 38 + Math.random() * 28,
+      grabbed: false,
+      trail: [],
+    }));
     itemsRef.current = items;
   }, []);
 
@@ -69,7 +70,7 @@ export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOve
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Escape para cerrar
+  // Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose();
@@ -80,10 +81,49 @@ export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOve
 
   const handleClose = useCallback(() => {
     setExiting(true);
-    setTimeout(onClose, 600); // espera el fade-out glitch
+    setTimeout(onClose, 700);
   }, [onClose]);
 
-  // Loop de física + render
+  // Detección de colisión círculo-círculo
+  const resolveCollisions = (items: FallingItem[]) => {
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        const a = items[i];
+        const b = items[j];
+        if (a.grabbed || b.grabbed) continue;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy);
+        const minDist = (a.size + b.size) / 2;
+        if (dist < minDist && dist > 0) {
+          // Separar
+          const overlap = (minDist - dist) / 2;
+          const nx = dx / dist;
+          const ny = dy / dist;
+          a.x -= nx * overlap;
+          a.y -= ny * overlap;
+          b.x += nx * overlap;
+          b.y += ny * overlap;
+          // Intercambiar componentes de velocidad en el eje de colisión
+          const relVx = b.vx - a.vx;
+          const relVy = b.vy - a.vy;
+          const dot = relVx * nx + relVy * ny;
+          if (dot < 0) {
+            const impulse = dot * 0.75; // restitución
+            a.vx += impulse * nx;
+            a.vy += impulse * ny;
+            b.vx -= impulse * nx;
+            b.vy -= impulse * ny;
+            // Añadir rotación al impacto
+            a.vRotation += (Math.random() - 0.5) * 4;
+            b.vRotation += (Math.random() - 0.5) * 4;
+          }
+        }
+      }
+    }
+  };
+
+  // Loop física + render
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -103,12 +143,11 @@ export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOve
 
       for (const item of items) {
         if (item.grabbed) {
-          // Seguir el mouse
-          item.x = mouseRef.current.x;
-          item.y = mouseRef.current.y;
-          // Guardar velocidad para "lanzarlo" al soltar
           item.vx = mouseRef.current.x - mouseRef.current.prevX;
           item.vy = mouseRef.current.y - mouseRef.current.prevY;
+          item.x = mouseRef.current.x;
+          item.y = mouseRef.current.y;
+          item.trail = []; // limpiar estela mientras está agarrado
         } else {
           // Física
           item.vy += GRAVITY;
@@ -116,17 +155,27 @@ export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOve
           item.x += item.vx;
           item.y += item.vy;
           item.rotation += item.vRotation;
-          item.vRotation *= 0.98;
+          item.vRotation *= 0.97;
 
-          // Rebote en el suelo
+          // Guardar estela si tiene velocidad
+          const speed = Math.hypot(item.vx, item.vy);
+          if (speed > 3) {
+            item.trail.push({ x: item.x, y: item.y, alpha: 0.5 });
+            if (item.trail.length > 8) item.trail.shift();
+          } else {
+            if (item.trail.length > 0) item.trail.shift();
+          }
+
+          // Rebote suelo
           const floor = canvas.height - item.size / 2;
           if (item.y > floor) {
             item.y = floor;
             item.vy *= -BOUNCE_DAMPING;
-            item.vx *= 0.9;
-            if (Math.abs(item.vy) < 1) item.vy = 0;
+            item.vx *= 0.88;
+            item.vRotation *= 0.7;
+            if (Math.abs(item.vy) < 0.8) item.vy = 0;
           }
-          // Rebote en paredes
+          // Rebote paredes
           if (item.x < item.size / 2) {
             item.x = item.size / 2;
             item.vx *= -BOUNCE_DAMPING;
@@ -137,18 +186,34 @@ export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOve
           }
         }
 
-        // Render emoji
+        // Render estela
+        item.trail.forEach((pt, ti) => {
+          const alpha = (ti / item.trail.length) * 0.35;
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.font = `${item.size * 0.6}px serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(item.emoji, pt.x, pt.y);
+          ctx.restore();
+        });
+
+        // Render emoji principal
         ctx.save();
         ctx.translate(item.x, item.y);
         ctx.rotate((item.rotation * Math.PI) / 180);
         ctx.font = `${item.size}px serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(220,38,38,0.8)';
-        ctx.shadowBlur = item.grabbed ? 25 : 12;
+        ctx.shadowColor = item.grabbed ? 'rgba(220,38,38,1)' : 'rgba(220,38,38,0.7)';
+        ctx.shadowBlur = item.grabbed ? 32 : 10;
+        // Escalar ligeramente si está agarrado
+        if (item.grabbed) ctx.scale(1.12, 1.12);
         ctx.fillText(item.emoji, 0, 0);
         ctx.restore();
       }
+
+      resolveCollisions(items);
 
       mouseRef.current.prevX = mouseRef.current.x;
       mouseRef.current.prevY = mouseRef.current.y;
@@ -162,12 +227,11 @@ export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOve
     };
   }, []);
 
-  // Mouse handlers para drag & drop
+  // Pointer handlers
   const handlePointerDown = (e: React.PointerEvent) => {
     const x = e.clientX;
     const y = e.clientY;
     mouseRef.current = { x, y, prevX: x, prevY: y };
-    // Buscar item bajo el cursor (el más cercano)
     let closest: FallingItem | null = null;
     let closestDist = Infinity;
     for (const item of itemsRef.current) {
@@ -180,6 +244,7 @@ export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOve
     if (closest) {
       closest.grabbed = true;
       grabbedIdRef.current = closest.id;
+      setIsGrabbing(true);
     }
   };
 
@@ -191,10 +256,20 @@ export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOve
   const handlePointerUp = () => {
     if (grabbedIdRef.current !== null) {
       const item = itemsRef.current.find(i => i.id === grabbedIdRef.current);
-      if (item) item.grabbed = false;
+      if (item) {
+        item.grabbed = false;
+        // Contar como lanzamiento si tiene velocidad alta
+        const speed = Math.hypot(item.vx, item.vy);
+        if (speed > LAUNCH_THRESHOLD) {
+          setLaunchCount(prev => prev + 1);
+        }
+      }
       grabbedIdRef.current = null;
     }
+    setIsGrabbing(false);
   };
+
+  const isUrgent = countdown <= 3;
 
   return (
     <div
@@ -202,12 +277,15 @@ export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOve
         position: 'fixed',
         inset: 0,
         zIndex: 99999,
-        background: 'radial-gradient(ellipse at center, #1a0000 0%, #000000 80%)',
+        // Fondo con doble viñeta para profundidad
+        background: `
+          radial-gradient(ellipse at center, #1a0000 0%, #050000 60%, #000000 100%)
+        `,
         animation: exiting
-          ? 'eggGlitchOut 0.6s steps(2) forwards'
+          ? 'eggGlitchOut 0.7s steps(3) forwards'
           : 'eggFadeIn 0.5s ease forwards',
         overflow: 'hidden',
-        cursor: 'grab',
+        cursor: isGrabbing ? 'grabbing' : 'grab',
         touchAction: 'none',
       }}
       onPointerDown={handlePointerDown}
@@ -217,88 +295,179 @@ export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOve
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&display=swap');
+
         @keyframes eggFadeIn {
           from { opacity: 0; }
           to   { opacity: 1; }
         }
         @keyframes eggGlitchOut {
-          0%   { opacity: 1; transform: translate(0,0); filter: none; }
-          20%  { transform: translate(-6px, 2px); filter: hue-rotate(90deg) saturate(3); }
-          40%  { transform: translate(6px, -2px); filter: hue-rotate(-90deg); }
-          60%  { transform: translate(-4px, 0); filter: brightness(2); }
-          80%  { transform: translate(4px, 2px); filter: invert(0.2); }
-          100% { opacity: 0; transform: translate(0,0); filter: none; }
+          0%   { opacity: 1; transform: translate(0,0) scale(1); filter: none; }
+          15%  { transform: translate(-8px, 3px) scale(1.01); filter: hue-rotate(90deg) saturate(4); }
+          30%  { transform: translate(8px, -3px) scale(0.99); filter: hue-rotate(-90deg) brightness(1.5); }
+          50%  { transform: translate(-5px, 0) scale(1.02); filter: none; }
+          70%  { transform: translate(5px, 3px) scale(0.98); filter: brightness(2) hue-rotate(180deg); }
+          90%  { opacity: 0.3; transform: translate(0,0) scale(1.05); }
+          100% { opacity: 0; transform: translate(0,0) scale(1); filter: none; }
         }
         @keyframes eggGrid {
           0%   { background-position: 0 0; }
           100% { background-position: 40px 40px; }
         }
         @keyframes eggLogoPulse {
-          0%, 100% { filter: drop-shadow(0 0 18px rgba(220,38,38,0.8)) brightness(0.9); transform: scale(1); }
-          50%      { filter: drop-shadow(0 0 42px rgba(220,38,38,1)) brightness(1.2); transform: scale(1.04); }
+          0%, 100% {
+            filter: drop-shadow(0 0 20px rgba(220,38,38,0.9)) brightness(0.85);
+            transform: scale(1);
+          }
+          50% {
+            filter: drop-shadow(0 0 48px rgba(220,38,38,1)) brightness(1.25);
+            transform: scale(1.05);
+          }
         }
         @keyframes eggTextGlitch {
-          0%, 100% { text-shadow: 2px 0 #dc2626, -2px 0 #00ffff; }
-          25%      { text-shadow: -2px 0 #dc2626, 2px 0 #00ffff; }
-          50%      { text-shadow: 2px 2px #dc2626, -2px -2px #ff00ff; }
-          75%      { text-shadow: -2px 2px #00ffff, 2px -2px #dc2626; }
+          0%, 85%, 100% { text-shadow: 2px 0 #dc2626, -2px 0 #00ffff; opacity: 1; }
+          87%            { text-shadow: -3px 0 #dc2626, 3px 0 #00ffff; opacity: 0.9; transform: translateX(-2px); }
+          90%            { text-shadow: 3px 0 #ff00ff, -3px 0 #dc2626; opacity: 1; transform: translateX(2px); }
+          93%            { text-shadow: -2px 0 #00ffff, 2px 0 #ff00ff; opacity: 0.8; transform: translateX(0); }
         }
         @keyframes eggFlame {
-          0%, 100% { transform: scaleY(1) rotate(-2deg); opacity: 0.9; }
-          50%      { transform: scaleY(1.15) rotate(2deg); opacity: 1; }
+          0%, 100% { transform: scaleY(1) rotate(-3deg); opacity: 0.85; }
+          50%      { transform: scaleY(1.2) rotate(3deg); opacity: 1; }
+        }
+        @keyframes eggUrgentPulse {
+          0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); box-shadow: 0 0 12px rgba(220,38,38,0.4); }
+          50%      { opacity: 0.7; transform: translateX(-50%) scale(1.06); box-shadow: 0 0 24px rgba(220,38,38,0.9); }
+        }
+        @keyframes eggLaunchPop {
+          0%   { transform: scale(1); }
+          50%  { transform: scale(1.3); }
+          100% { transform: scale(1); }
+        }
+        @keyframes eggVignette {
+          0%, 100% { opacity: 0.7; }
+          50%      { opacity: 0.9; }
         }
       `}</style>
+
+      {/* Viñeta exterior oscura pulsante */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.85) 100%)',
+        animation: 'eggVignette 4s ease-in-out infinite',
+      }} />
 
       {/* Grid gótico tenue */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
         backgroundImage:
-          'linear-gradient(rgba(220,38,38,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(220,38,38,0.06) 1px, transparent 1px)',
+          'linear-gradient(rgba(220,38,38,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(220,38,38,0.05) 1px, transparent 1px)',
         backgroundSize: '40px 40px',
-        animation: 'eggGrid 4s linear infinite',
+        animation: 'eggGrid 5s linear infinite',
       }} />
 
-      {/* Velas en las 4 esquinas */}
+      {/* Velas — tamaños y delays distintos para romper simetría */}
       {[
-        { top: 20, left: 20 },
-        { top: 20, right: 20 },
-        { bottom: 20, left: 20 },
-        { bottom: 20, right: 20 },
-      ].map((pos, i) => (
-        <div key={i} style={{ position: 'absolute', ...pos, fontSize: 40, pointerEvents: 'none', animation: `eggFlame ${1 + i * 0.2}s ease-in-out infinite` }}>
-          🕯️
-        </div>
-      ))}
+        { top: 16,  left: 18,  size: 44, delay: 0    },
+        { top: 14,  right: 22, size: 36, delay: 0.3  },
+        { bottom: 18, left: 22,  size: 40, delay: 0.15 },
+        { bottom: 14, right: 18, size: 48, delay: 0.45 },
+      ].map((c, i) => {
+        const { size, delay, ...pos } = c;
+        return (
+          <div key={i} style={{
+            position: 'absolute', ...pos,
+            fontSize: size,
+            pointerEvents: 'none',
+            animation: `eggFlame ${1.1 + i * 0.25}s ease-in-out ${delay}s infinite`,
+          }}>
+            🕯️
+          </div>
+        );
+      })}
 
-      {/* Contenido central */}
+      {/* Countdown — esquina superior derecha */}
+      <button
+        onClick={handleClose}
+        style={{
+          position: 'absolute',
+          top: 20,
+          right: 20,
+          zIndex: 10,
+          background: isUrgent ? 'rgba(220,38,38,0.2)' : 'rgba(220,38,38,0.08)',
+          border: `1px solid ${isUrgent ? 'rgba(220,38,38,0.8)' : 'rgba(220,38,38,0.35)'}`,
+          borderRadius: 99,
+          color: isUrgent ? '#ff4444' : '#dc2626',
+          fontFamily: "'Cinzel', serif",
+          fontSize: isUrgent ? 15 : 12,
+          fontWeight: 700,
+          letterSpacing: '0.08em',
+          padding: '6px 16px',
+          cursor: 'pointer',
+          pointerEvents: 'auto',
+          transition: 'all 0.3s ease',
+          animation: isUrgent ? 'eggUrgentPulse 0.6s ease-in-out infinite' : 'none',
+          transform: 'none', // el keyframe maneja el transform
+        }}
+      >
+        {countdown}s ✕
+      </button>
+
+      {/* Contador de lanzamientos — esquina inferior izquierda */}
+      {launchCount > 0 && (
+        <div style={{
+          position: 'absolute',
+          bottom: 24,
+          left: 24,
+          zIndex: 10,
+          fontFamily: "'Cinzel', serif",
+          fontSize: 13,
+          color: '#7f1d1d',
+          letterSpacing: '0.08em',
+          pointerEvents: 'none',
+          animation: 'eggLaunchPop 0.3s ease',
+        }}>
+          💀 ×{launchCount} {launchCount === 1 ? 'alma lanzada' : 'almas lanzadas'}
+        </div>
+      )}
+
+      {/* Contenido central con backdrop sutil */}
       <div style={{
         position: 'absolute', top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        pointerEvents: 'none', textAlign: 'center', zIndex: 2,
+        pointerEvents: 'none', textAlign: 'center', zIndex: 5,
+        // Backdrop sutil para separarse de los emojis
+        background: 'radial-gradient(ellipse at center, rgba(10,0,0,0.65) 0%, transparent 70%)',
+        padding: '32px 48px',
+        borderRadius: 24,
       }}>
         <img
           src="/shuma_logo.png"
           alt="Shuma"
-          style={{ height: 90, width: 'auto', marginBottom: 20, animation: 'eggLogoPulse 2s ease-in-out infinite' }}
+          style={{
+            height: 86,
+            width: 'auto',
+            marginBottom: 18,
+            animation: 'eggLogoPulse 2.2s ease-in-out infinite',
+          }}
         />
         <h1 style={{
           fontFamily: "'Cinzel', serif",
           fontWeight: 900,
-          fontSize: 'clamp(20px, 4vw, 38px)',
+          fontSize: 'clamp(18px, 3.5vw, 36px)',
           color: '#dc2626',
-          letterSpacing: '0.15em',
+          letterSpacing: '0.18em',
           margin: 0,
-          animation: 'eggTextGlitch 0.4s steps(2) infinite',
+          animation: 'eggTextGlitch 1.5s steps(4) infinite',
         }}>
           SHUMA SISTEMAS IT
         </h1>
         <p style={{
           fontFamily: "'Cinzel', serif",
-          fontSize: 'clamp(11px, 2vw, 15px)',
+          fontSize: 'clamp(10px, 1.8vw, 14px)',
           color: '#7f1d1d',
-          letterSpacing: '0.3em',
+          letterSpacing: '0.35em',
           marginTop: 10,
+          marginBottom: 0,
           textTransform: 'uppercase',
         }}>
           Est. en las Sombras
@@ -306,41 +475,20 @@ export default function EasterEggOverlay({ onClose, duration = 8 }: EasterEggOve
         <p style={{
           fontFamily: "'Cinzel', serif",
           fontSize: 11,
-          color: '#525252',
-          letterSpacing: '0.1em',
-          marginTop: 24,
+          color: '#6b7280',
+          letterSpacing: '0.08em',
+          marginTop: 20,
+          marginBottom: 0,
         }}>
-          Arrastra las almas errantes 💀 · Escape para salir
+          Arrastra las almas errantes · Escape para salir
         </p>
       </div>
 
-      {/* Canvas de partículas (drag & drop) */}
+      {/* Canvas física */}
       <canvas
         ref={canvasRef}
-        style={{ position: 'absolute', inset: 0, zIndex: 1 }}
+        style={{ position: 'absolute', inset: 0, zIndex: 3 }}
       />
-
-      {/* Countdown — clickeable para cerrar */}
-      <button
-        onClick={handleClose}
-        style={{
-          position: 'absolute', top: 24, left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 3,
-          background: 'rgba(220,38,38,0.1)',
-          border: '1px solid rgba(220,38,38,0.4)',
-          borderRadius: 99,
-          color: '#dc2626',
-          fontFamily: "'Cinzel', serif",
-          fontSize: 13,
-          fontWeight: 700,
-          letterSpacing: '0.1em',
-          padding: '6px 18px',
-          cursor: 'pointer',
-        }}
-      >
-        {countdown}s · Cerrar ✕
-      </button>
     </div>
   );
 }
