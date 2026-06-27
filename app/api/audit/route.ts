@@ -59,35 +59,27 @@ export async function GET(req: NextRequest) {
     if (dateTo)    query = query.lte('created_at', new Date(dateTo + 'T23:59:59').toISOString());
     if (entity_id) query = query.eq('entity_id', entity_id);
 
-    // Búsqueda full-text: busca en action, user_name y metadata::text
-    const orClauses: string[] = [];
-
+    // Búsqueda full-text — solo en columnas de texto plano (sin cast)
     if (search) {
       const term = `%${search}%`;
-      orClauses.push(
-        `action.ilike.${term}`,
-        `user_name.ilike.${term}`,
-        `metadata::text.ilike.${term}`
+      query = query.or(
+        `action.ilike.${term},user_name.ilike.${term}`
       );
     }
 
+    // Filtro por tipo de acción — OR separado para no mezclar con el search
     if (actionType) {
       const typeMap: Record<string, string[]> = {
-        login:   [
-          'login_success', 'login_failed', 'Cuenta bloqueada', 'Logout',
-          'Inicio de sesión',
-          'Sesión iniciada',
-        ],
+        login:   ['login_success', 'login_failed', 'Cuenta bloqueada', 'Logout', 'Inicio de sesión', 'Sesión iniciada'],
         entrega: ['Entrega completada', 'Entrega parcial', 'Entrega fallida', 'Entrega reabierta'],
         ruta:    ['Ruta aceptada y guardada', 'Ruta iniciada', 'Ruta cerrada', 'Ruta reabierta', 'Alias actualizado'],
         sistema: ['Cookies aceptadas', 'Sesión iniciada', 'Sesión cerrada'],
       };
       const actions = typeMap[actionType] || [];
-      actions.forEach(a => orClauses.push(`action.ilike.%${a}%`));
-    }
-
-    if (orClauses.length > 0) {
-      query = query.or(orClauses.join(','));
+      if (actions.length > 0) {
+        const actionClauses = actions.map(a => `action.ilike.%${a}%`).join(',');
+        query = query.or(actionClauses);
+      }
     }
 
     const { data, error, count } = await query;
