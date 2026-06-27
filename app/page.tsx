@@ -8,7 +8,12 @@ import ParticleField from '@/components/ParticleField';
 export default function HomePage() {
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const [sysStatus, setSysStatus] = useState<'checking' | 'ok' | 'error'>('checking');
+  type ServiceStatus = { ok: boolean; label: string; error: string | null };
+  type SysStatus = 'checking' | 'ok' | 'degraded' | 'error';
+
+  const [sysStatus, setSysStatus] = useState<SysStatus>('checking');
+  const [sysServices, setSysServices] = useState<Record<string, ServiceStatus> | null>(null);
+  const [showTooltip, setShowTooltip] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
   const [changelog, setChangelog] = useState<{
     updated: string;
@@ -19,7 +24,17 @@ export default function HomePage() {
   useEffect(() => {
     fetch('/api/health')
       .then(r => r.json())
-      .then(j => setSysStatus(j.ok ? 'ok' : 'error'))
+      .then(j => {
+        if (j.services) {
+          setSysServices(j.services);
+          const services = Object.values(j.services) as ServiceStatus[];
+          const allOk = services.every(s => s.ok);
+          const someOk = services.some(s => s.ok);
+          setSysStatus(allOk ? 'ok' : someOk ? 'degraded' : 'error');
+        } else {
+          setSysStatus(j.ok ? 'ok' : 'error');
+        }
+      })
       .catch(() => setSysStatus('error'));
   }, []);
 
@@ -168,21 +183,125 @@ export default function HomePage() {
           <p className="text-shuma-muted text-sm">
             Sistema de optimización de rutas de entrega
           </p>
-          <div className="flex items-center justify-center gap-2 mt-3 mb-1">
+          <div
+            style={{
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 12,
+              marginBottom: 4,
+              cursor: sysServices ? 'pointer' : 'default',
+            }}
+            onMouseEnter={() => sysServices && setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+          >
             <div className={`w-2 h-2 rounded-full transition-colors ${
               sysStatus === 'ok'       ? 'bg-emerald-400 animate-pulse' :
+              sysStatus === 'degraded' ? 'bg-amber-400 animate-pulse' :
               sysStatus === 'error'    ? 'bg-red-400' :
                                          'bg-slate-600 animate-pulse'
             }`} />
             <span style={{
               fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: sysStatus === 'ok' ? '#34d399' : sysStatus === 'error' ? '#f87171' : '#3B5270',
+              color:
+                sysStatus === 'ok'       ? '#34d399' :
+                sysStatus === 'degraded' ? '#fbbf24' :
+                sysStatus === 'error'    ? '#f87171' :
+                                           '#3B5270',
               fontFamily: "'Exo 2', sans-serif",
             }}>
-              {sysStatus === 'ok'    ? 'Sistema operativo' :
-               sysStatus === 'error' ? 'Sin conexión' :
-                                       'Verificando...'}
+              {sysStatus === 'ok'       ? 'Sistemas en línea' :
+               sysStatus === 'degraded' ? 'Servicio degradado' :
+               sysStatus === 'error'    ? 'Sin conexión' :
+                                         'Verificando...'}
             </span>
+
+            {showTooltip && sysServices && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 100,
+                background: 'linear-gradient(160deg, #0D1E38, #0A1628)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 10,
+                padding: '10px 14px',
+                minWidth: 210,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                pointerEvents: 'none',
+              }}>
+                {/* Flechita */}
+                <div style={{
+                  position: 'absolute',
+                  top: -5,
+                  left: '50%',
+                  marginLeft: -4,
+                  width: 8,
+                  height: 8,
+                  background: '#0D1E38',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderBottom: 'none',
+                  borderRight: 'none',
+                  transform: 'rotate(45deg)',
+                }} />
+                <p style={{
+                  fontSize: 9,
+                  fontFamily: "'Exo 2', sans-serif",
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  color: '#3B5270',
+                  margin: '0 0 8px 0',
+                }}>
+                  Estado de servicios
+                </p>
+                {Object.values(sysServices).map((svc) => (
+                  <div key={svc.label} style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 8,
+                    marginBottom: 6,
+                  }}>
+                    <div style={{
+                      width: 6, height: 6, borderRadius: '50%',
+                      backgroundColor: svc.ok ? '#34d399' : '#f87171',
+                      flexShrink: 0, marginTop: 3,
+                    }} />
+                    <div style={{ flex: 1 }}>
+                      <span style={{
+                        fontSize: 11,
+                        fontFamily: "'DM Sans', sans-serif",
+                        color: '#A8BFE0',
+                        display: 'block',
+                      }}>
+                        {svc.label}
+                      </span>
+                      {!svc.ok && svc.error && (
+                        <span style={{
+                          fontSize: 10,
+                          fontFamily: "'DM Sans', sans-serif",
+                          color: '#f87171',
+                          display: 'block',
+                          marginTop: 1,
+                        }}>
+                          {svc.error}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{
+                      fontSize: 9,
+                      fontFamily: "'Exo 2', sans-serif",
+                      letterSpacing: '0.08em',
+                      color: svc.ok ? '#34d399' : '#f87171',
+                      flexShrink: 0,
+                    }}>
+                      {svc.ok ? 'OK' : 'ERROR'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         {/* Selector de rol */}
@@ -313,7 +432,7 @@ export default function HomePage() {
             e.currentTarget.style.borderColor = changelog ? 'rgba(33,150,243,0.2)' : 'transparent';
           }}
         >
-          v7.24.0{changelog ? ' · Ver novedades →' : ''}
+          v7.25.0{changelog ? ' · Ver novedades →' : ''}
         </button>
         <style>{`
           @keyframes rgbRoll {
@@ -366,7 +485,7 @@ export default function HomePage() {
                   fontSize: 16, fontWeight: 700, color: '#E8EFF8',
                   fontFamily: "'Exo 2', sans-serif", margin: 0,
                 }}>
-                  📋 Novedades v7.24.0
+                  📋 Novedades v7.25.0
                 </h2>
                 <p style={{
                   fontSize: 11, color: '#5B7BA0', margin: '4px 0 0',

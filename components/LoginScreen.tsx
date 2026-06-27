@@ -222,14 +222,6 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
     }
   };
 
-  let score = 0;
-  if (pass.length >= 8) score++;
-  if (/[A-Z]/.test(pass)) score++;
-  if (/[0-9]/.test(pass)) score++;
-  if (/[^A-Za-z0-9]/.test(pass)) score++;
-  
-  const segmentColor = score === 1 ? '#ef4444' : score === 2 ? '#f97316' : score === 3 ? '#eab308' : score === 4 ? '#22c55e' : '#2a2a2a';
-
   return (
     <>
       <style>{`
@@ -776,34 +768,6 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
                   }
                 </button>
               </div>
-
-              {pass.length > 0 && (
-                <div style={{ marginTop: '6px' }}>
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                    <div style={{ flex: 1, display: 'flex', gap: '3px', height: '4px' }}>
-                      {[1,2,3,4].map(i => (
-                        <div key={i} style={{
-                          flex: 1,
-                          height: '4px',
-                          borderRadius: '2px',
-                          backgroundColor: i <= score ? segmentColor : '#2a2a2a',
-                          transition: 'background-color 0.3s ease'
-                        }} />
-                      ))}
-                    </div>
-                    <span style={{
-                      fontSize: '11px',
-                      fontFamily: "'DM Sans', sans-serif",
-                      color: segmentColor,
-                      marginLeft: '8px',
-                      minWidth: '48px',
-                      textAlign: 'right'
-                    }}>
-                      {['','Débil','Regular','Buena','Fuerte'][score]}
-                    </span>
-                  </div>
-                </div>
-              )}
 
               {capsLockOn && (
                 <div style={{

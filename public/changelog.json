@@ -1,18 +1,14 @@
 {
-  "updated": "2026-06-26",
+  "updated": "2026-06-27",
   "items": [
-    { "type": "new",     "text": "Web Push Notifications — choferes reciben alertas de cierre y nuevas rutas" },
-    { "type": "new",     "text": "Geolocalización en tiempo real — marcadores de choferes en el mapa del admin" },
-    { "type": "new",     "text": "Modo offline para chofer — ruta disponible sin conexión con banner de aviso" },
-    { "type": "new",     "text": "Bitácora: columnas redimensionables, ventana movible y maximizable" },
-    { "type": "new",     "text": "Botón Descargar template CSV en el uploader de direcciones" },
-    { "type": "improve", "text": "Camión animado SVG con entrega de paquete al terminar geocodificación" },
-    { "type": "improve", "text": "Dashboard: filtro Hoy/7d/30d, comparación vs período anterior y drill-down en KPIs" },
-    { "type": "improve", "text": "Histórico: comparar dos rutas side-by-side y mapa miniatura por ruta" },
-    { "type": "improve", "text": "Notificaciones: filtro Todas/Nuevas/Leídas, marcar individual y deep link" },
-    { "type": "improve", "text": "Bitácora: búsqueda full-text en acción, usuario y metadata" },
-    { "type": "fix",     "text": "Botones footer SlideOver con colores: Cancelar rojo, Guardar verde, Reiniciar ámbar" },
-    { "type": "fix",     "text": "Selector de choferes con búsqueda en tiempo real" },
-    { "type": "bug",     "text": "Stepper marca tabs en verde sin haber configurado nada — EN REVISIÓN" }
+    { "type": "new",     "text": "Login: countdown dark 'Sistema en Cuarentena' al bloquearse por intentos fallidos" },
+    { "type": "new",     "text": "Login: detección de Caps Lock activo con aviso visual bajo el campo de contraseña" },
+    { "type": "new",     "text": "Login: hint de contacto a Sistemas IT tras 3 intentos fallidos con el mismo usuario" },
+    { "type": "new",     "text": "Indicador de sistemas en línea con tooltip — muestra estado de Supabase y Google Maps API" },
+    { "type": "improve", "text": "Health check ahora verifica Supabase y Google Maps API en paralelo con detalle por servicio" },
+    { "type": "improve", "text": "Indicador en selector cambia a amarillo si un servicio falla y muestra cuál en el tooltip" },
+    { "type": "improve", "text": "Login: fondo con efecto de partículas visible también en mobile" },
+    { "type": "fix",     "text": "Eliminado el indicador de fuerza de contraseña — no aplica en un login, solo en registro" },
+    { "type": "fix",     "text": "Texto 'Sistema operativo' renombrado a 'Sistemas en línea' para mayor claridad" }
   ]
 }
