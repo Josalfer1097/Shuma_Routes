@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import ParticleField from "@/components/ParticleField";
 
 export interface LoginScreenProps {
   role: 'admin' | 'driver';
@@ -30,35 +31,28 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
   const [eyeRevealed, setEyeRevealed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
+  const [failedUsername, setFailedUsername] = useState("");
+  const [failedCount, setFailedCount] = useState(0);
+  const [showContactHint, setShowContactHint] = useState(false);
   const router = useRouter();
   const userInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const savedAttempts = parseInt(sessionStorage.getItem('shuma_login_attempts') || '0');
-    const savedBlockUntil = parseInt(sessionStorage.getItem('shuma_login_block_until') || '0');
-    const now = Date.now();
-
-    if (savedBlockUntil > now) {
-      setIsBlocked(true);
-      setBlockCountdown(Math.ceil((savedBlockUntil - now) / 1000));
-      setAttempts(savedAttempts);
-      const interval = setInterval(() => {
-        setBlockCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            setIsBlocked(false);
-            setAttempts(0);
-            sessionStorage.removeItem('shuma_login_attempts');
-            sessionStorage.removeItem('shuma_login_block_until');
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else if (savedAttempts > 0) {
-      setAttempts(savedAttempts);
-    }
-  }, []);
+    if (!isBlocked) return;
+    setBlockCountdown(30);
+    const interval = setInterval(() => {
+      setBlockCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setIsBlocked(false);
+          setAttempts(0);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isBlocked]);
 
   useEffect(() => {
     // Auto-focus en el campo usuario al montar, con delay
@@ -95,6 +89,10 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
           sessionStorage.setItem('shuma_driver_id', data.driver_id);
         }
         
+        setShowContactHint(false);
+        setFailedCount(0);
+        setFailedUsername('');
+
         // Scan de verificación breve antes del estado de éxito
         setScanningEye(true);
         setTimeout(() => {
@@ -107,12 +105,9 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
       } else {
         const newAttempts = Math.min(attempts + 1, 5);
         setAttempts(newAttempts);
-        sessionStorage.setItem('shuma_login_attempts', String(newAttempts));
 
         if (newAttempts >= 3) {
           setIsBlocked(true);
-          setBlockCountdown(30);
-          sessionStorage.setItem('shuma_login_block_until', String(Date.now() + 30000));
           fetch('/api/audit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -126,20 +121,16 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
               metadata: { attempts: newAttempts, reason: '3 intentos fallidos' },
             }),
           }).catch(console.error);
+        }
 
-          const interval = setInterval(() => {
-            setBlockCountdown(prev => {
-              if (prev <= 1) {
-                clearInterval(interval);
-                setIsBlocked(false);
-                setAttempts(0);
-                sessionStorage.removeItem('shuma_login_attempts');
-                sessionStorage.removeItem('shuma_login_block_until');
-                return 0;
-              }
-              return prev - 1;
-            });
-          }, 1000);
+        if (user === failedUsername) {
+          const newCount = failedCount + 1;
+          setFailedCount(newCount);
+          if (newCount >= 3) setShowContactHint(true);
+        } else {
+          setFailedUsername(user);
+          setFailedCount(1);
+          setShowContactHint(false);
         }
 
         const rawError = (data.error || '').toLowerCase();
@@ -172,12 +163,9 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
     } catch {
       const newAttempts = Math.min(attempts + 1, 5);
       setAttempts(newAttempts);
-      sessionStorage.setItem('shuma_login_attempts', String(newAttempts));
 
       if (newAttempts >= 3) {
         setIsBlocked(true);
-        setBlockCountdown(30);
-        sessionStorage.setItem('shuma_login_block_until', String(Date.now() + 30000));
         fetch('/api/audit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -191,20 +179,16 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
             metadata: { attempts: newAttempts, reason: '3 intentos fallidos' },
           }),
         }).catch(console.error);
+      }
 
-        const interval = setInterval(() => {
-          setBlockCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(interval);
-              setIsBlocked(false);
-              setAttempts(0);
-              sessionStorage.removeItem('shuma_login_attempts');
-              sessionStorage.removeItem('shuma_login_block_until');
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
+      if (user === failedUsername) {
+        const newCount = failedCount + 1;
+        setFailedCount(newCount);
+        if (newCount >= 3) setShowContactHint(true);
+      } else {
+        setFailedUsername(user);
+        setFailedCount(1);
+        setShowContactHint(false);
       }
 
       setErrorMsg('🌐 Sin conexión — verifica tu red e inténtalo de nuevo');
@@ -237,6 +221,14 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
       setEyeRevealed(false);
     }
   };
+
+  let score = 0;
+  if (pass.length >= 8) score++;
+  if (/[A-Z]/.test(pass)) score++;
+  if (/[0-9]/.test(pass)) score++;
+  if (/[^A-Za-z0-9]/.test(pass)) score++;
+  
+  const segmentColor = score === 1 ? '#ef4444' : score === 2 ? '#f97316' : score === 3 ? '#eab308' : score === 4 ? '#22c55e' : '#2a2a2a';
 
   return (
     <>
@@ -452,6 +444,14 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
           from{ background-position: 0% center; }
           to{ background-position: 400% center; }
         }
+        @keyframes lockPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.35; }
+        }
+        @keyframes scanline {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
+        }
 
         /* GLITCH FULL PAGE */
         .ls-root.glitching .ls-panel {
@@ -649,6 +649,56 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
         <div className="ls-orb ls-orb2" />
         <div className="ls-scanline" />
 
+        <div style={{ position: 'fixed', inset: 0, zIndex: 0, opacity: 0.22, pointerEvents: 'none' }}>
+          <ParticleField />
+        </div>
+
+        {isBlocked && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            backgroundColor: 'rgba(0,0,0,0.97)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            pointerEvents: 'auto'
+          }}>
+            <div style={{
+              position: 'absolute', top: 0, left: 0, width: '100%', height: '2px',
+              background: 'rgba(220,38,38,0.15)',
+              animation: 'scanline 3s linear infinite'
+            }} />
+            <div style={{
+              border: '1px solid rgba(220,38,38,0.2)', padding: '40px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              backgroundColor: 'rgba(20,0,0,0.5)', borderRadius: '16px',
+              boxShadow: '0 0 40px rgba(220,38,38,0.05)'
+            }}>
+              <h2 style={{ color: '#ef4444', fontFamily: "'Exo 2', sans-serif", fontSize: '13px', letterSpacing: '0.1em', margin: 0, textAlign: 'center' }}>
+                ⚠ ACCESO DENEGADO
+              </h2>
+              <h3 style={{ color: '#7f1d1d', fontFamily: "'Exo 2', sans-serif", fontSize: '10px', letterSpacing: '0.15em', margin: '4px 0 24px', textAlign: 'center' }}>
+                SISTEMA EN CUARENTENA
+              </h3>
+              
+              <svg width="160" height="160" viewBox="0 0 160 160" style={{ filter: 'drop-shadow(0 0 8px rgba(220,38,38,0.6))' }}>
+                <circle cx="80" cy="80" r="72" fill="none" stroke="#1a0000" strokeWidth="8" />
+                <circle cx="80" cy="80" r="72" fill="none" stroke="#dc2626" strokeWidth="8"
+                  strokeDasharray={2 * Math.PI * 72}
+                  strokeDashoffset={2 * Math.PI * 72 * (1 - blockCountdown / 30)}
+                  strokeLinecap="round"
+                  style={{ transition: 'stroke-dashoffset 1s linear', transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+                />
+                <text x="80" y="80" textAnchor="middle" dominantBaseline="central" fill="#dc2626" fontSize="48" fontFamily="'Exo 2', monospace" fontWeight="700" style={{ animation: 'lockPulse 1s ease-in-out infinite' }}>
+                  {blockCountdown}
+                </text>
+              </svg>
+
+              <p style={{ fontFamily: "'DM Sans', sans-serif", color: '#6b7280', fontSize: '13px', marginTop: '24px', textAlign: 'center', lineHeight: '1.5' }}>
+                Demasiados intentos fallidos.<br />
+                Espera antes de intentarlo de nuevo.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="ls-card">
           <div className="ls-panel">
             <div className="ls-success-scan" />
@@ -726,32 +776,59 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
                   }
                 </button>
               </div>
+
+              {pass.length > 0 && (
+                <div style={{ marginTop: '6px' }}>
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <div style={{ flex: 1, display: 'flex', gap: '3px', height: '4px' }}>
+                      {[1,2,3,4].map(i => (
+                        <div key={i} style={{
+                          flex: 1,
+                          height: '4px',
+                          borderRadius: '2px',
+                          backgroundColor: i <= score ? segmentColor : '#2a2a2a',
+                          transition: 'background-color 0.3s ease'
+                        }} />
+                      ))}
+                    </div>
+                    <span style={{
+                      fontSize: '11px',
+                      fontFamily: "'DM Sans', sans-serif",
+                      color: segmentColor,
+                      marginLeft: '8px',
+                      minWidth: '48px',
+                      textAlign: 'right'
+                    }}>
+                      {['','Débil','Regular','Buena','Fuerte'][score]}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {capsLockOn && (
-                <p style={{
-                  fontSize: 10.5, color: '#fbbf24', marginTop: 4,
-                  display: 'flex', alignItems: 'center', gap: 4,
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginTop: '4px',
+                  padding: '6px 10px',
+                  backgroundColor: 'rgba(234, 179, 8, 0.1)',
+                  border: '1px solid rgba(234, 179, 8, 0.3)',
+                  borderRadius: '6px',
                 }}>
-                  <span>⇪</span> Mayúsculas activadas
-                </p>
+                  <span style={{ fontSize: '14px' }}>⚠️</span>
+                  <span style={{
+                    fontSize: '12px',
+                    fontFamily: "'DM Sans', sans-serif",
+                    color: '#eab308'
+                  }}>
+                    Mayúsculas activadas
+                  </span>
+                </div>
               )}
             </div>
 
             <div style={{ position: 'relative' }}>
-              {isBlocked && (
-                <svg
-                  style={{ position: 'absolute', top: -4, left: -4, width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', pointerEvents: 'none', zIndex: 10 }}
-                  viewBox="0 0 100 100"
-                >
-                  <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(239,68,68,0.15)" strokeWidth="3" />
-                  <circle
-                    cx="50" cy="50" r="46" fill="none" stroke="#ef4444" strokeWidth="3"
-                    strokeDasharray={2 * Math.PI * 46}
-                    strokeDashoffset={2 * Math.PI * 46 * (1 - blockCountdown / 30)}
-                    strokeLinecap="round"
-                    style={{ transition: 'stroke-dashoffset 1s linear', transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
-                  />
-                </svg>
-              )}
               <button
                 className={`ls-btn${accessGranted ? " success" : ""}`}
                 onClick={handleSubmit}
@@ -810,21 +887,27 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
               </div>
             )}
 
-            {isBlocked && (
+            {showContactHint && !isBlocked && (
               <div style={{
-                marginTop: 12,
-                padding: '10px 16px',
-                borderRadius: 10,
-                background: 'rgba(239,68,68,0.10)',
-                border: '1px solid rgba(239,68,68,0.30)',
-                textAlign: 'center',
+                marginTop: '8px',
+                padding: '10px 12px',
+                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px'
               }}>
-                <p style={{ fontSize: 12, color: '#f87171', fontWeight: 700, marginBottom: 4 }}>
-                  🔒 Acceso bloqueado temporalmente
-                </p>
-                <p style={{ fontSize: 11, color: '#fca5a5' }}>
-                  Espera <strong>{blockCountdown}s</strong> antes de intentar de nuevo
-                </p>
+                <span style={{ fontSize: '16px', flexShrink: 0 }}>💡</span>
+                <span style={{
+                  fontSize: '12px',
+                  fontFamily: "'DM Sans', sans-serif",
+                  color: '#93c5fd',
+                  lineHeight: '1.5'
+                }}>
+                  ¿Olvidaste tu usuario? Contacta a{' '}
+                  <strong style={{ color: '#60a5fa' }}>Sistemas IT</strong>
+                </span>
               </div>
             )}
 
