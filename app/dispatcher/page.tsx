@@ -2500,30 +2500,6 @@ supabase.removeChannel(locChannel);
           marginBottom: 20,
           position: 'relative'
         }}>
-          {/* Línea conectora detrás de los tabs */}
-          <div style={{
-            position: 'absolute',
-            top: 'calc(50% - 8px)',
-            left: '10%',
-            right: '10%',
-            height: 2,
-            zIndex: 0,
-            background: '#0d1f3a',
-            borderRadius: 1,
-          }}>
-            {/* Progreso coloreado */}
-            <div style={{
-              height: '100%',
-              borderRadius: 1,
-              background: 'linear-gradient(90deg, #10B981, #2196F3)',
-              transition: 'width 0.4s ease',
-              width: (() => {
-                const steps = ['config','upload','zones','routes'];
-                const completedCount = steps.filter(s => isTabCompleted(s)).length;
-                return `${(completedCount / (steps.length - 1)) * 100}%`;
-              })(),
-            }} />
-          </div>
           {(['config','upload','zones','routes'] as const).map((s, i) => {
             const tabMeta = [
               { label: 'Conf.',  icon: '⚙️' },
@@ -2574,6 +2550,30 @@ supabase.removeChannel(locChannel);
               </button>
             );
           })}
+        </div>
+
+        {/* Barra de progreso del stepper — DEBAJO de los tabs */}
+        <div style={{
+          height: 2,
+          background: '#0d1f3a',
+          borderRadius: 1,
+          marginTop: 6,
+          marginBottom: 4,
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            height: '100%',
+            borderRadius: 1,
+            background: 'linear-gradient(90deg, #10B981, #2196F3)',
+            transition: 'width 0.4s ease',
+            width: (() => {
+              const steps = ['config','upload','zones','routes'];
+              const completedCount = steps.filter(s => isTabCompleted(s)).length;
+              // Máximo 100% cuando todos completos
+              const pct = Math.min((completedCount / steps.length) * 100, 100);
+              return `${pct}%`;
+            })(),
+          }} />
         </div>
 
         {activeTab === 'config' && (

@@ -61,8 +61,9 @@ function DatePickerPopup({ month, selected, onSelect, onMonthChange, onClose, la
 
   return (
     <div
+      data-date-picker="true"
       style={{
-        position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 9999,
+        position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 200,
         background: 'linear-gradient(160deg, #0D1E38, #0A1628)',
         border: '1px solid rgba(33,150,243,0.2)',
         borderRadius: 12, padding: 14, minWidth: 240,
@@ -178,6 +179,25 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   const [pickerMonth, setPickerMonth] = useState(() => new Date());
   const PAGE_SIZE = 50; // registros por página
   const tableScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showDatePicker) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      // Si el click no fue dentro de un date picker popup, cerrar
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-date-picker]')) {
+        setShowDatePicker(null);
+      }
+    };
+    // Usar setTimeout para no capturar el click que abrió el picker
+    const t = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDatePicker]);
 
   const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
