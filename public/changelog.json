@@ -1,14 +1,35 @@
 {
   "updated": "2026-06-27",
   "items": [
-    { "type": "new",     "text": "Login: countdown dark 'Sistema en Cuarentena' al bloquearse por intentos fallidos" },
-    { "type": "new",     "text": "Login: detecciÃ³n de Caps Lock activo con aviso visual bajo el campo de contraseÃ±a" },
-    { "type": "new",     "text": "Login: hint de contacto a Sistemas IT tras 3 intentos fallidos con el mismo usuario" },
-    { "type": "new",     "text": "Indicador de sistemas en lÃ­nea con tooltip â€” muestra estado de Supabase y Google Maps API" },
-    { "type": "improve", "text": "Health check ahora verifica Supabase y Google Maps API en paralelo con detalle por servicio" },
-    { "type": "improve", "text": "Indicador en selector cambia a amarillo si un servicio falla y muestra cuÃ¡l en el tooltip" },
-    { "type": "improve", "text": "Login: fondo con efecto de partÃ­culas visible tambiÃ©n en mobile" },
-    { "type": "fix",     "text": "Eliminado el indicador de fuerza de contraseÃ±a â€” no aplica en un login, solo en registro" },
-    { "type": "fix",     "text": "Texto 'Sistema operativo' renombrado a 'Sistemas en lÃ­nea' para mayor claridad" }
+    {
+      "version": "v7.26.0",
+      "date": "27/06/2026",
+      "changes": [
+        "Pulse visual al presionar teclas A o C en Selector",
+        "Atajo Esc inteligente para cerrar slide-overs en Dispatcher",
+        "Leyenda de rutas colapsable en el mapa",
+        "Persistencia de estado del mapa (zoom y coordenadas) entre pestañas",
+        "Banner de alerta al perder conexión a internet",
+        "Mejora visual de FAB (botón flotante) según estado de rutas",
+        "Ajuste en posicionamiento de notificaciones Toast (bottom-up)",
+        "Cambio masivo de terminología: 'Paradas' a 'Entregas'"
+      ]
+    },
+    {
+      "version": "v7.25.0",
+      "date": "26/06/2026",
+      "changes": [
+        "Se removió el indicador visual de fuerza de contraseña por seguridad.",
+        "Se agregó la API /api/health para verificar la salud de BD y Google Maps concurrentemente."
+      ]
+    },
+    {
+      "version": "v7.24.0",
+      "date": "26/06/2026",
+      "changes": [
+        "Se corrigió bug crítico en el Stepper donde los pasos se marcaban verdes sin datos.",
+        "Ajuste visual en modal del changelog."
+      ]
+    }
   ]
 }

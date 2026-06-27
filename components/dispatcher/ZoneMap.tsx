@@ -52,7 +52,7 @@ function createClusterLabel(cluster: Cluster) {
   
   div.innerHTML = `
     <div style="color: ${cluster.color}">${cluster.name}</div>
-    <div class="text-[10px] font-normal text-shuma-text">${cluster.addresses.length} paradas</div>
+    <div class="text-[10px] font-normal text-shuma-text">${cluster.addresses.length} entregas</div>
     <div class="text-[9px] font-normal text-shuma-muted">Salida: ${cluster.depot.name}</div>
   `;
   return div;

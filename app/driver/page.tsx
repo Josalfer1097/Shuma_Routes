@@ -476,7 +476,7 @@ export default function DriverPage() {
       if (!json.ok) throw new Error(json.error || 'Error al iniciar ruta');
       setRouteStarted(true);
       sessionStorage.setItem('shuma_route_started', 'true');
-      // Refrescar las paradas para que muestren status in_route
+      // Refrescar las entregas para que muestren status in_route
       await fetchRoute(driverId, true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
@@ -878,7 +878,7 @@ export default function DriverPage() {
           </div>
         )}
 
-        {/* ── LISTA DE PARADAS ── */}
+        {/* ── LISTA DE entregas ── */}
         <main className="flex-1 overflow-y-auto p-3 pb-24 space-y-2.5">
           {route.stops.map((stop, idx) => {
             const isDelivered = stop.status === 'delivered' || stop.status === 'completed';
@@ -928,7 +928,7 @@ export default function DriverPage() {
                     </div>
                   </div>
                 )}
-                {/* Cabecera de la parada */}
+                {/* Cabecera de la entrega */}
                 <div className="p-3.5" onClick={() => toggleExpand(stop.id)}>
                   <div className="flex items-start gap-3">
                     {/* Número / status */}

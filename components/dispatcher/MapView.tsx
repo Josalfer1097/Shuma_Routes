@@ -12,6 +12,8 @@ interface Props {
   hiddenRouteIds?: string[];
   liveDeliveryStatus?: Record<string, string>;
   driverLocations?: Record<string, { lat: number; lng: number; updated_at: string }>;
+  onMapIdle?: (zoom: number, center: { lat: number; lng: number }) => void;
+  initialMapState?: { zoom: number; center: { lat: number; lng: number } } | null;
 }
 
 export interface MapViewRef {
@@ -48,7 +50,7 @@ function createStopPin(number: string | number, statusColor?: string) {
 }
 
 const MapView = forwardRef<MapViewRef, Props>(function MapView(
-  { addresses, routes, depot, hiddenRouteIds = [], liveDeliveryStatus = {}, driverLocations = {} },
+  { addresses, routes, depot, hiddenRouteIds = [], liveDeliveryStatus = {}, driverLocations = {}, onMapIdle, initialMapState },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -87,8 +89,8 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
       if (!active || !containerRef.current || mapRef.current) return;
 
       const map = new Map(containerRef.current, {
-        center: { lat: 19.4326, lng: -99.1332 }, // CDMX
-        zoom: 12,
+        center: initialMapState?.center || { lat: 19.4326, lng: -99.1332 }, // CDMX
+        zoom: initialMapState?.zoom || 12,
         mapId: 'shuma-rutas-map', // Requerido para AdvancedMarkerElement
         mapTypeControl: true,     // Alternar roadmap y satellite
         streetViewControl: false,
@@ -101,6 +103,17 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
 
       mapRef.current = map;
       infoWindowRef.current = new InfoWindow();
+
+      if (onMapIdle) {
+        map.addListener('idle', () => {
+          const z = map.getZoom();
+          const c = map.getCenter();
+          if (z !== undefined && c) {
+            onMapIdle(z, { lat: c.lat(), lng: c.lng() });
+          }
+        });
+      }
+
       setMapInitialized(true);
     };
 

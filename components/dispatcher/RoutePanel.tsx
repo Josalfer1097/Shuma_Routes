@@ -182,7 +182,7 @@ export default function RoutePanel({
 
   const generateWhatsAppMessage = (route: Route, links: string[]) => {
     let msg = `*Ruta asignada: ${route.driverName}*\n`;
-    msg += `Paradas: ${route.stops.length}\n`;
+    msg += `entregas: ${route.stops.length}\n`;
     msg += `Distancia: ${route.totalDistance ? (route.totalDistance / 1000).toFixed(1) : 0} km\n`;
     msg += `Tiempo est.: ${route.totalDuration ? Math.round(route.totalDuration / 60) : 0} min\n\n`;
 
@@ -407,7 +407,7 @@ export default function RoutePanel({
 
             {/* GOOGLE OPTIMIZA — llama a la API */}
             <button
-              title="Google reordena las paradas para minimizar tiempo y distancia total."
+              title="Google reordena las entregas para minimizar tiempo y distancia total."
               onClick={() => {
                 setIsEditing(false);
                 setHasUnsavedEdits(false);
@@ -433,7 +433,7 @@ export default function RoutePanel({
         </div>
       )}
 
-      {/* LISTA DE CHOFERES Y PARADAS */}
+      {/* LISTA DE CHOFERES Y entregas */}
       <div className="flex-1 overflow-y-auto p-4">
         <DndContext 
           sensors={sensors} 
@@ -538,7 +538,7 @@ export default function RoutePanel({
                       </div>
                       <div className="flex items-center gap-3 mt-1">
                         <p className="text-xs text-shuma-muted">
-                          {route.stops.length} paradas
+                          {route.stops.length} entregas
                           {route.totalDistance !== undefined && ` · ${formatDistance(route.totalDistance)}`}
                           {route.totalDuration !== undefined && ` · ${formatDuration(route.totalDuration)}`}
                         </p>
@@ -635,7 +635,7 @@ export default function RoutePanel({
                     </div>
                   </div>
 
-                  {/* LISTA DE PARADAS SORTABLE — SortableContext SIEMPRE en DOM */}
+                  {/* LISTA DE entregas SORTABLE — SortableContext SIEMPRE en DOM */}
                   <SortableContext items={[route.vehicleId, ...stopIds]} strategy={verticalListSortingStrategy}>
                     <div
                       className="border-t border-shuma-border"
@@ -736,7 +736,7 @@ export default function RoutePanel({
 
       <ConfirmationModal
         isOpen={modalState !== null}
-        title={`Mover ${modalState?.stop?.address.invoice ? `[${modalState.stop.address.invoice}]` : (modalState?.stop?.address.clientName ? `[${modalState.stop.address.clientName}]` : 'parada')} a ${allVehicles?.find(v => v.id === modalState?.toRouteId)?.driverName || 'nuevo chofer'}`}
+        title={`Mover ${modalState?.stop?.address.invoice ? `[${modalState.stop.address.invoice}]` : (modalState?.stop?.address.clientName ? `[${modalState.stop.address.clientName}]` : 'entrega')} a ${allVehicles?.find(v => v.id === modalState?.toRouteId)?.driverName || 'nuevo chofer'}`}
         haversineExtraKm={modalState?.haversineExtraKm || 0}
         isRestrictedZone={modalState?.isRestrictedZone || false}
         onConfirm={handleModalConfirm}
@@ -775,7 +775,7 @@ export default function RoutePanel({
               </div>
               <div className="p-5 space-y-4 text-sm">
                 <div className="flex flex-col gap-2 font-medium">
-                  <p className="flex items-center gap-2"><span className="text-lg">📍</span> {metrics.stopCount} paradas asignadas</p>
+                  <p className="flex items-center gap-2"><span className="text-lg">📍</span> {metrics.stopCount} entregas asignadas</p>
                   <p className="flex items-center gap-2"><span className="text-lg">📏</span> {metrics.totalDistanceKm} km de recorrido total</p>
                   <p className="flex items-center gap-2"><span className="text-lg">⏱</span> {Math.floor(metrics.totalDurationMin / 60)}h {metrics.totalDurationMin % 60}min estimados</p>
                 </div>
@@ -783,7 +783,7 @@ export default function RoutePanel({
                 <div className="pt-3 border-t border-shuma-border">
                   <h4 className="font-bold text-shuma-text mb-1">¿Por qué esta distribución?</h4>
                   <p className="text-shuma-muted leading-relaxed text-xs">
-                    Google optimizó minimizando el tiempo total de la flota. Esta ruta agrupa las paradas más cercanas geográficamente a este vehículo para reducir distancia total recorrida por todos.
+                    Google optimizó minimizando el tiempo total de la flota. Esta ruta agrupa las entregas más cercanas geográficamente a este vehículo para reducir distancia total recorrida por todos.
                   </p>
                 </div>
 
@@ -797,11 +797,11 @@ export default function RoutePanel({
                   </div>
                 </div>
 
-                {/* Detalle por parada */}
+                {/* Detalle por entrega */}
                 <div style={{ marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12 }}>
                   <p style={{ fontSize: fs(11), fontWeight: 700, color: '#94a3b8', marginBottom: 8,
                     textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    Detalle de paradas
+                    Detalle de entregas
                   </p>
                   <div style={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {route.stops.map((stop, idx) => {

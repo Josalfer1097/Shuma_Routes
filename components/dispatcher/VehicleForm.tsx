@@ -310,7 +310,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                     fontFamily: "'DM Sans', sans-serif", marginBottom: 3,
                   }}>
                     <span>{VEHICLE_TYPE_LABELS[selectedVehicle.type]}</span>
-                    <span>Capacidad: {(selectedVehicle as any).max_stops || '∞'} paradas</span>
+                    <span>Capacidad: {(selectedVehicle as any).max_stops || '∞'} entregas</span>
                   </div>
                   <div style={{
                     height: 3, borderRadius: 99,

@@ -275,6 +275,27 @@ function DispatcherPageContent() {
   const [geocodingDone, setGeocodingDone] = useState(false);
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const [dbDriversCount, setDbDriversCount] = useState(0);
+  const [legendCollapsed, setLegendCollapsed] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const handleOnline  = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online',  handleOnline);
+    window.addEventListener('offline', handleOffline);
+    setIsOffline(!navigator.onLine);
+    return () => {
+      window.removeEventListener('online',  handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
 
   const searchParams = useSearchParams();
   const templateId = searchParams.get('template');
@@ -623,6 +644,15 @@ supabase.removeChannel(locChannel);
       if (e.key === 'Escape') {
         setIsMoreMenuOpen(false);
         setShowMapSearch(false);
+        if (isSlideOverOpen) {
+          const hasPendingData = state.addresses.length > 0 || state.vehicles.length > 0;
+          if (hasPendingData) {
+            const confirmed = window.confirm('¿Salir sin guardar la configuración?');
+            if (confirmed) setIsSlideOverOpen(false);
+          } else {
+            setIsSlideOverOpen(false);
+          }
+        }
       }
       if (e.key === 'F1' || (e.ctrlKey && e.key.toLowerCase() === 'f')) {
         e.preventDefault();
@@ -764,6 +794,7 @@ supabase.removeChannel(locChannel);
       const lat = state.globalConfig?.departureDepot?.lat || 19.4326;
       const lng = state.globalConfig?.departureDepot?.lng || -99.1332;
       getWeatherCDMX(lat, lng).then(setWeather).catch(console.error);
+      setLastRefreshTime(new Date());
     } catch (err) {
       console.error('Error refreshing all data:', err);
     } finally {
@@ -1169,7 +1200,7 @@ supabase.removeChannel(locChannel);
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#050C1A', overflow: 'hidden' }}>
       {toast && (
         <div style={{
-          position: 'absolute', top: 16, left: '50%',
+          position: 'absolute', bottom: 80, left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 20,
           display: 'flex', alignItems: 'center', gap: 8,
@@ -1199,8 +1230,26 @@ supabase.removeChannel(locChannel);
   {/* ═══════════════════════════════════════════════ */}
   {/* BANNER RGB Y HEADER                            */}
   {/* ═══════════════════════════════════════════════ */}
-  {!isMapFullscreen && (
+      {!isMapFullscreen && (
         <>
+          {isOffline && (
+            <div style={{
+              width: '100%',
+              background: 'rgba(234,179,8,0.12)',
+              border: '1px solid rgba(234,179,8,0.3)',
+              borderRadius: 0,
+              padding: '6px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 12,
+              fontFamily: "'DM Sans', sans-serif",
+              color: '#fbbf24',
+            }}>
+              <span>⚠️</span>
+              <span>Sin conexión a internet — trabajando en modo offline. Los cambios se sincronizarán al reconectarse.</span>
+            </div>
+          )}
           <header
             style={{
               height: 48,
@@ -1440,6 +1489,19 @@ supabase.removeChannel(locChannel);
             >
               <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
               <span className="hidden-mobile">Actualizar</span>
+              {lastRefreshTime && (
+                <span style={{
+                  fontSize: 9,
+                  color: '#3B5270',
+                  fontFamily: "'Exo 2', sans-serif",
+                  marginLeft: 2,
+                }}>
+                  {(() => {
+                    const mins = Math.floor((Date.now() - lastRefreshTime.getTime()) / 60000);
+                    return mins === 0 ? 'ahora' : `hace ${mins}m`;
+                  })()}
+                </span>
+              )}
             </button>
 
             <NotificationBell 
@@ -1509,6 +1571,15 @@ supabase.removeChannel(locChannel);
           hiddenRouteIds={hiddenRouteIds}
           liveDeliveryStatus={liveDeliveryStatus}
           driverLocations={driverLocations}
+          onMapIdle={(zoom: number, center: { lat: number; lng: number }) => {
+            sessionStorage.setItem('shuma_map_state', JSON.stringify({ zoom, center }));
+          }}
+          initialMapState={(() => {
+            try {
+              const s = sessionStorage.getItem('shuma_map_state');
+              return s ? JSON.parse(s) : null;
+            } catch { return null; }
+          })()}
         />
 
         {/* ── Buscador de mapa (F1 o Ctrl+F) ── */}
@@ -1529,7 +1600,7 @@ supabase.removeChannel(locChannel);
             
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
               {mapSearchText && mapSearchResults.length === 0 && (
-                <div className="text-xs text-shuma-muted text-center py-4">No se encontraron paradas</div>
+                <div className="text-xs text-shuma-muted text-center py-4">No se encontraron entregas</div>
               )}
               {mapSearchResults.map((res, i) => (
                 <div 
@@ -1989,32 +2060,55 @@ supabase.removeChannel(locChannel);
 
         {/* ── Route legend badges (top-right, offset if fullscreen btn) ── */}
         {state.routes.length > 0 && (
-          <div style={{ position: 'absolute', top: 16, right: 52, zIndex: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {state.routes.map((r) => (
+          <div style={{ position: 'absolute', top: 16, right: 52, zIndex: 10, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+            {/* Botón colapsar/expandir */}
+            <button
+              onClick={() => setLegendCollapsed(prev => !prev)}
+              style={{
+                background: 'rgba(10,22,40,0.9)',
+                border: '1px solid #112040',
+                borderRadius: 6,
+                color: '#5B7BA0',
+                fontSize: 10,
+                fontFamily: "'Exo 2', sans-serif",
+                letterSpacing: '0.08em',
+                padding: '3px 8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              {legendCollapsed ? '▼ Expandir leyenda' : '▲ Colapsar leyenda'}
+            </button>
+
+            {/* Badges — solo visibles si no está colapsado */}
+            {!legendCollapsed && state.routes.map((r) => (
               <div
                 key={r.vehicleId}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs transition-colors ${
-                  hiddenRouteIds.includes(r.vehicleId) 
-                    ? 'bg-slate-900/50 border-slate-700/50 opacity-60' 
+                  hiddenRouteIds.includes(r.vehicleId)
+                    ? 'bg-slate-900/50 border-slate-700/50 opacity-60'
                     : 'bg-slate-900/90 backdrop-blur border-shuma-border'
                 }`}
               >
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: hiddenRouteIds.includes(r.vehicleId) ? '#64748b' : r.color }} />
                 <span className="text-shuma-text font-medium">{r.driverName}</span>
-                <span className="text-shuma-muted">{r.stops.length} paradas</span>
+                <span className="text-shuma-muted">{r.stops.length} entregas</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setHiddenRouteIds(prev => 
-                      prev.includes(r.vehicleId) 
-                        ? prev.filter(id => id !== r.vehicleId) 
+                    setHiddenRouteIds(prev =>
+                      prev.includes(r.vehicleId)
+                        ? prev.filter(id => id !== r.vehicleId)
                         : [...prev, r.vehicleId]
                     );
                   }}
                   className="ml-1 p-1 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center text-shuma-muted hover:text-white"
                   title={hiddenRouteIds.includes(r.vehicleId) ? "Mostrar ruta" : "Ocultar ruta"}
                 >
-                  {hiddenRouteIds.includes(r.vehicleId) ? '👁️‍🗨️' : '👁️'}
+                  {hiddenRouteIds.includes(r.vehicleId) ? '👁️🗨️' : '👁️'}
                 </button>
               </div>
             ))}
@@ -2030,8 +2124,8 @@ supabase.removeChannel(locChannel);
             top: 12,
             right: 12,
             zIndex: 12,
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
             background: '#0A1628',
             border: '1px solid #112040',
             borderRadius: 6,
@@ -2051,7 +2145,7 @@ supabase.removeChannel(locChannel);
             e.currentTarget.style.color = '#5B7BA0';
           }}
         >
-          {isMapFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          {isMapFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
 
         {/* ── FAB (bottom-right) — always visible including fullscreen ── */}
@@ -2075,7 +2169,9 @@ supabase.removeChannel(locChannel);
               padding: state.addresses.length === 0 && !welcomeDismissed ? '14px 22px' : '10px 16px',
               background: state.addresses.length === 0 && !welcomeDismissed
                 ? 'linear-gradient(135deg, #0047AB, #1565C0)'
-                : '#0047AB',
+                : activeRoutesData.length > 0
+                  ? 'linear-gradient(135deg, #065f46, #059669)'
+                  : '#0047AB',
               border: state.addresses.length === 0 && !welcomeDismissed
                 ? '2px solid rgba(33,150,243,0.6)'
                 : 'none',
@@ -2095,22 +2191,26 @@ supabase.removeChannel(locChannel);
                 : 'none',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(135deg, #1565C0, #1976D2)';
+              e.currentTarget.style.background = activeRoutesData.length > 0
+                ? 'linear-gradient(135deg, #047857, #10b981)'
+                : 'linear-gradient(135deg, #1565C0, #1976D2)';
               e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
               e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,71,171,0.6)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = state.addresses.length === 0 && !welcomeDismissed
                 ? 'linear-gradient(135deg, #0047AB, #1565C0)'
-                : '#0047AB';
+                : activeRoutesData.length > 0
+                  ? 'linear-gradient(135deg, #065f46, #059669)'
+                  : '#0047AB';
               e.currentTarget.style.transform = 'translateY(0) scale(1)';
               e.currentTarget.style.boxShadow = state.addresses.length === 0 && !welcomeDismissed
                 ? '0 0 0 0 rgba(33,150,243,0.6), 0 4px 20px rgba(0,71,171,0.5)'
                 : '0 4px 20px rgba(0,71,171,0.4)';
             }}
           >
-            <span style={{ fontSize: 14 }}>⚙</span>
-            Crear Rutas
+            <span style={{ fontSize: 14 }}>{activeRoutesData.length > 0 ? '🗺️' : '⚙'}</span>
+            {activeRoutesData.length > 0 ? 'Ver Rutas' : 'Crear Rutas'}
           </button>
         )}
 
@@ -2577,12 +2677,12 @@ supabase.removeChannel(locChannel);
               {fleetMode === 'manual' && (
                 <p style={{ fontSize: 11, color: '#f59e0b', margin: '8px 0 0', lineHeight: 1.5 }}>
                   Modo manual: arrastra las facturas entre choferes en el paso de Rutas para
-                  redistribuir paradas. Google no rebalanceará automáticamente.
+                  redistribuir entregas. Google no rebalanceará automáticamente.
                 </p>
               )}
               <div className="text-[11px] text-shuma-muted leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-shuma-border">
                 <p>
-                  Google Route Optimization API distribuye inteligentemente las paradas basándose en las capacidades de los vehículos minimizando el tiempo y costo total para toda la flota.
+                  Google Route Optimization API distribuye inteligentemente las entregas basándose en las capacidades de los vehículos minimizando el tiempo y costo total para toda la flota.
                 </p>
               </div>
             </div>
@@ -2595,7 +2695,7 @@ supabase.removeChannel(locChannel);
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h4 className="text-sm font-bold text-slate-200">{cluster.name}</h4>
-                        <p className="text-xs text-shuma-muted">{cluster.addresses.length} paradas</p>
+                        <p className="text-xs text-shuma-muted">{cluster.addresses.length} entregas</p>
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">

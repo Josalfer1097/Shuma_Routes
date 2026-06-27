@@ -79,7 +79,7 @@ export default function StopList({ route, stops, onComplete }: Props) {
         </div>
       )}
 
-      {/* Lista de paradas */}
+      {/* Lista de entregas */}
       <div className="space-y-3">
         {stops.map((stop) => (
           <DeliveryCard

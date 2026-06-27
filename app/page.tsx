@@ -8,6 +8,7 @@ import ParticleField from '@/components/ParticleField';
 export default function HomePage() {
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [pulsingCard, setPulsingCard] = useState<'admin' | 'driver' | null>(null);
   type ServiceStatus = { ok: boolean; label: string; error: string | null };
   type SysStatus = 'checking' | 'ok' | 'degraded' | 'error';
 
@@ -48,10 +49,18 @@ export default function HomePage() {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'a' || e.key === 'A') {
-        window.location.href = '/admin-login';
+        setPulsingCard('admin');
+        setTimeout(() => {
+          setLeaving(true);
+          setTimeout(() => router.push('/admin-login'), 280);
+        }, 200);
       }
       if (e.key === 'c' || e.key === 'C') {
-        window.location.href = '/driver-login';
+        setPulsingCard('driver');
+        setTimeout(() => {
+          setLeaving(true);
+          setTimeout(() => router.push('/driver-login'), 280);
+        }, 200);
       }
     };
     document.addEventListener('keydown', handleKey);
@@ -317,7 +326,11 @@ export default function HomePage() {
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-accent transition-all duration-300 hover:shadow-lg
                        hover:shadow-[0_0_15px_rgba(33,150,243,0.15)] hover:-translate-y-0.5"
-            style={{ animation: 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s both' }}
+            style={{
+              animation: pulsingCard === 'admin'
+                ? 'cardKeyPress 0.2s ease forwards'
+                : 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s both',
+            }}
           >
             <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0
                             bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors duration-300">
@@ -358,7 +371,11 @@ export default function HomePage() {
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
                        hover:border-shuma-warning transition-all duration-300 hover:shadow-lg
                        hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:-translate-y-0.5"
-            style={{ animation: 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.22s both' }}
+            style={{
+              animation: pulsingCard === 'driver'
+                ? 'cardKeyPressAmber 0.2s ease forwards'
+                : 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.22s both',
+            }}
           >
             <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0
                             bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors duration-300">
@@ -432,7 +449,7 @@ export default function HomePage() {
             e.currentTarget.style.borderColor = changelog ? 'rgba(33,150,243,0.2)' : 'transparent';
           }}
         >
-          v7.25.0{changelog ? ' · Ver novedades →' : ''}
+          v7.26.0{changelog ? ' · Ver novedades →' : ''}
         </button>
         <style>{`
           @keyframes rgbRoll {
@@ -446,6 +463,16 @@ export default function HomePage() {
           @keyframes pageFadeOut {
             from { opacity: 1; transform: scale(1); }
             to   { opacity: 0; transform: scale(0.98); }
+          }
+          @keyframes cardKeyPress {
+            0%   { transform: scale(1); box-shadow: none; }
+            40%  { transform: scale(0.97); box-shadow: 0 0 0 3px rgba(33,150,243,0.4); }
+            100% { transform: scale(1); box-shadow: none; }
+          }
+          @keyframes cardKeyPressAmber {
+            0%   { transform: scale(1); box-shadow: none; }
+            40%  { transform: scale(0.97); box-shadow: 0 0 0 3px rgba(245,158,11,0.4); }
+            100% { transform: scale(1); box-shadow: none; }
           }
         `}</style>
       </div>
@@ -485,7 +512,7 @@ export default function HomePage() {
                   fontSize: 16, fontWeight: 700, color: '#E8EFF8',
                   fontFamily: "'Exo 2', sans-serif", margin: 0,
                 }}>
-                  📋 Novedades v7.25.0
+                  📋 Novedades v7.26.0
                 </h2>
                 <p style={{
                   fontSize: 11, color: '#5B7BA0', margin: '4px 0 0',

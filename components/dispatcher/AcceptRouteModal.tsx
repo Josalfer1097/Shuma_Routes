@@ -121,7 +121,7 @@ export default function AcceptRouteModal({
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: route.color }} />
                         <span className="font-medium text-shuma-text">{route.driverName}</span>
                         <span>·</span>
-                        <span>{route.stops.length} paradas</span>
+                        <span>{route.stops.length} entregas</span>
                         <span>·</span>
                         <span>{((route.totalDistance || 0) / 1000).toFixed(1)} km</span>
                       </div>
