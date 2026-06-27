@@ -1,7 +1,7 @@
 {
   "updated": "2026-06-27",
   "items": [
-    { "type": "improve", "text": "?? Las almas errantes ahora caen más rápido, rebotan con más fuerza y el caos es total" },
+    { "type": "improve", "text": "?? Las almas errantes ahora se mueven con física limpia y natural" },
     { "type": "new", "text": "?? ¿Encontrarás el secreto en las sombras? Algo espera a quien insista lo suficiente..." },
     { "type": "new", "text": "Pulse visual al presionar teclas A o C en Selector (v7.26.0)" },
     { "type": "new", "text": "Atajo Esc inteligente para cerrar slide-overs en Dispatcher" },

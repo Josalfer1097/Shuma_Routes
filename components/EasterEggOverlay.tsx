@@ -12,7 +12,6 @@ interface FallingItem {
   vRotation: number;
   size: number;
   grabbed: boolean;
-  trail: Array<{ x: number; y: number; alpha: number }>;
 }
 
 interface EasterEggOverlayProps {
@@ -21,9 +20,9 @@ interface EasterEggOverlayProps {
 }
 
 const EMOJIS = ['💀', '🚛', '💀', '🚚', '☠️', '🚛', '👻', '🚐', '💀', '🚛'];
-const GRAVITY = 0.72;
-const BOUNCE_DAMPING = 0.72;
-const FRICTION = 0.978;
+const GRAVITY = 0.55;
+const BOUNCE_DAMPING = 0.68;
+const FRICTION = 0.985;
 const LAUNCH_THRESHOLD = 6; // velocidad mínima para contar como "lanzamiento"
 
 export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOverlayProps) {
@@ -44,13 +43,12 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
       emoji,
       x: Math.random() * (window.innerWidth - 100) + 50,
       y: -Math.random() * 500 - 50,
-      vx: (Math.random() - 0.5) * 12,
-      vy: Math.random() * 2 + 1,
+      vx: (Math.random() - 0.5) * 9,
+      vy: Math.random() * 2 + 2,
       rotation: Math.random() * 360,
-      vRotation: (Math.random() - 0.5) * 22,
+      vRotation: (Math.random() - 0.5) * 16,
       size: 38 + Math.random() * 28,
       grabbed: false,
-      trail: [],
     }));
     itemsRef.current = items;
   }, []);
@@ -147,7 +145,6 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
           item.vy = mouseRef.current.y - mouseRef.current.prevY;
           item.x = mouseRef.current.x;
           item.y = mouseRef.current.y;
-          item.trail = []; // limpiar estela mientras está agarrado
         } else {
           // Física
           item.vy += GRAVITY;
@@ -156,15 +153,6 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
           item.y += item.vy;
           item.rotation += item.vRotation;
           item.vRotation *= 0.93;
-
-          // Guardar estela si tiene velocidad
-          const speed = Math.hypot(item.vx, item.vy);
-          if (speed > 2) {
-            item.trail.push({ x: item.x, y: item.y, alpha: 0.5 });
-            if (item.trail.length > 8) item.trail.shift();
-          } else {
-            if (item.trail.length > 0) item.trail.shift();
-          }
 
           // Rebote suelo
           const floor = canvas.height - item.size / 2;
@@ -185,18 +173,6 @@ export default function EasterEggOverlay({ onClose, duration = 16 }: EasterEggOv
             item.vx *= -BOUNCE_DAMPING;
           }
         }
-
-        // Render estela
-        item.trail.forEach((pt, ti) => {
-          const alpha = (ti / item.trail.length) * 0.35;
-          ctx.save();
-          ctx.globalAlpha = alpha;
-          ctx.font = `${item.size * 0.6}px serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(item.emoji, pt.x, pt.y);
-          ctx.restore();
-        });
 
         // Render emoji principal
         ctx.save();
