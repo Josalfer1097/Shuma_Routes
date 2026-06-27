@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, Fragment, useRef } from 'react';
-import { X, Download, ChevronRight, ChevronDown, LogIn, LogOut, Package, Truck, RotateCcw, Lock, AlertCircle } from 'lucide-react';
+import { X, Download, ChevronRight, ChevronDown, LogIn, LogOut, Package, Truck, RotateCcw, Lock, AlertCircle, List, Settings } from 'lucide-react';
 
 interface AuditLogEntry {
   id: string;
@@ -177,6 +177,10 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   const [actionType, setActionType]     = useState<string>('');
   const [showDatePicker, setShowDatePicker] = useState<'from' | 'to' | null>(null);
   const [pickerMonth, setPickerMonth] = useState(() => new Date());
+  const [timeFrom, setTimeFrom]   = useState('');
+  const [timeTo, setTimeTo]       = useState('');
+  const [newLogsCount, setNewLogsCount] = useState(0);
+  const lastLogIdRef = useRef<string | null>(null);
   const PAGE_SIZE = 50; // registros por página
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
@@ -303,6 +307,8 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
       if (searchText)   params.set('search', searchText);
       if (dateTo)       params.set('dateTo', dateTo);
       if (actionType)   params.set('actionType', actionType);
+      if (timeFrom && dateFrom) params.set('timeFrom', timeFrom);
+      if (timeTo && (dateTo || dateFrom)) params.set('timeTo', timeTo);
       params.set('limit', String(PAGE_SIZE));
       params.set('offset', String((currentPage - 1) * PAGE_SIZE));
 
@@ -311,18 +317,35 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
       if (!json.ok) throw new Error('Error al cargar bitácora');
       setLogs(json.data || []);
       setTotalCount(json.total || 0);
+      if (json.data?.[0]?.id) lastLogIdRef.current = json.data[0].id;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
       setLoading(false);
     }
-  }, [filterModule, filterUser, dateFrom, filterEntityId, searchText, dateTo, currentPage, actionType]);
+  }, [filterModule, filterUser, dateFrom, filterEntityId, searchText, dateTo, currentPage, actionType, timeFrom, timeTo]);
 
   useEffect(() => {
     if (isOpen && userRole === 'admin') {
       fetchLogs();
     }
   }, [isOpen, userRole, fetchLogs]);
+
+  // Polling ligero cada 30s para detectar nuevos registros
+  useEffect(() => {
+    if (!isOpen || userRole !== 'admin') return;
+    const check = async () => {
+      try {
+        const res = await fetch('/api/audit?limit=1&offset=0');
+        const j = await res.json();
+        if (j.data?.[0]?.id && lastLogIdRef.current && j.data[0].id !== lastLogIdRef.current) {
+          setNewLogsCount(prev => prev + 1);
+        }
+      } catch {}
+    };
+    const interval = setInterval(check, 30000);
+    return () => clearInterval(interval);
+  }, [isOpen, userRole]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -353,6 +376,36 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     link.download = `bitacora-shuma-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
   };
+
+  const exportWithMetadata = useCallback(() => {
+    if (!logs.length) return;
+    const rows = [
+      ['Fecha', 'Usuario', 'Rol', 'Módulo', 'Acción', 'Entidad', 'IP', 'Dispositivo', 'Metadata'],
+    ];
+    logs.forEach(log => {
+      rows.push([
+        new Date(log.created_at).toLocaleString('es-MX'),
+        log.user_name,
+        log.user_role,
+        log.module,
+        log.action,
+        log.entity_id || '',
+        log.ip_address || '',
+        log.user_agent || '',
+        log.metadata ? JSON.stringify(log.metadata) : '',
+      ]);
+    });
+    const csv = rows.map(r =>
+      r.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bitacora_detallada_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [logs]);
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleString('es-MX', {
@@ -481,11 +534,11 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
           <div className="p-4 border-b border-shuma-border/50 bg-shuma-surface/50 flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
               {[
-                { key: '',        label: 'Todos',    icon: '📋' },
-                { key: 'login',   label: 'Accesos',  icon: '🔐' },
-                { key: 'entrega', label: 'Entregas', icon: '📦' },
-                { key: 'ruta',    label: 'Rutas',    icon: '🚛' },
-                { key: 'sistema', label: 'Sistema',  icon: '⚙️' },
+                { key: '',        label: 'Todos',    icon: <List size={12} /> },
+                { key: 'login',   label: 'Accesos',  icon: <Lock size={12} /> },
+                { key: 'entrega', label: 'Entregas', icon: <Package size={12} /> },
+                { key: 'ruta',    label: 'Rutas',    icon: <Truck size={12} /> },
+                { key: 'sistema', label: 'Sistema',  icon: <Settings size={12} /> },
               ].map(({ key, label, icon }) => (
                 <button
                   key={key}
@@ -496,7 +549,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                       : 'bg-shuma-surface text-shuma-muted border-shuma-border hover:text-white hover:border-blue-500/30'
                   }`}
                 >
-                  <span>{icon}</span> {label}
+                  {icon} {label}
                 </button>
               ))}
             </div>
@@ -506,7 +559,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
               {/* Fila 1: buscador full-text (ocupa todo el ancho) */}
               <input
                 type="text"
-                placeholder="🔍 Buscar en acciones, usuario, detalles..."
+                placeholder="🔍 Buscar... o usar usuario:admin módulo:rutas"
                 value={searchText}
                 onChange={e => setSearchText(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && fetchLogs()}
@@ -610,18 +663,70 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                   )}
                 </div>
 
+                {/* Rango de horas — visible solo cuando hay fecha seleccionada */}
+                {(dateFrom || dateTo) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 10, color: '#3B5270', fontFamily: "'Exo 2', sans-serif" }}>
+                      🕐
+                    </span>
+                    <input
+                      type="time"
+                      value={timeFrom}
+                      onChange={e => setTimeFrom(e.target.value)}
+                      style={{
+                        background: '#060F1D',
+                        border: '1px solid #0d1f3a',
+                        borderRadius: 6,
+                        color: timeFrom ? '#60a5fa' : '#3B5270',
+                        fontSize: 11,
+                        padding: '4px 8px',
+                        fontFamily: "'DM Sans', sans-serif",
+                        outline: 'none',
+                      }}
+                    />
+                    <span style={{ fontSize: 10, color: '#3B5270' }}>—</span>
+                    <input
+                      type="time"
+                      value={timeTo}
+                      onChange={e => setTimeTo(e.target.value)}
+                      style={{
+                        background: '#060F1D',
+                        border: '1px solid #0d1f3a',
+                        borderRadius: 6,
+                        color: timeTo ? '#60a5fa' : '#3B5270',
+                        fontSize: 11,
+                        padding: '4px 8px',
+                        fontFamily: "'DM Sans', sans-serif",
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Spacer */}
                 <div style={{ flex: 1 }} />
 
                 {/* Exportar */}
-                <button
-                  onClick={exportToCSV}
-                  disabled={logs.length === 0}
-                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600/20 border border-green-500/30 text-xs text-green-400 hover:bg-green-600/30 disabled:opacity-50 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Exportar
-                </button>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    onClick={exportToCSV}
+                    disabled={logs.length === 0}
+                    title="Exportar registros"
+                    className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600/20 border border-green-500/30 text-xs text-green-400 hover:bg-green-600/30 disabled:opacity-50 transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Exportar</span>
+                  </button>
+                  <button
+                    onClick={exportWithMetadata}
+                    disabled={logs.length === 0}
+                    title="Exportar con detalles completos"
+                    className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600/10 border border-green-500/20 text-xs text-green-600 hover:bg-green-600/20 disabled:opacity-50 transition-colors"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span className="hidden sm:inline">Con detalles</span>
+                  </button>
+                </div>
 
                 {/* Limpiar */}
                 <button
@@ -633,6 +738,8 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                     setSearchText('');
                     setDateTo('');
                     setActionType('');
+                    setTimeFrom('');
+                    setTimeTo('');
                   }}
                   className="px-3 py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30 transition-colors"
                 >
@@ -646,6 +753,29 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
             <div className="px-4 py-1.5 bg-shuma-surface/50 border-b border-shuma-border/30 text-[11px] text-shuma-muted font-medium">
               {totalCount} registro{totalCount !== 1 ? 's' : ''} encontrado{totalCount !== 1 ? 's' : ''}
               {searchText && <span className="text-blue-400 ml-1">· búsqueda: "{searchText}"</span>}
+            </div>
+          )}
+
+          {newLogsCount > 0 && (
+            <div
+              onClick={() => { fetchLogs(); setNewLogsCount(0); }}
+              style={{
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '4px 12px',
+                background: 'rgba(33,150,243,0.1)',
+                border: '1px solid rgba(33,150,243,0.3)',
+                borderRadius: 99,
+                fontSize: 11,
+                color: '#60a5fa',
+                fontFamily: "'DM Sans', sans-serif",
+                margin: '4px 16px',
+                animation: 'fadeInDown 0.3s ease',
+              }}
+            >
+              ↑ {newLogsCount} {newLogsCount === 1 ? 'registro nuevo' : 'registros nuevos'} — Click para actualizar
             </div>
           )}
 
@@ -678,13 +808,14 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                         <span
                           onMouseDown={(e) => startResize(key, e)}
                           style={{
-                            position: 'absolute', right: 0, top: 0, bottom: 0,
-                            width: 6, cursor: 'col-resize',
-                            background: 'transparent',
-                            borderRight: '2px solid rgba(33,150,243,0.15)',
+                            position: 'absolute', right: 0, top: '15%', bottom: '15%',
+                            width: 4, cursor: 'col-resize',
+                            background: 'rgba(33,150,243,0.12)',
+                            borderRadius: 2,
+                            transition: 'background 0.15s',
                           }}
-                          onMouseEnter={e => (e.currentTarget.style.borderRightColor = 'rgba(33,150,243,0.5)')}
-                          onMouseLeave={e => (e.currentTarget.style.borderRightColor = 'rgba(33,150,243,0.15)')}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(33,150,243,0.5)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(33,150,243,0.12)')}
                         />
                       </th>
                     ))}
@@ -711,14 +842,34 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                               {formatDate(log.created_at)}
                             </div>
                           </td>
-                          <td className="px-4 py-2 text-blue-400 font-medium" style={{ width: colWidths.usuario, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.user_name}</td>
+                          <td
+                            className="px-4 py-2 text-blue-400 font-medium"
+                            style={{ width: colWidths.usuario, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                            title={`Filtrar por ${log.user_name}`}
+                            onClick={() => {
+                              setSearchText(log.user_name);
+                              setCurrentPage(1);
+                            }}
+                          >
+                            <span className="hover:underline">{log.user_name}</span>
+                          </td>
                           <td className="px-4 py-2" style={{ width: colWidths.rol, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide border ${
                               log.user_role === 'admin'
                                 ? 'bg-blue-500/10 text-blue-400 border-blue-500/25'
-                                : 'bg-amber-500/10 text-amber-400 border-amber-500/25'
+                                : log.user_role === 'driver'
+                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/25'
+                                  : log.user_role === 'logistics'
+                                    ? 'bg-orange-500/10 text-orange-400 border-orange-500/25'
+                                    : log.user_role === 'viewer'
+                                      ? 'bg-purple-500/10 text-purple-400 border-purple-500/25'
+                                      : 'bg-slate-500/10 text-slate-400 border-slate-500/25'
                             }`}>
-                              {log.user_role === 'admin' ? 'ADMIN' : 'CHOFER'}
+                              {log.user_role === 'admin'    ? 'ADMIN'
+                               : log.user_role === 'driver'    ? 'CHOFER'
+                               : log.user_role === 'logistics' ? 'LOGÍSTICA'
+                               : log.user_role === 'viewer'    ? 'SUPERVISOR'
+                               : (log.user_role || 'SISTEMA').toUpperCase()}
                             </span>
                           </td>
                           <td className="px-4 py-2 text-cyan-400" style={{ width: colWidths.modulo, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.module}</td>

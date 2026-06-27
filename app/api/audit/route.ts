@@ -46,6 +46,8 @@ export async function GET(req: NextRequest) {
     const actionType = searchParams.get('actionType') || ''; // login|entrega|ruta|sistema
     const limit      = parseInt(searchParams.get('limit') || '200');
     const offset     = parseInt(searchParams.get('offset') || '0');  // ← NUEVO: paginación
+    const timeFrom   = searchParams.get('timeFrom') || '';
+    const timeTo     = searchParams.get('timeTo')   || '';
 
     let query = supabaseAdmin
       .from('audit_log')
@@ -57,14 +59,42 @@ export async function GET(req: NextRequest) {
     if (user_name) query = query.ilike('user_name', `%${user_name}%`);  // ← era eq, ahora ilike
     if (dateFrom)  query = query.gte('created_at', new Date(dateFrom).toISOString());
     if (dateTo)    query = query.lte('created_at', new Date(dateTo + 'T23:59:59').toISOString());
+    if (timeFrom && dateFrom) {
+      const [h, m] = timeFrom.split(':');
+      const dt = new Date(dateFrom);
+      dt.setHours(Number(h), Number(m), 0, 0);
+      query = query.gte('created_at', dt.toISOString());
+    }
+    if (timeTo) {
+      const baseDate = dateTo || dateFrom;
+      if (baseDate) {
+        const [h, m] = timeTo.split(':');
+        const dt = new Date(baseDate);
+        dt.setHours(Number(h), Number(m), 59, 999);
+        query = query.lte('created_at', dt.toISOString());
+      }
+    }
     if (entity_id) query = query.eq('entity_id', entity_id);
 
     // Búsqueda full-text — solo en columnas de texto plano (sin cast)
     if (search) {
       const term = `%${search}%`;
-      query = query.or(
-        `action.ilike.${term},user_name.ilike.${term}`
-      );
+      // Parsear operadores avanzados: usuario:X módulo:Y
+      const userOp    = search.match(/usuario:(\S+)/i)?.[1];
+      const moduleOp  = search.match(/módulo:(\S+)/i)?.[1] || search.match(/modulo:(\S+)/i)?.[1];
+      const cleanSearch = search
+        .replace(/usuario:\S+/gi, '')
+        .replace(/módulo:\S+/gi, '')
+        .replace(/modulo:\S+/gi, '')
+        .trim();
+
+      if (userOp)   query = query.ilike('user_name', `%${userOp}%`);
+      if (moduleOp) query = query.ilike('module', `%${moduleOp}%`);
+
+      if (cleanSearch) {
+        const t = `%${cleanSearch}%`;
+        query = query.or(`action.ilike.${t},user_name.ilike.${t},module.ilike.${t}`);
+      }
     }
 
     // Filtro por tipo de acción — OR separado para no mezclar con el search

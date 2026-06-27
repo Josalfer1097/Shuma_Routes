@@ -1,19 +1,22 @@
 {
   "updated": "2026-06-27",
   "items": [
-    { "type": "improve", "text": "?? Las almas errantes ahora se mueven con fÌsica limpia y natural" },
-    { "type": "new", "text": "?? øEncontrar·s el secreto en las sombras? Algo espera a quien insista lo suficiente..." },
+    { "type": "new", "text": "Buscador avanzado en Bit√°cora con operadores (usuario:X m√≥dulo:Y) v7.29.0" },
+    { "type": "improve", "text": "Filtro de horas y exportaci√≥n detallada con metadata" },
+    { "type": "fix", "text": "Soluci√≥n a intercepci√≥n de clicks en mapas y listados" },
+    { "type": "improve", "text": "?? Las almas errantes ahora se mueven con f√≠sica limpia y natural" },
+    { "type": "new", "text": "?? ¬øEncontrar√°s el secreto en las sombras? Algo espera a quien insista lo suficiente..." },
     { "type": "new", "text": "Pulse visual al presionar teclas A o C en Selector (v7.26.0)" },
     { "type": "new", "text": "Atajo Esc inteligente para cerrar slide-overs en Dispatcher" },
     { "type": "new", "text": "Leyenda de rutas colapsable en el mapa" },
-    { "type": "improve", "text": "Persistencia de estado del mapa (zoom y coordenadas) entre pestaÒas" },
-    { "type": "new", "text": "Banner de alerta al perder conexiÛn a internet" },
-    { "type": "improve", "text": "Mejora visual de FAB (botÛn flotante) seg˙n estado de rutas" },
+    { "type": "improve", "text": "Persistencia de estado del mapa (zoom y coordenadas) entre pesta√±as" },
+    { "type": "new", "text": "Banner de alerta al perder conexi√≥n a internet" },
+    { "type": "improve", "text": "Mejora visual de FAB (bot√≥n flotante) seg√∫n estado de rutas" },
     { "type": "fix", "text": "Ajuste en posicionamiento de notificaciones Toast (bottom-up)" },
-    { "type": "improve", "text": "Cambio masivo de terminologÌa: 'Paradas' a 'Entregas'" },
-    { "type": "fix", "text": "Se removiÛ el indicador visual de fuerza de contraseÒa por seguridad. (v7.25.0)" },
-    { "type": "new", "text": "Se agregÛ la API /api/health para verificar la salud de BD y Google Maps concurrentemente." },
-    { "type": "fix", "text": "Se corrigiÛ bug crÌtico en el Stepper donde los pasos se marcaban verdes sin datos. (v7.24.0)" },
+    { "type": "improve", "text": "Cambio masivo de terminolog√≠a: 'Paradas' a 'Entregas'" },
+    { "type": "fix", "text": "Se removi√≥ el indicador visual de fuerza de contrase√±a por seguridad. (v7.25.0)" },
+    { "type": "new", "text": "Se agreg√≥ la API /api/health para verificar la salud de BD y Google Maps concurrentemente." },
+    { "type": "fix", "text": "Se corrigi√≥ bug cr√≠tico en el Stepper donde los pasos se marcaban verdes sin datos. (v7.24.0)" },
     { "type": "improve", "text": "Ajuste visual en modal del changelog." }
   ]
 }
