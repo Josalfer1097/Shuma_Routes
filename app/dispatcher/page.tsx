@@ -287,6 +287,8 @@ function DispatcherPageContent() {
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [, setTick] = useState(0);
+  const geocodeCancelRef = useRef(false);
+  const geocodeTimestampsRef = useRef<number[]>([]); // timestamps de las últimas 5
 
   useEffect(() => {
     const handleOnline  = () => setIsOffline(false);
@@ -915,13 +917,42 @@ supabase.removeChannel(locChannel);
 
     // Geocodificar en serie usando async/await
     const updatedAddresses = [...addresses];
+    geocodeCancelRef.current = false;   // resetear cancelación
+    geocodeTimestampsRef.current = [];  // resetear timestamps
 
     for (let i = 0; i < addresses.length; i++) {
+      // ← CANCELACIÓN: salir del loop si se presionó Cancelar
+      if (geocodeCancelRef.current) {
+        // Restaurar step anterior y limpiar
+        dispatch({ type: 'SET_STEP', payload: 'upload' });
+        geocodeCancelRef.current = false;
+        return; // salir de la función de geocoding
+      }
+
       if (i > 0) {
-        await new Promise((resolve) => setTimeout(resolve, 1100)); // Nominatim rate limit
+        await new Promise<void>((resolve) => {
+          const t = setTimeout(resolve, 1100);
+          // Chequear cancelación dentro del delay también
+          const check = setInterval(() => {
+            if (geocodeCancelRef.current) {
+              clearTimeout(t);
+              clearInterval(check);
+              resolve();
+            }
+          }, 100);
+          setTimeout(() => clearInterval(check), 1200);
+        });
+      }
+
+      // Volver a chequear después del delay
+      if (geocodeCancelRef.current) {
+        dispatch({ type: 'SET_STEP', payload: 'upload' });
+        geocodeCancelRef.current = false;
+        return;
       }
 
       const addr = addresses[i];
+      const t0 = Date.now(); // timestamp antes de geocodificar
       let updated: Address;
 
       try {
@@ -941,6 +972,10 @@ supabase.removeChannel(locChannel);
 
       updatedAddresses[i] = updated;
       dispatch({ type: 'UPDATE_ADDRESS', payload: updated });
+      
+      // Guardar timestamp para cálculo de ETA
+      const elapsed = Date.now() - t0;
+      geocodeTimestampsRef.current = [...geocodeTimestampsRef.current.slice(-4), elapsed];
     }
 
     dispatch({ type: 'SET_ADDRESSES', payload: updatedAddresses });
@@ -1937,12 +1972,30 @@ supabase.removeChannel(locChannel);
 
         {/* ── Overlay: progreso de geocoding ── */}
         {state.step === 'geocoding' && (() => {
-          const total  = state.addresses.length;
-          const done   = state.addresses.filter(a => a.geocoded).length;
-          const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
-          const errors = state.addresses.filter(a => a.geocoded && a.geocodeError).length;
+          const total    = state.addresses.length;
+          const done     = state.addresses.filter(a => a.geocoded).length;
+          const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
+          const errors   = state.addresses.filter(a => a.geocoded && a.geocodeError).length;
+          const success  = done - errors;
           const lastAddr = [...state.addresses].filter(a => a.geocoded).at(-1)?.raw || '';
           const isComplete = pct === 100;
+
+          // ETA estimado
+          const avgMs = geocodeTimestampsRef.current.length > 0
+            ? geocodeTimestampsRef.current.reduce((a, b) => a + b, 0) / geocodeTimestampsRef.current.length
+            : 1100;
+          const remaining = total - done;
+          const etaSeconds = Math.ceil((remaining * (avgMs + 1100)) / 1000);
+          const etaLabel = etaSeconds > 60
+            ? `~${Math.ceil(etaSeconds / 60)} min`
+            : `~${etaSeconds}s`;
+
+          // Dirección actual (la que se está procesando ahora)
+          const currentAddr = [...state.addresses].find(a => !a.geocoded)?.raw || lastAddr;
+
+          // Porcentaje animado — actualizar con useState/useRef no es posible dentro de un IIFE
+          // Se usa la misma técnica: mostrar pct directamente pero con una transición CSS
+          // en el número usando una key que cambia
 
           // posición del camión: 0% → 8% de la pista, 100% → 78% (para que el camión "frene")
           const truckPos = isComplete ? 78 : 8 + (pct / 100) * 70;
@@ -1950,9 +2003,9 @@ supabase.removeChannel(locChannel);
           return (
             <div style={{
               position: 'fixed', inset: 0, zIndex: 9999,
-              background: 'rgba(5,12,28,0.75)',
-              backdropFilter: 'blur(6px)',
-              WebkitBackdropFilter: 'blur(6px)',
+              background: 'radial-gradient(ellipse at center, rgba(5,12,28,0.6) 0%, rgba(5,12,28,0.92) 100%)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <div style={{
@@ -1967,16 +2020,69 @@ supabase.removeChannel(locChannel);
                 position: 'relative',
               }}>
 
-                {/* Título */}
+                {/* Título / Resumen */}
                 <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                  <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase',
-                    color: '#5B7BA0', fontFamily: "'Exo 2', sans-serif", marginBottom: 4 }}>
-                    {isComplete ? '✓ Geocodificación completa' : 'Geocodificando direcciones'}
-                  </div>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: '#E8EFF8',
-                    fontFamily: "'Exo 2', sans-serif" }}>
-                    {pct}<span style={{ fontSize: 14, color: '#5B7BA0' }}>%</span>
-                  </div>
+                  {isComplete ? (
+                    // Resumen rico al completar
+                    <div style={{ animation: 'fadeInDown 0.4s ease' }}>
+                      <div style={{ fontSize: 28, marginBottom: 4 }}>✅</div>
+                      <div style={{
+                        fontSize: 14, fontWeight: 700, color: '#22c55e',
+                        fontFamily: "'Exo 2', sans-serif", marginBottom: 6,
+                      }}>
+                        Geocodificación completa
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: 16 }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 22, fontWeight: 800, color: '#22c55e',
+                            fontFamily: "'Exo 2', sans-serif" }}>
+                            {success}
+                          </div>
+                          <div style={{ fontSize: 9, color: '#5B7BA0', textTransform: 'uppercase',
+                            letterSpacing: '0.08em' }}>geocodificadas</div>
+                        </div>
+                        {errors > 0 && (
+                          <>
+                            <div style={{ width: 1, background: 'rgba(255,255,255,0.06)' }} />
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: 22, fontWeight: 800, color: '#F59E0B',
+                                fontFamily: "'Exo 2', sans-serif" }}>
+                                {errors}
+                              </div>
+                              <div style={{ fontSize: 9, color: '#5B7BA0', textTransform: 'uppercase',
+                                letterSpacing: '0.08em' }}>con errores</div>
+                            </div>
+                          </>
+                        )}
+                        <div style={{ width: 1, background: 'rgba(255,255,255,0.06)' }} />
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 22, fontWeight: 800, color: '#60a5fa',
+                            fontFamily: "'Exo 2', sans-serif" }}>
+                            {total}
+                          </div>
+                          <div style={{ fontSize: 9, color: '#5B7BA0', textTransform: 'uppercase',
+                            letterSpacing: '0.08em' }}>total</div>
+                        </div>
+                      </div>
+                      {errors > 0 && (
+                        <p style={{ fontSize: 10, color: '#F59E0B', marginTop: 8, marginBottom: 0 }}>
+                          ⚠ {errors} direcci{errors > 1 ? 'ones requieren' : 'ón requiere'} revisión
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    // Título durante geocoding
+                    <>
+                      <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase',
+                        color: '#5B7BA0', fontFamily: "'Exo 2', sans-serif", marginBottom: 4 }}>
+                        Geocodificando direcciones
+                      </div>
+                      <div style={{ fontSize: 28, fontWeight: 700, color: '#E8EFF8',
+                        fontFamily: "'Exo 2', sans-serif", fontVariantNumeric: 'tabular-nums' }}>
+                        {pct}<span style={{ fontSize: 14, color: isComplete ? '#22c55e' : '#5B7BA0' }}>%</span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Pista de camión */}
@@ -2001,6 +2107,36 @@ supabase.removeChannel(locChannel);
                     transition: 'width 0.35s ease-out',
                     boxShadow: '0 0 8px rgba(33,150,243,0.4)',
                   }} />
+
+                  {/* Marcas de banqueta — líneas perpendiculares en los bordes */}
+                  {Array.from({ length: 12 }).map((_, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        position: 'absolute',
+                        bottom: 10, // debajo de la carretera
+                        left: `${(idx / 11) * 92 + 4}%`,
+                        width: 2,
+                        height: 6,
+                        borderRadius: 1,
+                        background: 'rgba(33,150,243,0.12)',
+                      }}
+                    />
+                  ))}
+                  {Array.from({ length: 12 }).map((_, idx) => (
+                    <div
+                      key={`top-${idx}`}
+                      style={{
+                        position: 'absolute',
+                        bottom: 22, // encima de la carretera
+                        left: `${(idx / 11) * 92 + 4}%`,
+                        width: 2,
+                        height: 6,
+                        borderRadius: 1,
+                        background: 'rgba(33,150,243,0.12)',
+                      }}
+                    />
+                  ))}
 
                   {/* CAMIÓN SVG */}
                   <div style={{
@@ -2053,32 +2189,97 @@ supabase.removeChannel(locChannel);
                           <path d="M10 5v14" stroke="#B45309" strokeWidth="1" />
                           <rect x="5" y="5" width="10" height="4" rx="1" fill="#FCD34D" opacity="0.6" />
                         </svg>
+
+                        {/* Confetti */}
+                        {[
+                          { anim: 'confetti1', color: '#2196F3', delay: '0.1s', shape: 'rect' },
+                          { anim: 'confetti2', color: '#F59E0B', delay: '0.05s', shape: 'circle' },
+                          { anim: 'confetti3', color: '#10B981', delay: '0.15s', shape: 'rect' },
+                          { anim: 'confetti4', color: '#EC4899', delay: '0s', shape: 'circle' },
+                          { anim: 'confetti5', color: '#8B5CF6', delay: '0.08s', shape: 'rect' },
+                          { anim: 'confetti6', color: '#F97316', delay: '0.12s', shape: 'circle' },
+                        ].map((c, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              position: 'absolute',
+                              top: '50%', left: '50%',
+                              width: c.shape === 'rect' ? 6 : 5,
+                              height: c.shape === 'rect' ? 4 : 5,
+                              borderRadius: c.shape === 'circle' ? '50%' : 1,
+                              background: c.color,
+                              animation: `${c.anim} 0.7s ease-out ${c.delay} both`,
+                              pointerEvents: 'none',
+                            }}
+                          />
+                        ))}
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Dirección actual */}
-                {lastAddr && !isComplete && (
+                {/* Dirección actual con typewriter */}
+                {!isComplete && (
                   <div style={{
-                    fontSize: 10.5, color: '#5B7BA0', marginBottom: 10,
+                    fontSize: 10, color: '#5B7BA0', marginBottom: 8,
                     fontFamily: "'DM Sans', sans-serif",
+                    textAlign: 'center', minHeight: 16,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    textAlign: 'center',
                   }}>
-                    {lastAddr}
+                    {currentAddr ? (
+                      <span
+                        key={currentAddr} // key fuerza re-mount al cambiar dirección → reinicia animación
+                        style={{ animation: 'typewriter 0.6s steps(40) forwards' }}
+                      >
+                        {currentAddr}
+                      </span>
+                    ) : (
+                      <span style={{ opacity: 0.4 }}>Procesando...</span>
+                    )}
                   </div>
                 )}
 
-                {/* Contador done/total */}
+                {/* Contador + ETA */}
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   fontSize: 11, color: '#5B7BA0', marginBottom: 6,
                   fontFamily: "'DM Sans', sans-serif" }}>
                   <span>{done} de {total} direcciones</span>
-                  {errors > 0 && (
-                    <span style={{ color: '#F59E0B' }}>⚠ {errors} sin match</span>
-                  )}
+                  <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {errors > 0 && (
+                      <span style={{ color: '#F59E0B' }}>⚠ {errors} errores</span>
+                    )}
+                    {!isComplete && done > 0 && (
+                      <span style={{ color: '#3B5270' }}>{etaLabel}</span>
+                    )}
+                  </span>
                 </div>
+
+                {/* Botón cancelar */}
+                {!isComplete && (
+                  <button
+                    onClick={() => { geocodeCancelRef.current = true; }}
+                    style={{
+                      display: 'block', margin: '8px auto 0',
+                      background: 'transparent',
+                      border: '1px solid rgba(239,68,68,0.2)',
+                      borderRadius: 8, padding: '5px 16px',
+                      color: '#f87171', fontSize: 10,
+                      fontFamily: "'Exo 2', sans-serif",
+                      cursor: 'pointer', letterSpacing: '0.06em',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.1)';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239,68,68,0.4)';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLElement).style.background = 'transparent';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239,68,68,0.2)';
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                )}
 
                 {/* Barra de progreso */}
                 <div style={{ width: '100%', height: 5, borderRadius: 99,
@@ -2093,6 +2294,69 @@ supabase.removeChannel(locChannel);
                     boxShadow: isComplete ? '0 0 6px rgba(34,197,94,0.4)' : '0 0 6px rgba(33,150,243,0.3)',
                   }} />
                 </div>
+                
+                {isComplete && errors > 0 && (() => {
+                  const errorAddrs = state.addresses.filter(a => a.geocoded && a.geocodeError);
+                  return (
+                    <div style={{ marginTop: 12 }}>
+                      <details style={{ cursor: 'pointer' }}>
+                        <summary style={{
+                          fontSize: 10, color: '#F59E0B', fontFamily: "'Exo 2', sans-serif",
+                          letterSpacing: '0.06em', listStyle: 'none', outline: 'none',
+                          display: 'flex', alignItems: 'center', gap: 4,
+                        }}>
+                          <span>▶</span>
+                          <span>Ver {errors} dirección{errors > 1 ? 'es' : ''} con errores</span>
+                        </summary>
+                        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4,
+                          maxHeight: 120, overflowY: 'auto' }}>
+                          {errorAddrs.map((addr, i) => (
+                            <div key={i} style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              padding: '4px 8px', borderRadius: 6,
+                              background: 'rgba(239,68,68,0.06)',
+                              border: '1px solid rgba(239,68,68,0.15)',
+                              gap: 6,
+                            }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ fontSize: 9, color: '#f87171', margin: 0,
+                                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  ❌ {addr.raw}
+                                </p>
+                                <p style={{ fontSize: 8, color: '#5B7BA0', margin: 0 }}>
+                                  {addr.geocodeError}
+                                </p>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  // Reintentar geocoding para esta dirección
+                                  const { geocodeAddress } = await import('@/lib/nominatim');
+                                  try {
+                                    const geo = await geocodeAddress(addr.raw);
+                                    const updated = geo
+                                      ? { ...addr, lat: geo.lat, lng: geo.lng, label: geo.label, geocodeError: undefined }
+                                      : addr;
+                                    dispatch({ type: 'UPDATE_ADDRESS', payload: updated });
+                                  } catch {}
+                                }}
+                                style={{
+                                  fontSize: 9, padding: '2px 6px', borderRadius: 4,
+                                  background: 'rgba(239,68,68,0.1)',
+                                  border: '1px solid rgba(239,68,68,0.25)',
+                                  color: '#f87171', cursor: 'pointer',
+                                  fontFamily: "'Exo 2', sans-serif",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                ↻
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Keyframes para el paquete */}
@@ -2102,6 +2366,16 @@ supabase.removeChannel(locChannel);
                   60%  { transform: translateX(-50%) translateY(4px); opacity: 1; }
                   80%  { transform: translateX(-50%) translateY(-4px); }
                   100% { transform: translateX(-50%) translateY(0px); opacity: 1; }
+                }
+                @keyframes confetti1 { 0% { transform: translate(0,0) rotate(0deg); opacity:1; } 100% { transform: translate(-24px,-36px) rotate(180deg); opacity:0; } }
+                @keyframes confetti2 { 0% { transform: translate(0,0) rotate(0deg); opacity:1; } 100% { transform: translate(20px,-40px) rotate(-120deg); opacity:0; } }
+                @keyframes confetti3 { 0% { transform: translate(0,0) rotate(0deg); opacity:1; } 100% { transform: translate(32px,-28px) rotate(200deg); opacity:0; } }
+                @keyframes confetti4 { 0% { transform: translate(0,0) rotate(0deg); opacity:1; } 100% { transform: translate(-16px,-44px) rotate(-90deg); opacity:0; } }
+                @keyframes confetti5 { 0% { transform: translate(0,0) rotate(0deg); opacity:1; } 100% { transform: translate(8px,-50px) rotate(270deg); opacity:0; } }
+                @keyframes confetti6 { 0% { transform: translate(0,0) rotate(0deg); opacity:1; } 100% { transform: translate(-32px,-32px) rotate(150deg); opacity:0; } }
+                @keyframes typewriter {
+                  from { clip-path: inset(0 100% 0 0); }
+                  to   { clip-path: inset(0 0% 0 0); }
                 }
               `}</style>
             </div>

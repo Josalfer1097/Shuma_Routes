@@ -1,6 +1,14 @@
 {
   "updated": "2026-06-27",
   "items": [
+    { "type": "new",     "text": "Geocoding: botón Cancelar para abortar el proceso sin perder la configuración de choferes" },
+    { "type": "new",     "text": "Geocoding: errores expandibles con opción de reintentar cada dirección fallida individualmente" },
+    { "type": "new",     "text": "Geocoding: estimado de tiempo restante calculado con las últimas 5 geocodificaciones" },
+    { "type": "new",     "text": "Geocoding: resumen visual rico al completar — geocodificadas / con errores / total" },
+    { "type": "new",     "text": "Geocoding: confetti de 6 partículas cuando el paquete hace bounce al llegar al 100%" },
+    { "type": "improve", "text": "Geocoding: carretera con marcas de banqueta perpendiculares para más profundidad visual" },
+    { "type": "improve", "text": "Geocoding: dirección actual con animación typewriter (clip-path) al cambiar" },
+    { "type": "improve", "text": "Geocoding: backdrop con blur 12px y viñeta radial para enfocar la atención al centro" },
     { "type": "new",     "text": "Clima: alerta de calor extremo cuando la temperatura supera 35°C" },
     { "type": "new",     "text": "Clima: botón para compartir alerta climática por WhatsApp al grupo de choferes" },
     { "type": "new",     "text": "Clima: micro-gráfico de precipitación en cada hora del pronóstico" },
