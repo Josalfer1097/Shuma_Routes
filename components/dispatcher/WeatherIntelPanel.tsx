@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Cloud, CloudRain, Sun, Wind, Droplets, Eye, Gauge, Thermometer, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Cloud, CloudRain, Sun, Wind, Droplets, Eye, Gauge, Thermometer, X, Navigation } from 'lucide-react';
 import type { WeatherData, HourlyForecast } from '@/lib/weather';
 
 interface Props {
@@ -48,12 +48,48 @@ const NAV_BTN = {
 
 export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
   const [open, setOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const touchStartY = useRef<number | null>(null);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const deltaY = e.touches[0].clientY - touchStartY.current;
+    if (deltaY > 60) {
+      setOpen(false);
+      touchStartY.current = null;
+    }
+  };
 
   const hasAlert  = weather.alerts.length > 0;
   const isRaining = weather.description.toLowerCase().includes('lluv') ||
                     weather.description.toLowerCase().includes('torment');
   const alertColor = hasAlert ? '#ef4444' : isRaining ? '#f59e0b' : '#22c55e';
   const AlertIcon  = hasAlert || isRaining ? CloudRain : weather.clouds > 60 ? Cloud : Sun;
+
+  // Fondo dinámico según condición climática
+  const getBackgroundGradient = () => {
+    const desc = weather.description.toLowerCase();
+    if (desc.includes('torment') || desc.includes('lluv')) {
+      return 'linear-gradient(135deg, #0a1420 0%, #0d1828 100%)'; // azul muy oscuro lluvia
+    }
+    if (weather.clouds > 60) {
+      return 'linear-gradient(135deg, #141a24 0%, #1a2230 100%)'; // gris nublado
+    }
+    if (desc.includes('despejado') || desc.includes('clear') || weather.clouds < 30) {
+      return 'linear-gradient(135deg, #0a1830 0%, #0f2547 100%)'; // azul cielo despejado
+    }
+    return 'linear-gradient(135deg, #0a1628 0%, #0d1f3c 100%)'; // default
+  };
 
   const datos = [
     {
@@ -69,10 +105,18 @@ export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
       tooltip: 'Porcentaje de humedad relativa del aire. >80% puede afectar la comodidad del conductor',
     },
     {
-      icon: <Wind size={12} />,
+      icon: (
+        <span style={{
+          display: 'inline-flex',
+          transform: `rotate(${weather.windDeg}deg)`,
+          transition: 'transform 0.5s ease',
+        }}>
+          <Navigation size={12} />
+        </span>
+      ),
       label: 'Viento',
       value: `${weather.windSpeed} km/h ${getWindShort(weather.windDeg)}`,
-      tooltip: `Velocidad del viento: ${weather.windSpeed} km/h. Dirección: ${getWindDirection(weather.windDeg)}. Vientos >50 km/h pueden dificultar la conducción`,
+      tooltip: `Velocidad del viento: ${weather.windSpeed} km/h. Dirección: ${getWindDirection(weather.windDeg)}. La flecha apunta hacia donde sopla. Vientos >50 km/h dificultan la conducción`,
     },
     {
       icon: <Gauge size={12} />,
@@ -129,13 +173,29 @@ export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
         <AlertIcon size={14} />
         <span className="hidden-mobile">{weather.temp}°C</span>
         {hasAlert && (
-          <span style={{
-            position: 'absolute', top: 3, right: 3,
-            width: 5, height: 5, borderRadius: '50%',
-            background: '#ef4444',
-            boxShadow: '0 0 5px #ef4444',
-            animation: 'pulse-dot 1.5s ease-in-out infinite',
-          }} />
+          weather.alerts.length > 1 ? (
+            <span style={{
+              position: 'absolute', top: -4, right: -4,
+              minWidth: 16, height: 16, padding: '0 4px',
+              borderRadius: 99,
+              background: '#ef4444',
+              boxShadow: '0 0 8px rgba(239,68,68,0.6)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 9, fontWeight: 700, color: 'white',
+              fontFamily: "'Exo 2', sans-serif",
+              animation: 'pulse-dot 1.5s ease-in-out infinite',
+            }}>
+              ⚠{weather.alerts.length}
+            </span>
+          ) : (
+            <span style={{
+              position: 'absolute', top: 3, right: 3,
+              width: 5, height: 5, borderRadius: '50%',
+              background: '#ef4444',
+              boxShadow: '0 0 5px #ef4444',
+              animation: 'pulse-dot 1.5s ease-in-out infinite',
+            }} />
+          )
         )}
       </button>
 
@@ -183,25 +243,32 @@ export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
           <div style={{
             position: 'absolute',
             top: 'calc(100% + 8px)',
-            left: 0,
+            left: isMobile ? 'auto' : 0,
+            right: isMobile ? 0 : 'auto',
             zIndex: 999,
             width: 290,
-            background: 'linear-gradient(135deg, #0a1628 0%, #0d1f3c 100%)',
+            maxWidth: 'calc(100vw - 24px)',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            background: getBackgroundGradient(),
             border: `1px solid ${alertColor}40`,
             borderRadius: 16,
             boxShadow: `0 20px 60px rgba(0,0,0,0.6), 0 0 30px ${alertColor}20`,
-            overflow: 'visible',
             animation: 'fadeInDown 0.2s ease-out',
           }}>
 
             {/* Header */}
-            <div style={{
-              padding: '14px 16px 10px',
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-            }}>
+            <div
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              style={{
+                padding: '14px 16px 10px',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+              }}
+            >
               <div>
                 <p style={{ fontSize: 9, color: '#5B7BA0', letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: "'Exo 2',sans-serif", margin: 0 }}>
                   INTELIGENCIA CLIMÁTICA · CDMX
@@ -283,6 +350,23 @@ export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
                         }}>
                           {f.temp}°
                         </p>
+                        {/* Micro-barra de precipitación */}
+                        <div style={{
+                          height: 20, display: 'flex', alignItems: 'flex-end',
+                          justifyContent: 'center', marginTop: 2,
+                        }}>
+                          <div style={{
+                            width: 4,
+                            height: `${Math.max(f.pop * 20, 2)}px`,
+                            borderRadius: 2,
+                            background: f.pop > 0.5
+                              ? 'linear-gradient(to top, #3b82f6, #60a5fa)'
+                              : f.pop > 0.2
+                                ? 'rgba(96,165,250,0.6)'
+                                : 'rgba(96,165,250,0.25)',
+                            transition: 'height 0.3s ease',
+                          }} />
+                        </div>
                         {f.pop > 0.1 && (
                           <p style={{ fontSize: 9, color: '#60a5fa', margin: '1px 0 0' }}>
                             {Math.round(f.pop * 100)}%
@@ -341,6 +425,36 @@ export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
               <span title="Hora de amanecer en CDMX">🌅 Amanecer: {formatTime(weather.sunrise)}</span>
               <span title="Hora de atardecer en CDMX">🌇 Atardecer: {formatTime(weather.sunset)}</span>
             </div>
+
+            {weather.alerts.length > 0 && (
+              <div style={{ padding: '8px 12px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <button
+                  onClick={() => {
+                    const msg = `⚠️ ALERTA CLIMÁTICA SHUMA · CDMX\n\n${weather.temp}°C — ${weather.description}\n\n${weather.alerts.join('\n')}\n\nPrecaución en rutas de entrega.`;
+                    navigator.clipboard.writeText(msg).then(() => {
+                      // Intentar abrir WhatsApp Web/App con el mensaje
+                      const encoded = encodeURIComponent(msg);
+                      window.open(`https://wa.me/?text=${encoded}`, '_blank');
+                    });
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    padding: '8px 12px',
+                    background: 'rgba(37,211,102,0.1)',
+                    border: '1px solid rgba(37,211,102,0.3)',
+                    borderRadius: 8, cursor: 'pointer',
+                    color: '#25d366', fontSize: 11, fontWeight: 700,
+                    fontFamily: "'Exo 2', sans-serif",
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(37,211,102,0.18)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(37,211,102,0.1)')}
+                >
+                  <span>📲</span> Compartir alerta por WhatsApp
+                </button>
+              </div>
+            )}
 
           </div>
         </>

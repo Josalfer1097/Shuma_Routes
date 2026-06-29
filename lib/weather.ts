@@ -1,4 +1,4 @@
-﻿export interface HourlyForecast {
+export interface HourlyForecast {
   time: number;       // unix timestamp
   temp: number;
   description: string;
@@ -79,7 +79,7 @@ export async function getWeatherCDMX(lat: number, lng: number): Promise<WeatherD
 
     // Alerta de temperatura extrema
     if (tempC >= 35) {
-      alerts.push(`🌡️ Calor extremo: ${tempC}°C — hidratación y descanso para conductores`);
+      alerts.push(`🔥 Calor extremo: ${tempC}°C — hidratación frecuente para conductores, evitar exposición prolongada`);
     } else if (tempC <= 4) {
       alerts.push(`🥶 Temperatura baja: ${tempC}°C — riesgo de hielo en carretera`);
     }

@@ -457,7 +457,7 @@ export default function HomePage() {
             e.currentTarget.style.borderColor = changelog ? 'rgba(33,150,243,0.2)' : 'transparent';
           }}
         >
-          v7.29.5{changelog ? ' · Ver novedades  ' : ''}
+          v7.29.6{changelog ? ' · Ver novedades  ' : ''}
         </button>
         <style>{`
           @keyframes rgbRoll {
@@ -520,7 +520,7 @@ export default function HomePage() {
                   fontSize: 16, fontWeight: 700, color: '#E8EFF8',
                   fontFamily: "'Exo 2', sans-serif", margin: 0,
                 }}>
-                  🌟 Novedades v7.29.5
+                  🌟 Novedades v7.29.6
                 </h2>
                 <p style={{
                   fontSize: 11, color: '#5B7BA0', margin: '4px 0 0',

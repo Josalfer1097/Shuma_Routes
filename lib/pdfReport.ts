@@ -234,9 +234,27 @@ export async function generatePDFReport(
     const considerations = [
       `• Hora de comida incluida: ${LUNCH_MINS} minutos por chofer`,
       `• Tiempo de descarga: ${getUnloadMins('Camión grande')}m camión grande · ${getUnloadMins('Camión chico')}m camión chico · ${getUnloadMins('Camioneta')}m camioneta`,
-      weather ? `• Clima CDMX: ${weather.temp}°C — ${weather.description} · Humedad: ${weather.humidity}% · Viento: ${weather.windSpeed} km/h` : '• Clima CDMX: No disponible',
+      weather
+        ? `• Clima CDMX: ${weather.temp}°C — ${weather.description} · Humedad: ${weather.humidity}% · Viento: ${weather.windSpeed} km/h${weather.alerts?.length > 0 ? ` · ⚠ ${weather.alerts.length} alerta(s) activa(s)` : ''}`
+        : '• Clima CDMX: No disponible',
     ];
     considerations.forEach((line, i) => doc.text(line, 24, noteY + 13 + i * 4));
+
+    // Sección de alertas climáticas (si hay)
+    if (weather?.alerts && weather.alerts.length > 0) {
+      let alertY = noteY + 13 + considerations.length * 4 + 3;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...SLATE6);
+      doc.text('Condiciones del día — Alertas:', 24, alertY);
+      doc.setFont('helvetica', 'normal');
+      weather.alerts.forEach((alert, i) => {
+        alertY += 4;
+        // Limpiar emojis para el PDF (jsPDF puede no renderizarlos)
+        const cleanAlert = alert.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '').replace(/[\u2600-\u27BF]/g, '').trim();
+        doc.text(`  - ${cleanAlert}`, 24, alertY);
+      });
+    }
   }
 
   // ════════════════════════════════════════════════════════════════

@@ -1,6 +1,14 @@
 {
   "updated": "2026-06-27",
   "items": [
+    { "type": "new",     "text": "Clima: alerta de calor extremo cuando la temperatura supera 35°C" },
+    { "type": "new",     "text": "Clima: botón para compartir alerta climática por WhatsApp al grupo de choferes" },
+    { "type": "new",     "text": "Clima: micro-gráfico de precipitación en cada hora del pronóstico" },
+    { "type": "new",     "text": "Clima: sección 'Condiciones del día' con alertas en el PDF de reporte" },
+    { "type": "improve", "text": "Clima: fondo del panel cambia según la condición (despejado, nublado, lluvia)" },
+    { "type": "improve", "text": "Clima: ícono de viento rota según la dirección real del viento" },
+    { "type": "improve", "text": "Clima: badge muestra el número de alertas activas (⚠2) cuando hay varias" },
+    { "type": "improve", "text": "Clima: en mobile el panel se ajusta a la pantalla con scroll y swipe-down para cerrar" },
     { "type": "new",     "text": "Texto: nueva escala 'Compacto' (85%) para ver más información en pantallas pequeñas" },
     { "type": "new",     "text": "Texto: vista previa en tiempo real al pasar el mouse sobre cada opción de tamaño" },
     { "type": "improve", "text": "Texto: cada opción muestra una 'A' en su tamaño real como indicador visual" },
