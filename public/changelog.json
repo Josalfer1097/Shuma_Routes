@@ -1,6 +1,12 @@
 {
   "updated": "2026-06-27",
   "items": [
+    { "type": "new",     "text": "Texto: nueva escala 'Compacto' (85%) para ver más información en pantallas pequeñas" },
+    { "type": "new",     "text": "Texto: vista previa en tiempo real al pasar el mouse sobre cada opción de tamaño" },
+    { "type": "improve", "text": "Texto: cada opción muestra una 'A' en su tamaño real como indicador visual" },
+    { "type": "improve", "text": "Texto: el botón del header muestra la escala activa (ej. 'Aa Grande')" },
+    { "type": "improve", "text": "Texto: handle de arrastre más grande (40px) en el panel mobile y transición suave al cambiar" },
+    { "type": "improve", "text": "Texto: la escala vuelve a Normal automáticamente al cerrar sesión" },
     { "type": "new",     "text": "Rutas Activas: selector para ordenar rutas por porcentaje completado, riesgo de retraso o km recorridos (v7.29.4)" },
     { "type": "new",     "text": "Rutas Activas: desglose expandible de entregas en cada tarjeta de ruta activa" },
     { "type": "new",     "text": "Rutas Activas: nuevo badge 'A tiempo' y estado 'Inactivo' (>45m) con alertas Toast" },

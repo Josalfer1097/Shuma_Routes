@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 
-type FontScale = 1 | 1.15 | 1.3 | 1.5 | 1.8;
+type FontScale = 0.85 | 1 | 1.15 | 1.3 | 1.5 | 1.8;
 
 interface FontScaleContextType {
   scale: FontScale;
@@ -29,7 +29,7 @@ export function FontScaleProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem('shuma-rutas-font-scale');
     if (saved) {
       const parsed = parseFloat(saved) as FontScale;
-      if (([1, 1.15, 1.3, 1.5, 1.8] as number[]).includes(parsed)) {
+      if (([0.85, 1, 1.15, 1.3, 1.5, 1.8] as number[]).includes(parsed)) {
         setScaleState(parsed as FontScale);
         applyScale(parsed as FontScale);
       }

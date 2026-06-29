@@ -221,3 +221,17 @@
   background: rgba(245,158,11,0.16);
   border-color: rgba(245,158,11,0.5);
 }
+
+/* Transición suave al cambiar escala de texto */
+[class*="text-scale-"] {
+  transition: font-size 0.2s ease;
+}
+:root {
+  transition: font-size 0.2s ease;
+}
+html[data-font-preview="true"] {
+  font-size: calc(16px * var(--font-scale-preview, 1)) !important;
+}
+html[data-font-preview="true"] [class*="text-scale-"] {
+  /* Si text-scale- se basan en rem, se ajustan solos al cambiar el font-size de html. */
+}

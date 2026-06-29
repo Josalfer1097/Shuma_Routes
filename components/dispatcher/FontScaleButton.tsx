@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useFontScale } from '@/lib/fontScaleContext';
 
 const SCALE_OPTIONS = [
+  { label: 'Compacto',    value: 0.85 as const, desc: 'Más información' },
   { label: 'Normal',      value: 1    as const, desc: 'Predeterminado' },
   { label: 'Grande',      value: 1.15 as const, desc: 'Un poco más' },
   { label: 'Más grande',  value: 1.3  as const, desc: 'Fácil lectura' },
@@ -16,6 +17,17 @@ export default function FontScaleButton() {
   const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState<number | null>(null);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (previewScale !== null) {
+      root.style.setProperty('--font-scale-preview', String(previewScale));
+      root.setAttribute('data-font-preview', 'true');
+    } else {
+      root.removeAttribute('data-font-preview');
+    }
+  }, [previewScale]);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -84,7 +96,11 @@ export default function FontScaleButton() {
           <span style={{ fontSize: 9 }}>A</span>
           <span style={{ fontSize: 13 }}>a</span>
         </span>
-        <span className="hidden-mobile" style={{ fontSize: 11 }}>Texto</span>
+        <span className="hidden-mobile" style={{ fontSize: 11 }}>
+          {isActive
+            ? (SCALE_OPTIONS.find(o => o.value === scale)?.label || 'Texto')
+            : 'Texto'}
+        </span>
       </button>
 
       {/* Popover desktop */}
@@ -139,6 +155,7 @@ export default function FontScaleButton() {
                     transition: 'all 0.15s',
                   }}
                   onMouseEnter={e => {
+                    setPreviewScale(opt.value);
                     if (!active) {
                       e.currentTarget.style.background = 'rgba(33,150,243,0.08)';
                       e.currentTarget.style.color = '#E8EFF8';
@@ -146,6 +163,7 @@ export default function FontScaleButton() {
                     }
                   }}
                   onMouseLeave={e => {
+                    setPreviewScale(null);
                     if (!active) {
                       e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
                       e.currentTarget.style.color = '#5B7BA0';
@@ -153,7 +171,20 @@ export default function FontScaleButton() {
                     }
                   }}
                 >
-                  <span>{opt.label}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontWeight: 700,
+                      fontSize: Math.round(11 * opt.value),
+                      lineHeight: 1,
+                      minWidth: 20,
+                      textAlign: 'center',
+                      color: active ? BLUE : '#5B7BA0',
+                    }}>
+                      A
+                    </span>
+                    <span>{opt.label}</span>
+                  </span>
                   {active && <span style={{ color: BLUE, fontSize: 11 }}>✓</span>}
                 </button>
               );
@@ -215,8 +246,8 @@ export default function FontScaleButton() {
                 to   { transform: translateY(0); }
               }
             `}</style>
-            <div style={{ width: 32, height: 3, borderRadius: 2, background: '#112040',
-              margin: '0 auto 12px' }} />
+            <div style={{ width: 40, height: 4, borderRadius: 99, background: '#1E3A5F',
+              margin: '0 auto 16px' }} />
             <p style={{ fontSize: 11, color: '#5B7BA0', marginBottom: 12, textAlign: 'center',
               fontFamily: "'Exo 2', sans-serif" }}>
               🔠 Tamaño de texto
@@ -241,9 +272,22 @@ export default function FontScaleButton() {
                       fontFamily: "'Exo 2', sans-serif",
                     }}
                   >
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontSize: 12, fontWeight: active ? 600 : 400 }}>{opt.label}</div>
-                      <div style={{ fontSize: 10, color: '#3B5270' }}>{opt.desc}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontWeight: 700,
+                        fontSize: Math.round(14 * opt.value),
+                        lineHeight: 1,
+                        minWidth: 28,
+                        textAlign: 'center',
+                        color: active ? BLUE : '#5B7BA0',
+                      }}>
+                        A
+                      </span>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: 12, fontWeight: active ? 600 : 400 }}>{opt.label}</div>
+                        <div style={{ fontSize: 10, color: '#3B5270' }}>{opt.desc}</div>
+                      </div>
                     </div>
                     {active && <span style={{ color: BLUE, fontSize: 14 }}>✓</span>}
                   </button>

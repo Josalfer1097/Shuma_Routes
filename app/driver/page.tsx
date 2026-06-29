@@ -454,6 +454,7 @@ export default function DriverPage() {
     localStorage.removeItem('shuma_last_active_role');
     localStorage.removeItem('shuma_last_active_time');
     localStorage.removeItem('shuma_auth');
+    localStorage.removeItem('shuma-rutas-font-scale'); // ← reset escala de texto
     sessionStorage.clear();
     router.push('/');
   };
