@@ -166,7 +166,13 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
 
     if (routes.length > 0) {
       // Dibujar bodegas de salida únicas
-      const uniqueDepots = Array.from(new Map(routes.map((r) => [r.depot.id, r.depot])).values());
+      const uniqueDepots = Array.from(
+        new Map(
+          routes
+            .filter(r => r.depot?.id)
+            .map(r => [r.depot.id, r.depot])
+        ).values()
+      );
       uniqueDepots.forEach((d) => {
         const marker = new AdvancedMarkerElement({
           position: { lat: d.lat, lng: d.lng },
@@ -174,7 +180,7 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
           content: createDepotPin('SALIDA', '#F97316', 1.4), // Naranja, escala 1.4 y sombra
         });
         let depTimeStr = '—';
-        const routeForDepot = routes.find(r => r.depot.id === d.id);
+        const routeForDepot = routes.find(r => r.depot?.id === d.id);
         if (routeForDepot && routeForDepot.departureTime) {
           const dDate = new Date(routeForDepot.departureTime);
           depTimeStr = dDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -191,8 +197,8 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
 
       // Dibujar bodegas de regreso únicas (sólo si difieren de las de salida)
       const endDepots = routes
-        .map((r) => r.endDepot ?? r.depot)
-        .filter((ed) => !uniqueDepots.some((d) => d.id === ed.id));
+        .map(r => r.endDepot ?? r.depot)
+        .filter(ed => ed?.id && !uniqueDepots.some(d => d.id === ed.id));
       const uniqueEndDepots = Array.from(new Map(endDepots.map((d) => [d.id, d])).values());
 
       uniqueEndDepots.forEach((d) => {

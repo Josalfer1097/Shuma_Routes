@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
               id: d.id,
               name: d.client_name || 'Cliente',
               clientName: d.client_name,
+              raw: d.address || '',
               invoice: d.invoice,
               merchandiseValue: d.merchandise_value,
               lat: d.lat,
