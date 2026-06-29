@@ -126,6 +126,16 @@
   to   { background-position: 400% center; }
 }
 
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes activeRoutePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}
+
 .text-scale-xs   { font-size: var(--font-xs); }
 .text-scale-sm   { font-size: var(--font-sm); }
 .text-scale-base { font-size: var(--font-base); }

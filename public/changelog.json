@@ -1,6 +1,12 @@
 {
   "updated": "2026-06-27",
   "items": [
+    { "type": "new",     "text": "Rutas Activas: selector para ordenar rutas por porcentaje completado, riesgo de retraso o km recorridos (v7.29.4)" },
+    { "type": "new",     "text": "Rutas Activas: desglose expandible de entregas en cada tarjeta de ruta activa" },
+    { "type": "new",     "text": "Rutas Activas: nuevo badge 'A tiempo' y estado 'Inactivo' (>45m) con alertas Toast" },
+    { "type": "improve", "text": "Rutas Activas: animación shimmer en barra de progreso y micro-pulse de status en tiempo real" },
+    { "type": "improve", "text": "Rutas Activas: acciones de mapa ahora viven en la cabecera de la tarjeta optimizando espacio" },
+    { "type": "improve", "text": "Rutas Activas: nuevo empty state con ilustración SVG amigable y footer dinámico para compartir por WhatsApp" },
     { "type": "new",     "text": "Histórico: nueva vista de calendario con indicadores de ruta por día (v7.29.3)" },
     { "type": "new",     "text": "Histórico: barra de búsqueda en tiempo real por chofer o alias" },
     { "type": "new",     "text": "Histórico: filtros rápidos por estado (completadas, con incidencias, pendientes)" },

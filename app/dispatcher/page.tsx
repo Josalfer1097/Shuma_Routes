@@ -357,6 +357,9 @@ function DispatcherPageContent() {
   const [isActiveRoutesOpen, setIsActiveRoutesOpen] = useState(false);
   const [activeRoutesData, setActiveRoutesData] = useState<any[]>([]);
   const [loadingActiveRoutes, setLoadingActiveRoutes] = useState(false);
+  const [activeRoutesSort, setActiveRoutesSort] = useState<'pct' | 'risk' | 'km'>('risk');
+  const [expandedActiveRoute, setExpandedActiveRoute] = useState<string | null>(null);
+  const [inactiveRoutes, setInactiveRoutes] = useState<Set<string>>(new Set());
   const [editingAlias, setEditingAlias] = useState<string | null>(null);
   const [aliasValue, setAliasValue] = useState('');
   const [toast, setToast] = useState<{ msg: string; type: 'warn' | 'error' | 'ok' } | null>(null);
@@ -555,6 +558,41 @@ function DispatcherPageContent() {
       }
     });
   }, [activeRoutesData, state.globalConfig?.deadlineTime]);
+
+  useEffect(() => {
+    if (!activeRoutesData.length) return;
+    const check = () => {
+      const now = Date.now();
+      const inactive = new Set<string>();
+      activeRoutesData.forEach((route: any) => {
+        // Usar la última actualización de GPS si disponible
+        const lastUpdate = driverLocations[route.id]?.updated_at;
+        if (lastUpdate) {
+          const diffMin = (now - new Date(lastUpdate).getTime()) / 60000;
+          if (diffMin > 45 && route.stats?.pending > 0) {
+            inactive.add(route.id);
+          }
+        }
+      });
+      setInactiveRoutes(inactive);
+
+      inactive.forEach(routeId => {
+        // Solo mostrar toast una vez por ruta por sesión
+        const toastKey = `inactivity_toast_${routeId}`;
+        if (!sessionStorage.getItem(toastKey)) {
+          const route = activeRoutesData.find((r: any) => r.id === routeId);
+          if (route) {
+            showToast(`⏱ ${route.driver_name || 'Chofer'} sin actividad por más de 45 min`, 'warn');
+            sessionStorage.setItem(toastKey, '1');
+          }
+        }
+      });
+    };
+    check();
+    const t = setInterval(check, 300000); // cada 5 min
+    return () => clearInterval(t);
+  }, [activeRoutesData, driverLocations]);
+
   const [sessionToRestore, setSessionToRestore] = useState<null | {
     savedAt: string;
     vehicleCount: number;
@@ -3001,6 +3039,21 @@ supabase.removeChannel(locChannel);
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <select
+                    value={activeRoutesSort}
+                    onChange={e => setActiveRoutesSort(e.target.value as any)}
+                    style={{
+                      fontSize: 10, padding: '3px 6px',
+                      background: '#060F1D', border: '1px solid #0d1f3a',
+                      borderRadius: 6, color: '#5B7BA0',
+                      fontFamily: "'Exo 2', sans-serif", cursor: 'pointer',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="risk">⚠ Por riesgo</option>
+                    <option value="pct">% Completado</option>
+                    <option value="km">Km recorridos</option>
+                  </select>
                   <button
                     onClick={fetchActiveRoutes}
                     className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-colors"
@@ -3023,12 +3076,63 @@ supabase.removeChannel(locChannel);
                     <p className="text-shuma-muted text-sm">Cargando rutas...</p>
                   </div>
                 ) : activeRoutesData.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-40 gap-2">
-                    <p className="text-shuma-muted text-sm">No hay rutas para hoy</p>
-                    <p className="text-xs text-shuma-muted opacity-50">Acepta una ruta para verla aquí</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', gap: 12 }}>
+                    {/* SVG camión estacionado */}
+                    <svg width="120" height="72" viewBox="0 0 120 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      {/* Carrocería */}
+                      <rect x="8" y="20" width="70" height="36" rx="4" fill="#0d1f3a" stroke="#1e3a5f" strokeWidth="1.5"/>
+                      {/* Cabina */}
+                      <rect x="78" y="28" width="30" height="28" rx="3" fill="#0d1f3a" stroke="#1e3a5f" strokeWidth="1.5"/>
+                      {/* Ventana cabina */}
+                      <rect x="84" y="32" width="18" height="12" rx="2" fill="#112040" stroke="#2196F3" strokeWidth="1" opacity="0.7"/>
+                      {/* Rueda trasera */}
+                      <circle cx="28" cy="56" r="9" fill="#060F1D" stroke="#2196F3" strokeWidth="2"/>
+                      <circle cx="28" cy="56" r="4" fill="#0d1f3a" stroke="#1e3a5f" strokeWidth="1"/>
+                      {/* Rueda delantera */}
+                      <circle cx="88" cy="56" r="9" fill="#060F1D" stroke="#2196F3" strokeWidth="2"/>
+                      <circle cx="88" cy="56" r="4" fill="#0d1f3a" stroke="#1e3a5f" strokeWidth="1"/>
+                      {/* Líneas de carga */}
+                      <line x1="20" y1="32" x2="70" y2="32" stroke="#1e3a5f" strokeWidth="1" strokeDasharray="4 3"/>
+                      <line x1="20" y1="40" x2="70" y2="40" stroke="#1e3a5f" strokeWidth="1" strokeDasharray="4 3"/>
+                      {/* Faros */}
+                      <rect x="106" y="36" width="6" height="4" rx="1" fill="#2196F3" opacity="0.4"/>
+                      {/* Zzzz de dormido */}
+                      <text x="36" y="18" fontSize="10" fill="#2196F3" opacity="0.5" fontFamily="monospace">z</text>
+                      <text x="47" y="12" fontSize="13" fill="#2196F3" opacity="0.35" fontFamily="monospace">z</text>
+                      <text x="60" y="7"  fontSize="16" fill="#2196F3" opacity="0.2" fontFamily="monospace">z</text>
+                    </svg>
+                    <p style={{ fontSize: 13, color: '#A8BFE0', fontFamily: "'Exo 2', sans-serif", fontWeight: 600, margin: 0 }}>
+                      Sin rutas en curso
+                    </p>
+                    <p style={{ fontSize: 11, color: '#3B5270', fontFamily: "'DM Sans', sans-serif", margin: 0, textAlign: 'center' }}>
+                      Acepta una ruta optimizada<br/>para verla aquí en tiempo real
+                    </p>
                   </div>
                 ) : (
-                  activeRoutesData.map(route => {
+                  (() => {
+                    const sortedActiveRoutes = [...activeRoutesData].sort((a, b) => {
+                      const pctA = a.stats?.total > 0
+                        ? (a.stats.delivered + a.stats.partial + a.stats.failed) / a.stats.total : 0;
+                      const pctB = b.stats?.total > 0
+                        ? (b.stats.delivered + b.stats.partial + b.stats.failed) / b.stats.total : 0;
+                      const { isAtRisk: riskA } = !( a.stats?.pending === 0 && a.stats?.total > 0)
+                        ? calcRouteETA(a.departure_time, a.total_minutes, a.stats?.pending, a.stats?.total, state.globalConfig?.deadlineTime || '17:45')
+                        : { isAtRisk: false };
+                      const { isAtRisk: riskB } = !(b.stats?.pending === 0 && b.stats?.total > 0)
+                        ? calcRouteETA(b.departure_time, b.total_minutes, b.stats?.pending, b.stats?.total, state.globalConfig?.deadlineTime || '17:45')
+                        : { isAtRisk: false };
+
+                      if (activeRoutesSort === 'risk') {
+                        if (riskA && !riskB) return -1;
+                        if (!riskA && riskB) return 1;
+                        return pctA - pctB;
+                      }
+                      if (activeRoutesSort === 'pct') return pctB - pctA;
+                      if (activeRoutesSort === 'km')  return (b.total_km || 0) - (a.total_km || 0);
+                      return 0;
+                    });
+                    
+                    return sortedActiveRoutes.map(route => {
                     const { total, delivered, partial, failed, pending } = route.stats;
                     const processed = delivered + partial + failed;
                     const pct       = total > 0 ? Math.round((processed / total) * 100) : 0;
@@ -3044,13 +3148,21 @@ supabase.removeChannel(locChannel);
 
                     return (
                       <div key={route.id}
-                        className="p-4 rounded-xl border border-shuma-border bg-shuma-surface/30 space-y-3">
+                        className={`p-4 rounded-xl border transition-all duration-300 ${
+                          inactiveRoutes.has(route.id)
+                            ? 'border-red-500/50 bg-red-500/5'
+                            : 'border-shuma-border bg-shuma-surface/30'
+                        } space-y-3`}>
 
                         {/* Cabecera de ruta */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-2.5 min-w-0">
                             <span className="w-3 h-3 rounded-full shrink-0"
-                              style={{ backgroundColor: route.color }} />
+                              style={{ 
+                                backgroundColor: route.color, 
+                                animation: !isDone ? 'activeRoutePulse 2s infinite' : 'none',
+                                boxShadow: !isDone ? `0 0 8px ${route.color}` : 'none'
+                              }} />
                             <div className="min-w-0">
                               {/* Alias editable */}
                               {editingAlias === route.id ? (
@@ -3087,106 +3199,150 @@ supabase.removeChannel(locChannel);
                                 </div>
                               )}
                               <p className="text-xs text-shuma-muted mt-0.5">
-                                <button
-                                  onClick={() => {
-                                    const firstStop = (route.deliveries || []).find(
-                                      (d: any) => d.address?.lat && d.address?.lng
-                                    );
-                                    if (firstStop?.address?.lat && mapViewRef.current) {
-                                      setIsActiveRoutesOpen(false);
-                                      setTimeout(() => {
-                                        mapViewRef.current?.panToDelivery(
-                                          firstStop.address.lat,
-                                          firstStop.address.lng
-                                        );
-                                      }, 200);
-                                    }
-                                  }}
-                                  className="text-blue-400 hover:text-blue-300 hover:underline transition-colors cursor-pointer bg-transparent border-none p-0 font-inherit text-inherit"
-                                  title="Ir a la ruta en el mapa"
-                                >
-                                  {route.driver_name || 'Sin chofer asignado'}
-                                </button>
+                                {route.driver_name || 'Sin chofer asignado'}
                                 {route.route_code && route.route_alias && (
                                   <span className="ml-1.5 opacity-40">· {route.route_code}</span>
                                 )}
                                 {route.total_km > 0 && ` · ${route.total_km.toFixed(1)} km`}
-                                {!isDone && etaStr && etaStr !== '--:--' && (
-                                  <span className="ml-1.5">· ETA <span className={isAtRisk ? 'text-red-400 font-semibold' : 'text-shuma-text'}>{etaStr}</span></span>
-                                )}
                               </p>
                             </div>
                           </div>
 
-                          {/* Badge de status y riesgo */}
-                          <div className="flex flex-col items-end gap-1">
+                          {/* Botones de acción y badge integrados */}
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => handleViewOnMap(route, true)}
+                                className="w-7 h-7 flex items-center justify-center rounded bg-shuma-surface hover:bg-blue-500/10 text-shuma-muted hover:text-blue-400 transition-colors border border-shuma-border hover:border-blue-500/30"
+                                title="Ver solo esta ruta en el mapa"
+                              >
+                                🗺️
+                              </button>
+                              <button
+                                onClick={() => handleViewOnMap(route, false)}
+                                className="w-7 h-7 flex items-center justify-center rounded bg-shuma-surface hover:bg-blue-500/10 text-shuma-muted hover:text-blue-400 transition-colors border border-shuma-border hover:border-blue-500/30"
+                                title="Ver todas las rutas"
+                              >
+                                🌍
+                              </button>
+                            </div>
+
+                            {/* Badge unificado */}
                             <button
                               onClick={() => hasFails ? openAuditForRoute(route.id) : undefined}
-                              className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 border ${
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${
                                 isDone && !hasFails
                                   ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 cursor-default'
                                   : isDone && hasFails
                                     ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/25 cursor-pointer transition-colors'
                                     : hasFails
                                       ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/25 cursor-pointer transition-colors'
-                                      : 'bg-blue-500/15 text-blue-400 border-blue-500/30 cursor-default'
+                                      : inactiveRoutes.has(route.id)
+                                        ? 'bg-red-500/15 text-red-400 border-red-500/30 cursor-default'
+                                        : 'bg-blue-500/15 text-blue-400 border-blue-500/30 cursor-default'
                               }`}
                             >
                               {isDone && !hasFails ? '✓ Completada'
                                 : isDone ? '⚠ Con incidencias'
-                                : pending > 0 ? `● ${pending} pendientes`
-                                : '● En curso'}
+                                : inactiveRoutes.has(route.id) ? '⏱ Inactivo'
+                                : isAtRisk ? '⚠ En riesgo'
+                                : '✅ A tiempo'}
                             </button>
-                            {isAtRisk && !isDone && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-400 border border-red-500/30 animate-pulse shrink-0">
-                                ⚠ En riesgo
-                              </span>
-                            )}
                           </div>
                         </div>
 
                         {/* Barra de progreso */}
                         <div>
-                          <div className="flex justify-between text-xs text-shuma-muted mb-1.5">
+                          <div className="flex justify-between text-xs text-shuma-muted mb-1.5 items-end">
                             <div className="flex gap-3">
                               <span className="text-emerald-400">✓ {delivered}</span>
                               {partial > 0 && <span className="text-amber-400">◑ {partial}</span>}
                               {failed > 0  && <span className="text-red-400">✗ {failed}</span>}
                               {pending > 0 && <span className="opacity-50">○ {pending}</span>}
                             </div>
-                            <span>{pct}% · {processed}/{total}</span>
+                            <div className="text-right">
+                              {!isDone && etaStr && etaStr !== '--:--' && (
+                                <div className="mb-0.5">ETA <span className={isAtRisk ? 'text-red-400 font-semibold' : 'text-shuma-text'}>{etaStr}</span></div>
+                              )}
+                              <span>{pct}% · {processed}/{total}</span>
+                            </div>
                           </div>
-                          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                            <div className="h-1.5 rounded-full transition-all"
-                              style={{ width: `${pct}%`, backgroundColor: route.color }} />
+                          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden relative">
+                            <div className="h-1.5 rounded-full transition-all relative overflow-hidden"
+                              style={{ width: `${pct}%`, backgroundColor: route.color }}>
+                              {!isDone && (
+                                <div className="absolute top-0 bottom-0 left-0 right-0 bg-white/20"
+                                  style={{ animation: 'shimmer 2s infinite linear' }} />
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Acción: ver en mapa */}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleViewOnMap(route, true)}
-                            className="flex-1 text-xs text-blue-400 hover:text-blue-300 py-1.5 rounded-lg hover:bg-blue-500/5 transition-colors text-center border border-transparent hover:border-blue-500/20"
-                          >
-                            Ver esta ruta
-                          </button>
-                          <button
-                            onClick={() => handleViewOnMap(route, false)}
-                            className="flex-1 text-xs text-blue-400 hover:text-blue-300 py-1.5 rounded-lg hover:bg-blue-500/5 transition-colors text-center border border-transparent hover:border-blue-500/20"
-                          >
-                            Ver todas
-                          </button>
-                        </div>
+                        {/* Desglose desplegable */}
+                        {route.deliveries && route.deliveries.length > 0 && (
+                          <div className="pt-1 border-t border-shuma-border/50">
+                            <button
+                              onClick={() => setExpandedActiveRoute(expandedActiveRoute === route.id ? null : route.id)}
+                              className="w-full text-xs text-shuma-muted hover:text-shuma-text flex items-center justify-between py-1 px-1 rounded hover:bg-white/5 transition-colors"
+                            >
+                              <span>Entregas ({route.deliveries.length})</span>
+                              <span>{expandedActiveRoute === route.id ? '▲' : '▼'}</span>
+                            </button>
+                            
+                            {expandedActiveRoute === route.id && (
+                              <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1 text-xs">
+                                {route.deliveries.map((del: any, idx: number) => {
+                                  const s = del.status || 'pending';
+                                  const color = s === 'delivered' ? 'text-emerald-400' 
+                                              : s === 'failed' ? 'text-red-400'
+                                              : s === 'partial' ? 'text-amber-400'
+                                              : 'text-shuma-muted';
+                                  return (
+                                    <div key={idx} className="flex items-start gap-2 bg-shuma-surface/40 p-1.5 rounded">
+                                      <span className={`shrink-0 ${color}`}>
+                                        {s === 'delivered' ? '✓' : s === 'failed' ? '✗' : s === 'partial' ? '◑' : '○'}
+                                      </span>
+                                      <div className="min-w-0 flex-1 truncate text-shuma-text">
+                                        {del.description || 'Sin descripción'}
+                                        {del.eta && <span className="ml-1 opacity-50">· {del.eta}</span>}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
-                  })
+                  });
+                  })()
                 )}
               </div>
 
               {/* Footer */}
-              <div className="px-5 py-3 border-t border-shuma-border text-xs text-shuma-muted shrink-0 flex justify-between">
-                <span>{activeRoutesData.length} ruta(s) hoy</span>
-                <span className="opacity-50">✏️ Click en el ícono para editar nombre</span>
+              <div className="px-5 py-3 border-t border-shuma-border text-xs text-shuma-muted shrink-0 flex justify-between items-center relative overflow-hidden rounded-b-2xl">
+                <div className="absolute inset-0 opacity-10 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(90deg, #10b981, #3b82f6, #8b5cf6, #10b981)',
+                    backgroundSize: '400% 100%',
+                    animation: 'rgbRoll 5s linear infinite',
+                  }} />
+                <span>{activeRoutesData.length} ruta(s) activas</span>
+                <button
+                  onClick={() => {
+                    const text = activeRoutesData.map((r: any) => {
+                      const { total, delivered, partial, failed } = r.stats || {};
+                      const pct = total > 0 ? Math.round(((delivered + partial + failed) / total) * 100) : 0;
+                      return `🚛 ${r.driver_name || r.route_alias || 'Ruta'}: ${pct}% completado (${delivered}/${total})`;
+                    }).join('\n');
+                    navigator.clipboard.writeText(`*Reporte de rutas activas*\n${text}`).then(() => showToast('Copiado al portapapeles', 'ok'));
+                  }}
+                  className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition-colors bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20 relative z-10"
+                >
+                  <span>WhatsApp</span>
+                  <span>📋</span>
+                </button>
               </div>
             </div>
           </div>
