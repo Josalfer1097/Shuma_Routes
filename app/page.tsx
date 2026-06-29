@@ -89,7 +89,7 @@ export default function HomePage() {
 
   return (
     <main
-      className="min-h-screen flex items-center justify-center bg-shuma-bg px-4"
+      className="min-h-screen flex items-center justify-center bg-shuma-bg px-4 py-8"
       style={leaving ? { animation: 'pageFadeOut 0.3s ease forwards' } : undefined}
     >
       {/* Fondo decorativo */}
@@ -174,7 +174,7 @@ export default function HomePage() {
           <circle className="stop-dot" cx="860" cy="660" r="4" style={{ animationDelay: '1.2s' }} />
         </svg>
       </div>
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 w-full max-w-md" style={{ paddingBottom: 80 }}>
         {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center mb-5">
@@ -225,8 +225,16 @@ export default function HomePage() {
             }}>
               {sysStatus === 'ok'       ? 'Sistemas en línea' :
                sysStatus === 'degraded' ? 'Servicio degradado' :
-               sysStatus === 'error'    ? 'Sin conexión' :
-                                         'Verificando...'}
+               sysStatus === 'error'    ? (() => {
+                 if (!sysServices) return 'Sin conexión';
+                 const supaFail = !sysServices.supabase?.ok;
+                 const gFail    = !sysServices.google?.ok;
+                 if (supaFail && gFail) return 'Sin conexión';
+                 if (supaFail) return 'Sin conexión a la BD';
+                 if (gFail)   return 'Google Maps sin respuesta';
+                 return 'Sin conexión';
+               })() :
+               'Verificando...'}
             </span>
 
             {showTooltip && sysServices && (
@@ -327,12 +335,21 @@ export default function HomePage() {
             }}
             className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
-                       hover:border-shuma-accent transition-all duration-300 hover:shadow-lg
-                       hover:shadow-[0_0_15px_rgba(33,150,243,0.15)] hover:-translate-y-0.5"
+                       hover:border-shuma-accent transition-all duration-300
+                       hover:shadow-[0_0_15px_rgba(33,150,243,0.15)]"
             style={{
               animation: pulsingCard === 'admin'
                 ? 'cardKeyPress 0.2s ease forwards'
                 : 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s both',
+              transition: 'transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s ease',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px) scale(1.01)';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 0 24px rgba(33,150,243,0.25), 0 8px 32px rgba(0,0,0,0.3)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.transform = '';
+              (e.currentTarget as HTMLElement).style.boxShadow = '';
             }}
           >
             <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0
@@ -372,12 +389,21 @@ export default function HomePage() {
             }}
             className="relative group flex items-center gap-4 w-full p-6 rounded-2xl
                        bg-shuma-surface hover:bg-shuma-border border border-shuma-border
-                       hover:border-shuma-warning transition-all duration-300 hover:shadow-lg
-                       hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:-translate-y-0.5"
+                       hover:border-shuma-warning transition-all duration-300
+                       hover:shadow-[0_0_15px_rgba(245,158,11,0.15)]"
             style={{
               animation: pulsingCard === 'driver'
                 ? 'cardKeyPressAmber 0.2s ease forwards'
                 : 'cardSlideUp 0.55s cubic-bezier(0.16,1,0.3,1) 0.22s both',
+              transition: 'transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s ease',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px) scale(1.01)';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 0 24px rgba(245,158,11,0.25), 0 8px 32px rgba(0,0,0,0.3)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.transform = '';
+              (e.currentTarget as HTMLElement).style.boxShadow = '';
             }}
           >
             <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0
@@ -430,6 +456,8 @@ export default function HomePage() {
             opacity: 0.8,
             cursor: 'pointer',
             userSelect: 'none',
+            position: 'relative',
+            zIndex: 1,
           }}
         >
           Design &amp; Developed by Shuma Sistemas IT
@@ -457,7 +485,7 @@ export default function HomePage() {
             e.currentTarget.style.borderColor = changelog ? 'rgba(33,150,243,0.2)' : 'transparent';
           }}
         >
-          v7.29.7{changelog ? ' · Ver novedades  ' : ''}
+          v7.29.8{changelog ? ' · Ver novedades  ' : ''}
         </button>
         <style>{`
           @keyframes rgbRoll {
@@ -520,7 +548,7 @@ export default function HomePage() {
                   fontSize: 16, fontWeight: 700, color: '#E8EFF8',
                   fontFamily: "'Exo 2', sans-serif", margin: 0,
                 }}>
-                  🌟 Novedades v7.29.7
+                  🌟 Novedades v7.29.8
                 </h2>
                 <p style={{
                   fontSize: 11, color: '#5B7BA0', margin: '4px 0 0',

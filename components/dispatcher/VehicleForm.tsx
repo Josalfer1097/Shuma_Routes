@@ -244,20 +244,11 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                           >
                             <div style={{
                               width: 28, height: 28, borderRadius: '50%',
-                              background: (() => {
-                                const routeV = vehicles.find(v => v.driverName === d.name);
-                                return routeV ? `${routeV.color}20` : '#3b82f620';
-                              })(),
-                              border: `1px solid ${(() => {
-                                const routeV = vehicles.find(v => v.driverName === d.name);
-                                return routeV ? `${routeV.color}40` : '#3b82f640';
-                              })()}`,
+                              background: `${DRIVER_COLORS[driversDB.findIndex(dr => dr.id === d.id) % DRIVER_COLORS.length]}22`,
+                              border: `2px solid ${DRIVER_COLORS[driversDB.findIndex(dr => dr.id === d.id) % DRIVER_COLORS.length]}`,
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 11, fontWeight: 700, 
-                              color: (() => {
-                                const routeV = vehicles.find(v => v.driverName === d.name);
-                                return routeV ? routeV.color : '#3b82f6';
-                              })(),
+                              fontSize: 11, fontWeight: 700,
+                              color: DRIVER_COLORS[driversDB.findIndex(dr => dr.id === d.id) % DRIVER_COLORS.length],
                               fontFamily: "'Exo 2', sans-serif", flexShrink: 0,
                             }}>
                               {d.name.charAt(0).toUpperCase()}

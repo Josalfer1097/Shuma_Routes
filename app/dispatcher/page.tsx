@@ -3053,12 +3053,24 @@ supabase.removeChannel(locChannel);
                     className="w-full accent-blue-500"
                     style={{ accentColor: '#2196F3' }}
                   />
-                  <div className="flex justify-between text-[10px] text-shuma-muted mt-1">
-                    <span>Pocas (grandes)</span>
-                    <span className="text-[10px] text-shuma-muted font-normal">
-                      Arrastra para reagrupar automáticamente
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                    <span style={{
+                      fontSize: 10, color: '#2196F3',
+                      background: 'rgba(33,150,243,0.08)',
+                      border: '1px solid rgba(33,150,243,0.2)',
+                      borderRadius: 99, padding: '1px 7px',
+                      fontFamily: "'Exo 2', sans-serif",
+                    }}>1 ruta</span>
+                    <span style={{ fontSize: 9, color: '#3B5270', fontFamily: "'DM Sans', sans-serif" }}>
+                      Arrastra para reagrupar
                     </span>
-                    <span>Muchas (pequeñas)</span>
+                    <span style={{
+                      fontSize: 10, color: '#5B7BA0',
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: 99, padding: '1px 7px',
+                      fontFamily: "'Exo 2', sans-serif",
+                    }}>Máximo</span>
                   </div>
                 </div>
               )}

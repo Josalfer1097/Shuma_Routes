@@ -473,7 +473,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
             position: 'relative',
             transform: `translate(${modalPos.x}px, ${modalPos.y}px)`,
             transition: isDragging ? 'none' : 'transform 0.1s ease',
-            resize: 'both',
+            resize: 'none',
             overflow: 'auto',
             minWidth: 600,
             minHeight: 400,

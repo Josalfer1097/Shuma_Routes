@@ -1,68 +1,301 @@
 {
   "updated": "2026-06-27",
   "items": [
-    { "type": "new",     "text": "Geocoding: botón Cancelar para abortar el proceso sin perder la configuración de choferes" },
-    { "type": "new",     "text": "Geocoding: errores expandibles con opción de reintentar cada dirección fallida individualmente" },
-    { "type": "new",     "text": "Geocoding: estimado de tiempo restante calculado con las últimas 5 geocodificaciones" },
-    { "type": "new",     "text": "Geocoding: resumen visual rico al completar — geocodificadas / con errores / total" },
-    { "type": "new",     "text": "Geocoding: confetti de 6 partículas cuando el paquete hace bounce al llegar al 100%" },
-    { "type": "improve", "text": "Geocoding: carretera con marcas de banqueta perpendiculares para más profundidad visual" },
-    { "type": "improve", "text": "Geocoding: dirección actual con animación typewriter (clip-path) al cambiar" },
-    { "type": "improve", "text": "Geocoding: backdrop con blur 12px y viñeta radial para enfocar la atención al centro" },
-    { "type": "new",     "text": "Clima: alerta de calor extremo cuando la temperatura supera 35°C" },
-    { "type": "new",     "text": "Clima: botón para compartir alerta climática por WhatsApp al grupo de choferes" },
-    { "type": "new",     "text": "Clima: micro-gráfico de precipitación en cada hora del pronóstico" },
-    { "type": "new",     "text": "Clima: sección 'Condiciones del día' con alertas en el PDF de reporte" },
-    { "type": "improve", "text": "Clima: fondo del panel cambia según la condición (despejado, nublado, lluvia)" },
-    { "type": "improve", "text": "Clima: ícono de viento rota según la dirección real del viento" },
-    { "type": "improve", "text": "Clima: badge muestra el número de alertas activas (⚠2) cuando hay varias" },
-    { "type": "improve", "text": "Clima: en mobile el panel se ajusta a la pantalla con scroll y swipe-down para cerrar" },
-    { "type": "new",     "text": "Texto: nueva escala 'Compacto' (85%) para ver más información en pantallas pequeñas" },
-    { "type": "new",     "text": "Texto: vista previa en tiempo real al pasar el mouse sobre cada opción de tamaño" },
-    { "type": "improve", "text": "Texto: cada opción muestra una 'A' en su tamaño real como indicador visual" },
-    { "type": "improve", "text": "Texto: el botón del header muestra la escala activa (ej. 'Aa Grande')" },
-    { "type": "improve", "text": "Texto: handle de arrastre más grande (40px) en el panel mobile y transición suave al cambiar" },
-    { "type": "improve", "text": "Texto: la escala vuelve a Normal automáticamente al cerrar sesión" },
-    { "type": "new",     "text": "Rutas Activas: selector para ordenar rutas por porcentaje completado, riesgo de retraso o km recorridos (v7.29.4)" },
-    { "type": "new",     "text": "Rutas Activas: desglose expandible de entregas en cada tarjeta de ruta activa" },
-    { "type": "new",     "text": "Rutas Activas: nuevo badge 'A tiempo' y estado 'Inactivo' (>45m) con alertas Toast" },
-    { "type": "improve", "text": "Rutas Activas: animación shimmer en barra de progreso y micro-pulse de status en tiempo real" },
-    { "type": "improve", "text": "Rutas Activas: acciones de mapa ahora viven en la cabecera de la tarjeta optimizando espacio" },
-    { "type": "improve", "text": "Rutas Activas: nuevo empty state con ilustración SVG amigable y footer dinámico para compartir por WhatsApp" },
-    { "type": "new",     "text": "Histórico: nueva vista de calendario con indicadores de ruta por día (v7.29.3)" },
-    { "type": "new",     "text": "Histórico: barra de búsqueda en tiempo real por chofer o alias" },
-    { "type": "new",     "text": "Histórico: filtros rápidos por estado (completadas, con incidencias, pendientes)" },
-    { "type": "new",     "text": "Histórico: botón 'Re-optimizar' para lanzar rutas anteriores directo al Dispatcher" },
-    { "type": "improve", "text": "Histórico: rediseño de las tarjetas de ruta (checkbox a la izquierda, badges de estado)" },
-    { "type": "improve", "text": "Histórico: mapa miniatura con overlay de color de la ruta y contador de entregas" },
-    { "type": "improve", "text": "Histórico: jerarquía visual de botones (Ver Entregas primario, PDF/Plantilla/Re-optimizar secundarios)" },
-    { "type": "improve", "text": "Histórico: auto-carga de los últimos 60 días para la vista calendario" },
-    { "type": "new",     "text": "Dashboard: KPI de tiempo promedio por entrega (min/entrega del período)" },
-    { "type": "new",     "text": "Dashboard: banner de alerta si hay rutas con más de 6h activas y entregas pendientes" },
-    { "type": "new",     "text": "Dashboard: comparador de choferes side-by-side desde el ranking (seleccionar 2 y comparar)" },
-    { "type": "new",     "text": "Dashboard: buscador interno en el drawer de drill-down para filtrar entregas" },
-    { "type": "new",     "text": "Dashboard: sparklines de tendencia de 7 días en cada KPI card" },
-    { "type": "new",     "text": "Dashboard: badge de rango de fechas exacto en el header (ej. 20 jun – 27 jun)" },
-    { "type": "improve", "text": "Dashboard: barras del gráfico con gradiente vertical y animación de entrada escalonada" },
-    { "type": "improve", "text": "Dashboard: deltas ↑↓ con micro-animación al cambiar período (sube desde abajo, baja desde arriba)" },
-    { "type": "improve", "text": "Dashboard: zebra striping más visible en el ranking de choferes" },
-    { "type": "improve", "text": "Dashboard: estilos de impresión mejorados — fondo blanco, texto negro, sin botones" },
-    { "type": "new", "text": "Buscador avanzado en Bitácora con operadores (usuario:X módulo:Y) v7.29.0" },
-    { "type": "improve", "text": "Filtro de horas y exportación detallada con metadata" },
-    { "type": "fix", "text": "Solución a intercepción de clicks en mapas y listados" },
-    { "type": "improve", "text": "?? Las almas errantes ahora se mueven con física limpia y natural" },
-    { "type": "new", "text": "?? ¿Encontrarás el secreto en las sombras? Algo espera a quien insista lo suficiente..." },
-    { "type": "new", "text": "Pulse visual al presionar teclas A o C en Selector (v7.26.0)" },
-    { "type": "new", "text": "Atajo Esc inteligente para cerrar slide-overs en Dispatcher" },
-    { "type": "new", "text": "Leyenda de rutas colapsable en el mapa" },
-    { "type": "improve", "text": "Persistencia de estado del mapa (zoom y coordenadas) entre pestañas" },
-    { "type": "new", "text": "Banner de alerta al perder conexión a internet" },
-    { "type": "improve", "text": "Mejora visual de FAB (botón flotante) según estado de rutas" },
-    { "type": "fix", "text": "Ajuste en posicionamiento de notificaciones Toast (bottom-up)" },
-    { "type": "improve", "text": "Cambio masivo de terminología: 'Paradas' a 'Entregas'" },
-    { "type": "fix", "text": "Se removió el indicador visual de fuerza de contraseña por seguridad. (v7.25.0)" },
-    { "type": "new", "text": "Se agregó la API /api/health para verificar la salud de BD y Google Maps concurrentemente." },
-    { "type": "fix", "text": "Se corrigió bug crítico en el Stepper donde los pasos se marcaban verdes sin datos. (v7.24.0)" },
-    { "type": "improve", "text": "Ajuste visual en modal del changelog." }
+    {
+      "type": "improve",
+      "text": "App: Efectos hover premium en las cards del Selector principal"
+    },
+    {
+      "type": "new",
+      "text": "App: Detección específica de fallos para Supabase o Google Maps"
+    },
+    {
+      "type": "fix",
+      "text": "App: Ajuste de padding inferior para evitar colisión con el footer en móvil"
+    },
+    {
+      "type": "new",
+      "text": "Dispatcher: Exportación CSV de asignaciones de ruta generadas"
+    },
+    {
+      "type": "improve",
+      "text": "Dispatcher: Etiquetas explicativas claras en el slider de generación de rutas"
+    },
+    {
+      "type": "improve",
+      "text": "Dispatcher: Centrado automático del mapa al cambiar de bodega de salida"
+    },
+    {
+      "type": "improve",
+      "text": "Dispatcher: Avatares de choferes con borde coloreado según su ruta asignada"
+    },
+    {
+      "type": "improve",
+      "text": "Dispatcher: Modal de Auditoría con dimensiones optimizadas sin resize handle"
+    },
+    {
+      "type": "improve",
+      "text": "Texto: El widget muestra la opción seleccionada si es distinta a 'Normal'"
+    },
+    {
+      "type": "improve",
+      "text": "Histórico: Rediseño estructural de la card, alineación perfecta del checkbox"
+    },
+    {
+      "type": "improve",
+      "text": "Histórico: Brillo exterior de la card activado dinámicamente al seleccionar"
+    },
+    {
+      "type": "new",
+      "text": "Geocoding: botón Cancelar para abortar el proceso sin perder la configuración de choferes"
+    },
+    {
+      "type": "new",
+      "text": "Geocoding: errores expandibles con opción de reintentar cada dirección fallida individualmente"
+    },
+    {
+      "type": "new",
+      "text": "Geocoding: estimado de tiempo restante calculado con las últimas 5 geocodificaciones"
+    },
+    {
+      "type": "new",
+      "text": "Geocoding: resumen visual rico al completar — geocodificadas / con errores / total"
+    },
+    {
+      "type": "new",
+      "text": "Geocoding: confetti de 6 partículas cuando el paquete hace bounce al llegar al 100%"
+    },
+    {
+      "type": "improve",
+      "text": "Geocoding: carretera con marcas de banqueta perpendiculares para más profundidad visual"
+    },
+    {
+      "type": "improve",
+      "text": "Geocoding: dirección actual con animación typewriter (clip-path) al cambiar"
+    },
+    {
+      "type": "improve",
+      "text": "Geocoding: backdrop con blur 12px y viñeta radial para enfocar la atención al centro"
+    },
+    {
+      "type": "new",
+      "text": "Clima: alerta de calor extremo cuando la temperatura supera 35°C"
+    },
+    {
+      "type": "new",
+      "text": "Clima: botón para compartir alerta climática por WhatsApp al grupo de choferes"
+    },
+    {
+      "type": "new",
+      "text": "Clima: micro-gráfico de precipitación en cada hora del pronóstico"
+    },
+    {
+      "type": "new",
+      "text": "Clima: sección 'Condiciones del día' con alertas en el PDF de reporte"
+    },
+    {
+      "type": "improve",
+      "text": "Clima: fondo del panel cambia según la condición (despejado, nublado, lluvia)"
+    },
+    {
+      "type": "improve",
+      "text": "Clima: ícono de viento rota según la dirección real del viento"
+    },
+    {
+      "type": "improve",
+      "text": "Clima: badge muestra el número de alertas activas (⚠2) cuando hay varias"
+    },
+    {
+      "type": "improve",
+      "text": "Clima: en mobile el panel se ajusta a la pantalla con scroll y swipe-down para cerrar"
+    },
+    {
+      "type": "new",
+      "text": "Texto: nueva escala 'Compacto' (85%) para ver más información en pantallas pequeñas"
+    },
+    {
+      "type": "new",
+      "text": "Texto: vista previa en tiempo real al pasar el mouse sobre cada opción de tamaño"
+    },
+    {
+      "type": "improve",
+      "text": "Texto: cada opción muestra una 'A' en su tamaño real como indicador visual"
+    },
+    {
+      "type": "improve",
+      "text": "Texto: el botón del header muestra la escala activa (ej. 'Aa Grande')"
+    },
+    {
+      "type": "improve",
+      "text": "Texto: handle de arrastre más grande (40px) en el panel mobile y transición suave al cambiar"
+    },
+    {
+      "type": "improve",
+      "text": "Texto: la escala vuelve a Normal automáticamente al cerrar sesión"
+    },
+    {
+      "type": "new",
+      "text": "Rutas Activas: selector para ordenar rutas por porcentaje completado, riesgo de retraso o km recorridos (v7.29.4)"
+    },
+    {
+      "type": "new",
+      "text": "Rutas Activas: desglose expandible de entregas en cada tarjeta de ruta activa"
+    },
+    {
+      "type": "new",
+      "text": "Rutas Activas: nuevo badge 'A tiempo' y estado 'Inactivo' (>45m) con alertas Toast"
+    },
+    {
+      "type": "improve",
+      "text": "Rutas Activas: animación shimmer en barra de progreso y micro-pulse de status en tiempo real"
+    },
+    {
+      "type": "improve",
+      "text": "Rutas Activas: acciones de mapa ahora viven en la cabecera de la tarjeta optimizando espacio"
+    },
+    {
+      "type": "improve",
+      "text": "Rutas Activas: nuevo empty state con ilustración SVG amigable y footer dinámico para compartir por WhatsApp"
+    },
+    {
+      "type": "new",
+      "text": "Histórico: nueva vista de calendario con indicadores de ruta por día (v7.29.3)"
+    },
+    {
+      "type": "new",
+      "text": "Histórico: barra de búsqueda en tiempo real por chofer o alias"
+    },
+    {
+      "type": "new",
+      "text": "Histórico: filtros rápidos por estado (completadas, con incidencias, pendientes)"
+    },
+    {
+      "type": "new",
+      "text": "Histórico: botón 'Re-optimizar' para lanzar rutas anteriores directo al Dispatcher"
+    },
+    {
+      "type": "improve",
+      "text": "Histórico: rediseño de las tarjetas de ruta (checkbox a la izquierda, badges de estado)"
+    },
+    {
+      "type": "improve",
+      "text": "Histórico: mapa miniatura con overlay de color de la ruta y contador de entregas"
+    },
+    {
+      "type": "improve",
+      "text": "Histórico: jerarquía visual de botones (Ver Entregas primario, PDF/Plantilla/Re-optimizar secundarios)"
+    },
+    {
+      "type": "improve",
+      "text": "Histórico: auto-carga de los últimos 60 días para la vista calendario"
+    },
+    {
+      "type": "new",
+      "text": "Dashboard: KPI de tiempo promedio por entrega (min/entrega del período)"
+    },
+    {
+      "type": "new",
+      "text": "Dashboard: banner de alerta si hay rutas con más de 6h activas y entregas pendientes"
+    },
+    {
+      "type": "new",
+      "text": "Dashboard: comparador de choferes side-by-side desde el ranking (seleccionar 2 y comparar)"
+    },
+    {
+      "type": "new",
+      "text": "Dashboard: buscador interno en el drawer de drill-down para filtrar entregas"
+    },
+    {
+      "type": "new",
+      "text": "Dashboard: sparklines de tendencia de 7 días en cada KPI card"
+    },
+    {
+      "type": "new",
+      "text": "Dashboard: badge de rango de fechas exacto en el header (ej. 20 jun – 27 jun)"
+    },
+    {
+      "type": "improve",
+      "text": "Dashboard: barras del gráfico con gradiente vertical y animación de entrada escalonada"
+    },
+    {
+      "type": "improve",
+      "text": "Dashboard: deltas ↑↓ con micro-animación al cambiar período (sube desde abajo, baja desde arriba)"
+    },
+    {
+      "type": "improve",
+      "text": "Dashboard: zebra striping más visible en el ranking de choferes"
+    },
+    {
+      "type": "improve",
+      "text": "Dashboard: estilos de impresión mejorados — fondo blanco, texto negro, sin botones"
+    },
+    {
+      "type": "new",
+      "text": "Buscador avanzado en Bitácora con operadores (usuario:X módulo:Y) v7.29.0"
+    },
+    {
+      "type": "improve",
+      "text": "Filtro de horas y exportación detallada con metadata"
+    },
+    {
+      "type": "fix",
+      "text": "Solución a intercepción de clicks en mapas y listados"
+    },
+    {
+      "type": "improve",
+      "text": "?? Las almas errantes ahora se mueven con física limpia y natural"
+    },
+    {
+      "type": "new",
+      "text": "?? ¿Encontrarás el secreto en las sombras? Algo espera a quien insista lo suficiente..."
+    },
+    {
+      "type": "new",
+      "text": "Pulse visual al presionar teclas A o C en Selector (v7.26.0)"
+    },
+    {
+      "type": "new",
+      "text": "Atajo Esc inteligente para cerrar slide-overs en Dispatcher"
+    },
+    {
+      "type": "new",
+      "text": "Leyenda de rutas colapsable en el mapa"
+    },
+    {
+      "type": "improve",
+      "text": "Persistencia de estado del mapa (zoom y coordenadas) entre pestañas"
+    },
+    {
+      "type": "new",
+      "text": "Banner de alerta al perder conexión a internet"
+    },
+    {
+      "type": "improve",
+      "text": "Mejora visual de FAB (botón flotante) según estado de rutas"
+    },
+    {
+      "type": "fix",
+      "text": "Ajuste en posicionamiento de notificaciones Toast (bottom-up)"
+    },
+    {
+      "type": "improve",
+      "text": "Cambio masivo de terminología: 'Paradas' a 'Entregas'"
+    },
+    {
+      "type": "fix",
+      "text": "Se removió el indicador visual de fuerza de contraseña por seguridad. (v7.25.0)"
+    },
+    {
+      "type": "new",
+      "text": "Se agregó la API /api/health para verificar la salud de BD y Google Maps concurrentemente."
+    },
+    {
+      "type": "fix",
+      "text": "Se corrigió bug crítico en el Stepper donde los pasos se marcaban verdes sin datos. (v7.24.0)"
+    },
+    {
+      "type": "improve",
+      "text": "Ajuste visual en modal del changelog."
+    }
   ]
 }
