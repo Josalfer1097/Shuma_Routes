@@ -16,6 +16,7 @@ interface APIRoute {
   date: string;
   driver_name: string | null;
   total_km: number;
+  total_minutes?: number;
   stats: RouteStats;
   total_merchandise_value?: number;
   deliveries?: any[];
@@ -31,6 +32,10 @@ export default function DashboardPage() {
     type: 'total' | 'exitosas' | 'fallidas' | 'valor' | 'choferes' | null;
     title: string;
   }>({ type: null, title: '' });
+  const [routesAtRisk, setRoutesAtRisk] = useState<string[]>([]);
+  const [compareDrivers, setCompareDrivers] = useState<string[]>([]);
+  const [showCompare, setShowCompare] = useState(false);
+  const [drillSearch, setDrillSearch] = useState('');
   useEffect(() => {
     async function fetchData() {
       try {
@@ -123,6 +128,31 @@ export default function DashboardPage() {
     fetchData();
   }, [period]);
 
+  useEffect(() => {
+    const checkRisk = async () => {
+      try {
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+        const res = await fetch(`/api/routes/active?date=${today}`);
+        const j = await res.json();
+        if (!j.ok || !j.routes) return;
+        // Considerar en riesgo si hay entregas pendientes y han pasado más de 6 horas
+        const now = new Date();
+        const atRisk = j.routes.filter((r: any) => {
+          const pending = r.stats?.pending || 0;
+          if (pending === 0) return false;
+          if (!r.departure_time) return false;
+          const dep = new Date(`${today}T${r.departure_time}`);
+          const elapsed = (now.getTime() - dep.getTime()) / 60000; // minutos
+          return elapsed > 360 && pending > 0; // más de 6h con pendientes
+        }).map((r: any) => r.route_alias || r.route_code || r.driver_name || 'Ruta sin nombre');
+        setRoutesAtRisk(atRisk);
+      } catch {}
+    };
+    checkRisk();
+    const interval = setInterval(checkRisk, 120000); // cada 2 min
+    return () => clearInterval(interval);
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-shuma-bg flex items-center justify-center">
@@ -182,6 +212,15 @@ export default function DashboardPage() {
   const tasaExito = totalEntregas > 0 ? Math.round((entregadas / totalEntregas) * 100) : 0;
   const choferesActivos = driverNames.size;
 
+  // Tiempo promedio por entrega
+  let totalMinutes = 0;
+  let totalStops = 0;
+  allRoutes.forEach(r => {
+    totalMinutes += (r.total_minutes || 0);
+    totalStops += (r.stats?.total || 0);
+  });
+  const avgMinPerStop = totalStops > 0 ? Math.round(totalMinutes / totalStops) : 0;
+
   let prevTotal = 0;
   let prevEntregadas = 0;
   let prevKm = 0;
@@ -210,12 +249,16 @@ export default function DashboardPage() {
     if (d.dir === 'flat' || d.pct === 0) return null;
     const isGood = d.dir === 'up'; // para entregas/tasa/km UP es bueno; para fallidas DOWN es bueno
     return (
-      <span style={{
-        fontSize: 10, fontWeight: 700,
-        color: isGood ? '#34d399' : '#f87171',
-        fontFamily: "'Exo 2', sans-serif",
-        display: 'inline-flex', alignItems: 'center', gap: 2,
-      }}>
+      <span
+        key={`${d.dir}-${d.pct}-${period}`}
+        style={{
+          fontSize: 10, fontWeight: 700,
+          color: isGood ? '#34d399' : '#f87171',
+          fontFamily: "'Exo 2', sans-serif",
+          display: 'inline-flex', alignItems: 'center', gap: 2,
+          animation: d.dir === 'up' ? 'deltaUp 0.4s ease both' : 'deltaDown 0.4s ease both',
+        }}
+      >
         {d.dir === 'up' ? '↑' : '↓'}{d.pct}%
       </span>
     );
@@ -245,6 +288,47 @@ export default function DashboardPage() {
     const label = d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' });
     return { dateStr, label, ...data };
   });
+
+  const dateRangeLabel = (() => {
+    const fmt = (d: Date) => d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
+    if (period === 'today') return fmt(now);
+    const from = new Date(now);
+    from.setDate(from.getDate() - (period === '7d' ? 6 : 29));
+    return `${fmt(from)} – ${fmt(now)}`;
+  })();
+
+  // Sparklines: últimos 7 días siempre (independiente del período)
+  const sparkData = daysList.slice(-7).map(d => d.total);
+  const sparkMax = Math.max(...sparkData, 1);
+
+  const Sparkline = ({ data, color = '#2196F3' }: { data: number[]; color?: string }) => {
+    const w = 64, h = 24;
+    const step = w / Math.max(data.length - 1, 1);
+    const points = data.map((v, i) => `${i * step},${h - (v / sparkMax) * (h - 2)}`).join(' ');
+    return (
+      <svg width={w} height={h} style={{ overflow: 'visible' }}>
+        <polyline
+          points={points}
+          fill="none"
+          stroke={color}
+          strokeWidth={1.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          opacity={0.7}
+        />
+        {/* Dot en el último punto */}
+        {data.length > 0 && (
+          <circle
+            cx={(data.length - 1) * step}
+            cy={h - (data[data.length - 1] / sparkMax) * (h - 2)}
+            r={2.5}
+            fill={color}
+          />
+        )}
+      </svg>
+    );
+  };
 
   const maxEntregas = Math.max(...daysList.map(d => d.total), 1);
 
@@ -339,6 +423,19 @@ export default function DashboardPage() {
               );
             })}
           </div>
+          <div style={{
+            background: 'rgba(33,150,243,0.08)',
+            border: '1px solid rgba(33,150,243,0.2)',
+            borderRadius: 8,
+            padding: '4px 10px',
+            fontSize: 11,
+            color: '#60a5fa',
+            fontFamily: "'Exo 2', sans-serif",
+            letterSpacing: '0.04em',
+            whiteSpace: 'nowrap',
+          }}>
+            {dateRangeLabel}
+          </div>
           <div className="bg-shuma-surface border border-shuma-border px-3 py-1.5 rounded-lg">
             <p className="text-xs font-bold text-shuma-text">
               <span className="text-blue-400">{allRoutes.length}</span> rutas
@@ -349,27 +446,82 @@ export default function DashboardPage() {
 
       <style>{`
         @media print {
-          body > * { display: none !important; }
-          #dashboard-print-area { display: block !important; }
-          #dashboard-print-area { position: fixed; top: 0; left: 0;
-            width: 100%; background: white; color: black; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body { background: white !important; color: black !important; }
           .no-print { display: none !important; }
-          @page { margin: 1cm; size: A4 landscape; }
+          header { position: static !important; border-bottom: 2px solid #e2e8f0 !important; background: white !important; }
+          header h1 { color: #1e293b !important; }
+          header p  { color: #64748b !important; }
+          .shuma-card { background: white !important; border: 1px solid #e2e8f0 !important; box-shadow: none !important; }
+          .shuma-card p, .shuma-card span, .shuma-card td, .shuma-card th { color: #1e293b !important; }
+          [class*="text-shuma-muted"] { color: #64748b !important; }
+          [class*="text-white"] { color: #1e293b !important; }
+          [class*="bg-shuma"] { background: white !important; }
+          .fixed { position: static !important; }
+          @page { margin: 1.5cm; size: A4 landscape; }
         }
       `}</style>
 
       <main id="dashboard-print-area" className="p-6 max-w-7xl mx-auto space-y-6">
         
+        {routesAtRisk.length > 0 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '12px 16px',
+            background: 'rgba(239,68,68,0.1)',
+            border: '1px solid rgba(239,68,68,0.35)',
+            borderRadius: 12,
+            animation: 'fadeIn 0.4s ease',
+          }}>
+            <span style={{ fontSize: 20, flexShrink: 0 }}>🚨</span>
+            <div style={{ flex: 1 }}>
+              <p style={{
+                fontSize: 12, fontWeight: 700, color: '#f87171',
+                fontFamily: "'Exo 2', sans-serif", letterSpacing: '0.06em',
+                textTransform: 'uppercase', margin: 0,
+              }}>
+                Alerta de operación
+              </p>
+              <p style={{
+                fontSize: 11, color: '#fca5a5',
+                fontFamily: "'DM Sans', sans-serif", margin: '2px 0 0',
+              }}>
+                {routesAtRisk.length === 1
+                  ? `${routesAtRisk[0]} lleva más de 6h activa con entregas pendientes`
+                  : `${routesAtRisk.length} rutas con más de 6h activas y entregas pendientes: ${routesAtRisk.join(', ')}`
+                }
+              </p>
+            </div>
+            <a
+              href="/dispatcher"
+              style={{
+                fontSize: 11, color: '#f87171', fontWeight: 700,
+                fontFamily: "'Exo 2', sans-serif",
+                background: 'rgba(239,68,68,0.15)',
+                border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: 6, padding: '4px 10px',
+                textDecoration: 'none', flexShrink: 0,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Ver mapa →
+            </a>
+          </div>
+        )}
+
         {/* KPI CARDS */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
           <div 
-            onClick={() => setDrillDown({ type: 'total', title: 'Todas las entregas' })}
+            onClick={() => { setDrillDown({ type: 'total', title: 'Todas las entregas' }); setDrillSearch(''); }}
             className="shuma-card rounded-2xl p-5 border border-shuma-border cursor-pointer hover:border-blue-500/40 transition-colors" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Entregas totales</p>
                 <p className="text-[28px] font-bold text-white leading-tight">{totalEntregas}</p>
                 <DeltaBadge d={deltaTotal} />
+                <div style={{ marginTop: 8 }}><Sparkline data={sparkData} color="#2196F3" /></div>
               </div>
               <span className="text-3xl opacity-80">📦</span>
             </div>
@@ -379,13 +531,14 @@ export default function DashboardPage() {
           </div>
 
           <div 
-            onClick={() => setDrillDown({ type: 'exitosas', title: 'Entregas exitosas' })}
+            onClick={() => { setDrillDown({ type: 'exitosas', title: 'Entregas exitosas' }); setDrillSearch(''); }}
             className="shuma-card rounded-2xl p-5 border border-shuma-border cursor-pointer hover:border-blue-500/40 transition-colors" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Tasa de éxito</p>
                 <p className="text-[28px] font-bold text-white leading-tight">{tasaExito}%</p>
                 <DeltaBadge d={deltaTasa} />
+                <div style={{ marginTop: 8 }}><Sparkline data={sparkData} color="#10B981" /></div>
               </div>
               <span className="text-3xl opacity-80">✓</span>
             </div>
@@ -400,6 +553,7 @@ export default function DashboardPage() {
                 <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">Km recorridos</p>
                 <p className="text-[28px] font-bold text-white leading-tight">{totalKm.toFixed(0)} <span className="text-lg text-shuma-muted font-normal">km</span></p>
                 <DeltaBadge d={deltaKm} />
+                <div style={{ marginTop: 8 }}><Sparkline data={sparkData} color="#06B6D4" /></div>
               </div>
               <span className="text-3xl opacity-80">🛣</span>
             </div>
@@ -409,7 +563,7 @@ export default function DashboardPage() {
           </div>
 
           <div 
-            onClick={() => setDrillDown({ type: 'choferes', title: 'Choferes del período' })}
+            onClick={() => { setDrillDown({ type: 'choferes', title: 'Choferes del período' }); setDrillSearch(''); }}
             className="shuma-card rounded-2xl p-5 border border-shuma-border cursor-pointer hover:border-blue-500/40 transition-colors" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
             <div className="flex justify-between items-start">
               <div>
@@ -424,7 +578,7 @@ export default function DashboardPage() {
           </div>
 
           <div 
-            onClick={() => setDrillDown({ type: 'valor', title: 'Entregas con valor de mercancía' })}
+            onClick={() => { setDrillDown({ type: 'valor', title: 'Entregas con valor de mercancía' }); setDrillSearch(''); }}
             className="shuma-card rounded-2xl p-5 border border-shuma-border cursor-pointer hover:border-blue-500/40 transition-colors" style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}>
             <div className="flex justify-between items-start">
               <div>
@@ -436,11 +590,36 @@ export default function DashboardPage() {
                   })}
                 </p>
                 <DeltaBadge d={deltaMerc} />
+                <div style={{ marginTop: 8 }}><Sparkline data={sparkData} color="#F59E0B" /></div>
               </div>
               <span className="text-3xl opacity-80">💰</span>
             </div>
             <div className="mt-2 text-xs font-medium text-amber-400 bg-amber-500/10 inline-block px-2 py-0.5 rounded border border-amber-500/20">
               vs. {period === 'today' ? 'ayer' : period === '7d' ? '7 días anteriores' : '30 días anteriores'}
+            </div>
+          </div>
+
+          <div
+            className="shuma-card rounded-2xl p-5 border border-shuma-border"
+            style={{ backgroundColor: 'rgba(17,32,64,0.82)' }}
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-[11px] font-bold text-shuma-muted uppercase tracking-wider mb-1 font-['Exo_2']">
+                  Tiempo / entrega
+                </p>
+                <p className="text-[28px] font-bold text-white leading-tight">
+                  {avgMinPerStop > 0 ? `${avgMinPerStop}` : '—'}
+                  {avgMinPerStop > 0 && <span className="text-lg text-shuma-muted font-normal"> min</span>}
+                </p>
+                <span style={{ fontSize: 10, color: '#5B7BA0', fontFamily: "'Exo 2', sans-serif" }}>
+                  promedio por entrega
+                </span>
+              </div>
+              <span className="text-3xl opacity-80">⏱</span>
+            </div>
+            <div className="mt-2 text-xs font-medium text-teal-400 bg-teal-500/10 inline-block px-2 py-0.5 rounded border border-teal-500/20">
+              {totalMinutes > 0 ? `${totalMinutes.toFixed(0)} min totales` : 'Sin datos'}
             </div>
           </div>
         </div>
@@ -468,11 +647,23 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Barra contenedor (Total) */}
-                  <div className="w-full sm:w-10 bg-slate-800/50 rounded-t-md relative flex items-end justify-center overflow-hidden transition-all group-hover:bg-slate-700/50" style={{ height: `${totalHeight}%`, minHeight: d.total > 0 ? '4px' : '0' }}>
-                    
-                    {/* Barra de éxito (Verde) */}
-                    <div className="w-full bg-emerald-500 rounded-t-sm absolute bottom-0 transition-all duration-700 ease-out" style={{ height: `${successHeight}%` }} />
-                    
+                  <div
+                    className="w-full sm:w-10 rounded-t-md relative flex items-end justify-center overflow-hidden group-hover:opacity-90 transition-opacity"
+                    style={{
+                      height: `${totalHeight}%`,
+                      minHeight: d.total > 0 ? '4px' : '0',
+                      background: 'linear-gradient(to top, rgba(30,41,59,0.9), rgba(51,65,85,0.5))',
+                    }}
+                  >
+                    {/* Barra de éxito con gradiente */}
+                    <div
+                      className="w-full absolute bottom-0 rounded-t-sm"
+                      style={{
+                        height: `${successHeight}%`,
+                        background: 'linear-gradient(to top, #059669, #34d399)',
+                        animation: `barGrow 0.6s ease-out ${i * 60}ms both`,
+                      }}
+                    />
                   </div>
                   
                   {/* Etiqueta X */}
@@ -491,12 +682,30 @@ export default function DashboardPage() {
             <h2 className="text-base font-bold text-white font-['Exo_2'] flex items-center gap-2">
               <span>🏆</span> Top 10 Choferes
             </h2>
+            {compareDrivers.length === 2 && (
+              <button
+                onClick={() => setShowCompare(true)}
+                style={{
+                  fontSize: 11, padding: '4px 12px',
+                  background: 'rgba(33,150,243,0.15)',
+                  border: '1px solid rgba(33,150,243,0.35)',
+                  borderRadius: 99, cursor: 'pointer',
+                  color: '#60a5fa', fontFamily: "'Exo 2', sans-serif",
+                  fontWeight: 700, letterSpacing: '0.06em',
+                  animation: 'fadeIn 0.3s ease',
+                  marginTop: 8,
+                }}
+              >
+                Comparar {compareDrivers[0].split(' ')[0]} vs {compareDrivers[1].split(' ')[0]} →
+              </button>
+            )}
           </div>
           
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="text-xs text-shuma-muted bg-slate-900/40 uppercase font-['Exo_2']">
                 <tr>
+                  <th className="px-3 py-3 w-8"></th>
                   <th className="px-5 py-3 font-bold">Pos</th>
                   <th className="px-5 py-3 font-bold">Chofer</th>
                   <th className="px-5 py-3 font-bold text-right">Entregas</th>
@@ -516,7 +725,33 @@ export default function DashboardPage() {
                   else if (idx === 2) posEmoji = '🥉';
 
                   return (
-                    <tr key={ch.name} className={idx % 2 === 0 ? 'bg-transparent hover:bg-slate-800/30 transition-colors' : 'bg-slate-900/20 hover:bg-slate-800/30 transition-colors'}>
+                    <tr
+                      key={ch.name}
+                      style={{
+                        background: idx % 2 === 0
+                          ? 'transparent'
+                          : 'rgba(255,255,255,0.025)',
+                        transition: 'background 0.15s',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(33,150,243,0.06)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.025)')}
+                    >
+                      <td className="px-3 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={compareDrivers.includes(ch.name)}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              if (compareDrivers.length < 2) setCompareDrivers(prev => [...prev, ch.name]);
+                            } else {
+                              setCompareDrivers(prev => prev.filter(n => n !== ch.name));
+                            }
+                          }}
+                          onClick={e => e.stopPropagation()}
+                          style={{ accentColor: '#2196F3', width: 14, height: 14, cursor: 'pointer' }}
+                        />
+                      </td>
                       <td className="px-5 py-3 font-bold text-slate-400 text-center w-12">{posEmoji}</td>
                       <td className="px-5 py-3 font-bold text-white">{ch.name}</td>
                       <td className="px-5 py-3 text-right font-medium text-slate-300">{ch.total}</td>
@@ -578,6 +813,24 @@ export default function DashboardPage() {
                 </button>
               </div>
 
+              {drillDown.type !== 'choferes' && (
+                <div style={{ padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente, factura..."
+                    value={drillSearch}
+                    onChange={e => setDrillSearch(e.target.value)}
+                    style={{
+                      width: '100%', padding: '7px 12px',
+                      background: '#060F1D', border: '1px solid #0d1f3a',
+                      borderRadius: 8, color: '#E8EFF8', fontSize: 12,
+                      fontFamily: "'DM Sans', sans-serif", outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Contenido */}
               <div className="flex-1 overflow-y-auto p-4 space-y-2">
                 {drillDown.type === 'choferes' ? (
@@ -608,7 +861,18 @@ export default function DashboardPage() {
                     ))
                 ) : (
                   // Vista de entregas
-                  (drillDeliveries[drillDown.type!] || []).map((d: any, i: number) => {
+                  (() => {
+                    const filteredDrillItems = (drillDeliveries[drillDown.type!] || []).filter((d: any) => {
+                      if (!drillSearch) return true;
+                      const addr = d.address || d;
+                      const s = drillSearch.toLowerCase();
+                      return (
+                        (addr.clientName || addr.name || '').toLowerCase().includes(s) ||
+                        (addr.invoice || '').toLowerCase().includes(s) ||
+                        (addr.label || addr.raw || '').toLowerCase().includes(s)
+                      );
+                    });
+                    return filteredDrillItems.map((d: any, i: number) => {
                     const addr = d.address || d;
                     const val = addr.merchandiseValue || d.merchandiseValue || 0;
                     const statusColor =
@@ -646,12 +910,100 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     );
-                  })
+                  })})()
                 )}
               </div>
             </div>
           </div>
         )}
+
+        {showCompare && compareDrivers.length === 2 && (() => {
+          const getStats = (name: string) => {
+            const s = driverStats.get(name) || { total: 0, success: 0, failed: 0, km: 0 };
+            return { ...s, tasa: s.total > 0 ? Math.round((s.success / s.total) * 100) : 0 };
+          };
+          const a = getStats(compareDrivers[0]);
+          const b = getStats(compareDrivers[1]);
+
+          const Row = ({ label, va, vb, suffix = '', higherIsBetter = true }: {
+            label: string; va: number; vb: number; suffix?: string; higherIsBetter?: boolean;
+          }) => {
+            const aWins = higherIsBetter ? va >= vb : va <= vb;
+            return (
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <td style={{ padding: '10px 16px', fontSize: 12, color: aWins ? '#34d399' : '#f87171', fontWeight: 700, textAlign: 'right' }}>
+                  {va.toFixed(va % 1 === 0 ? 0 : 1)}{suffix}
+                </td>
+                <td style={{ padding: '10px 16px', fontSize: 11, color: '#5B7BA0', textAlign: 'center', fontFamily: "'Exo 2', sans-serif", letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                  {label}
+                </td>
+                <td style={{ padding: '10px 16px', fontSize: 12, color: !aWins ? '#34d399' : '#f87171', fontWeight: 700 }}>
+                  {vb.toFixed(vb % 1 === 0 ? 0 : 1)}{suffix}
+                </td>
+              </tr>
+            );
+          };
+
+          return (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ background: 'rgba(5,12,28,0.85)', backdropFilter: 'blur(8px)' }}
+              onClick={() => setShowCompare(false)}
+            >
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                  background: 'linear-gradient(160deg, #0D1E38, #0A1628)',
+                  border: '1px solid rgba(33,150,243,0.2)',
+                  borderRadius: 20, maxWidth: 520, width: '100%',
+                  boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+                  animation: 'fadeIn 0.3s ease',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Header */}
+                <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ flex: 1, padding: '20px', textAlign: 'right', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+                    <p style={{ fontSize: 16, fontWeight: 700, color: '#E8EFF8', fontFamily: "'Exo 2', sans-serif", margin: 0 }}>
+                      {compareDrivers[0]}
+                    </p>
+                  </div>
+                  <div style={{ padding: '20px 16px', textAlign: 'center', alignSelf: 'center' }}>
+                    <span style={{ fontSize: 12, color: '#3B5270', fontFamily: "'Exo 2', sans-serif" }}>VS</span>
+                  </div>
+                  <div style={{ flex: 1, padding: '20px' }}>
+                    <p style={{ fontSize: 16, fontWeight: 700, color: '#E8EFF8', fontFamily: "'Exo 2', sans-serif", margin: 0 }}>
+                      {compareDrivers[1]}
+                    </p>
+                  </div>
+                </div>
+                {/* Tabla */}
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <tbody>
+                    <Row label="Entregas" va={a.total} vb={b.total} />
+                    <Row label="Exitosas" va={a.success} vb={b.success} />
+                    <Row label="Fallidas" va={a.failed} vb={b.failed} higherIsBetter={false} />
+                    <Row label="Tasa éxito" va={a.tasa} vb={b.tasa} suffix="%" />
+                    <Row label="Km recorridos" va={a.km} vb={b.km} />
+                  </tbody>
+                </table>
+                {/* Footer */}
+                <div style={{ padding: '14px', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <button
+                    onClick={() => setShowCompare(false)}
+                    style={{
+                      background: 'rgba(33,150,243,0.1)', border: '1px solid rgba(33,150,243,0.2)',
+                      borderRadius: 10, padding: '8px 24px', color: '#60a5fa',
+                      fontSize: 12, cursor: 'pointer', fontFamily: "'Exo 2', sans-serif", fontWeight: 600,
+                    }}
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       </main>
 
@@ -659,6 +1011,22 @@ export default function DashboardPage() {
         @keyframes slideInRight {
           from { transform: translateX(100%); opacity: 0; }
           to   { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes barGrow {
+          from { height: 0; }
+          to   { height: var(--bar-h); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes deltaUp {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes deltaDown {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>

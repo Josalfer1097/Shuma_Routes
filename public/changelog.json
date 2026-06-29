@@ -1,6 +1,16 @@
 {
   "updated": "2026-06-27",
   "items": [
+    { "type": "new",     "text": "Dashboard: KPI de tiempo promedio por entrega (min/entrega del período)" },
+    { "type": "new",     "text": "Dashboard: banner de alerta si hay rutas con más de 6h activas y entregas pendientes" },
+    { "type": "new",     "text": "Dashboard: comparador de choferes side-by-side desde el ranking (seleccionar 2 y comparar)" },
+    { "type": "new",     "text": "Dashboard: buscador interno en el drawer de drill-down para filtrar entregas" },
+    { "type": "new",     "text": "Dashboard: sparklines de tendencia de 7 días en cada KPI card" },
+    { "type": "new",     "text": "Dashboard: badge de rango de fechas exacto en el header (ej. 20 jun – 27 jun)" },
+    { "type": "improve", "text": "Dashboard: barras del gráfico con gradiente vertical y animación de entrada escalonada" },
+    { "type": "improve", "text": "Dashboard: deltas ↑↓ con micro-animación al cambiar período (sube desde abajo, baja desde arriba)" },
+    { "type": "improve", "text": "Dashboard: zebra striping más visible en el ranking de choferes" },
+    { "type": "improve", "text": "Dashboard: estilos de impresión mejorados — fondo blanco, texto negro, sin botones" },
     { "type": "new", "text": "Buscador avanzado en Bitácora con operadores (usuario:X módulo:Y) v7.29.0" },
     { "type": "improve", "text": "Filtro de horas y exportación detallada con metadata" },
     { "type": "fix", "text": "Solución a intercepción de clicks en mapas y listados" },
