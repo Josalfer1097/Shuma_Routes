@@ -1,6 +1,14 @@
 {
   "updated": "2026-06-27",
   "items": [
+    { "type": "new",     "text": "Histórico: nueva vista de calendario con indicadores de ruta por día (v7.29.3)" },
+    { "type": "new",     "text": "Histórico: barra de búsqueda en tiempo real por chofer o alias" },
+    { "type": "new",     "text": "Histórico: filtros rápidos por estado (completadas, con incidencias, pendientes)" },
+    { "type": "new",     "text": "Histórico: botón 'Re-optimizar' para lanzar rutas anteriores directo al Dispatcher" },
+    { "type": "improve", "text": "Histórico: rediseño de las tarjetas de ruta (checkbox a la izquierda, badges de estado)" },
+    { "type": "improve", "text": "Histórico: mapa miniatura con overlay de color de la ruta y contador de entregas" },
+    { "type": "improve", "text": "Histórico: jerarquía visual de botones (Ver Entregas primario, PDF/Plantilla/Re-optimizar secundarios)" },
+    { "type": "improve", "text": "Histórico: auto-carga de los últimos 60 días para la vista calendario" },
     { "type": "new",     "text": "Dashboard: KPI de tiempo promedio por entrega (min/entrega del período)" },
     { "type": "new",     "text": "Dashboard: banner de alerta si hay rutas con más de 6h activas y entregas pendientes" },
     { "type": "new",     "text": "Dashboard: comparador de choferes side-by-side desde el ranking (seleccionar 2 y comparar)" },

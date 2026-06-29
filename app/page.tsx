@@ -457,7 +457,7 @@ export default function HomePage() {
             e.currentTarget.style.borderColor = changelog ? 'rgba(33,150,243,0.2)' : 'transparent';
           }}
         >
-          v7.29.2{changelog ? ' · Ver novedades  ' : ''}
+          v7.29.3{changelog ? ' · Ver novedades  ' : ''}
         </button>
         <style>{`
           @keyframes rgbRoll {

@@ -717,15 +717,20 @@ supabase.removeChannel(locChannel);
       setUserName(sessionStorage.getItem('shuma_name') || '');
       setUserRole(sessionStorage.getItem('shuma_role') || '');
 
-      // Detectar plantilla del histórico
+      // Detectar plantilla del histórico (template o reoptimize)
       const templateRaw = sessionStorage.getItem('shuma_route_template');
-      if (templateRaw && window.location.search.includes('from=template')) {
+      const isTemplate = window.location.search.includes('from=template');
+      const isReopt = window.location.search.includes('from=reoptimize');
+      
+      if (templateRaw && (isTemplate || isReopt)) {
         try {
           const template = JSON.parse(templateRaw);
           sessionStorage.removeItem('shuma_route_template');
 
           showToast(
-            `Plantilla cargada: ${template.routeAlias || template.routeCode || template.driverName} · ${template.deliveries?.length || 0} entregas`,
+            isReopt
+              ? `Re-optimizando ruta: ${template.routeAlias || template.routeCode || template.driverName}...`
+              : `Plantilla cargada: ${template.routeAlias || template.routeCode || template.driverName} · ${template.deliveries?.length || 0} entregas`,
             'ok'
           );
 
@@ -739,13 +744,45 @@ supabase.removeChannel(locChannel);
               lng:      d.lng ?? null,
               geocoded: d.lat != null && d.lng != null,
               label:    d.raw,
+              merchandiseValue: d.merchandiseValue || 0,
             }));
+            
+            // 1. Cargar las direcciones (geocodificadas)
             dispatch({ type: 'SET_ADDRESSES', payload: templateAddresses });
+            
+            // 2. Pre-cargar el vehículo con el mismo conductor
+            const defaultDepot = { id: 'cdmx', name: 'CEDIS Principal', address: 'CDMX', lat: 19.4326, lng: -99.1332 };
+            const reoptVehicle: Vehicle = {
+              id: `veh-${Date.now()}`,
+              vehicleId: `veh-${Date.now()}`,
+              matricula: 'S/N',
+              type: 'Camioneta',
+              capacity: 200,
+              driverName: template.driverName || 'Chofer re-asignado',
+              color: template.color || '#2196F3',
+              depot: defaultDepot,
+              invoices: '',
+            };
+            dispatch({ type: 'ADD_VEHICLE', payload: reoptVehicle });
+            
+            // 3. Pre-llenar la configuración global por defecto si no existe
+            dispatch({ type: 'SET_GLOBAL_CONFIG', payload: {
+              departureDepot: defaultDepot,
+              returnDepot: 'same',
+              departureTime: '08:00',
+              deadlineTime: '18:00',
+              unloadConfig: { truckLarge: 20, truckSmall: 18, van: 15 }
+            }});
+
+            // 4. Activar panel lateral
             setIsSlideOverOpen(true);
-            setActiveTabPersisted('upload');
+            
+            // 5. Si es re-optimizar, saltamos al tab de config listos para rutear
+            setActiveTabPersisted(isReopt ? 'config' : 'upload');
+            dispatch({ type: 'SET_STEP', payload: isReopt ? 'zones' : 'geocoding' });
           }
         } catch (e) {
-          console.warn('Error cargando plantilla:', e);
+          console.warn('Error cargando plantilla/reopt:', e);
         }
       }
 

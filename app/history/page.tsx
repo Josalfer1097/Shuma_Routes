@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
-import { History, Calendar, ChevronRight, Package, Truck, Navigation, Search, Map } from 'lucide-react';
+import { History, Calendar, ChevronRight, Package, Truck, Navigation, Search, Map as MapIcon } from 'lucide-react';
 
 interface HistoryRoute {
   id: string;
@@ -36,6 +36,15 @@ export default function HistoryPage() {
   const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
   const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
   const [showCompareModal, setShowCompareModal]     = useState(false);
+  const [searchText, setSearchText]   = useState('');
+  const [filterStatus, setFilterStatus] = useState<'' | 'completed' | 'incidents' | 'pending' | 'empty'>('');
+  const [sortBy, setSortBy]           = useState<'date' | 'pct' | 'km' | 'total'>('date');
+  const [sortDir, setSortDir]         = useState<'desc' | 'asc'>('desc');
+  const [viewMode, setViewMode]       = useState<'list' | 'calendar'>('list');
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
 
   const toggleCompare = (id: string) => {
     setSelectedForCompare(prev => {
@@ -91,7 +100,15 @@ export default function HistoryPage() {
     setLoading(true);
     setError(null);
     try {
-      const url = date ? `/api/routes/history?date=${date}` : '/api/routes/history';
+      let url = '';
+      if (!date) {
+        // Sin filtro — traer últimos 30 días para tener datos del mes
+        const from = new Date();
+        from.setDate(from.getDate() - 60);
+        url = `/api/routes/history?dateFrom=${from.toLocaleDateString('en-CA')}&dateTo=${new Date().toLocaleDateString('en-CA')}`;
+      } else {
+        url = `/api/routes/history?date=${date}`;
+      }
       const res = await fetch(url);
       const data = await res.json();
       if (data.ok) {
@@ -134,18 +151,87 @@ export default function HistoryPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+
+                {/* Búsqueda */}
                 <div className="relative">
-                  <Calendar className="w-4 h-4 text-shuma-muted absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Search className="w-3.5 h-3.5 text-shuma-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
                   <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="pl-9 pr-3 py-2 bg-slate-900 border border-shuma-border rounded-xl text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                    type="text"
+                    placeholder="Chofer, código, alias..."
+                    value={searchText}
+                    onChange={e => setSearchText(e.target.value)}
+                    className="pl-8 pr-3 py-2 bg-slate-900 border border-shuma-border rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500 w-40"
                   />
                 </div>
-                {selectedDate && (
-                  <button 
+
+                {/* Filtro por estado */}
+                <select
+                  value={filterStatus}
+                  onChange={e => setFilterStatus(e.target.value as any)}
+                  className="px-3 py-2 bg-slate-900 border border-shuma-border rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Estado</option>
+                  <option value="completed">✓ Completadas</option>
+                  <option value="incidents">⚠ Con incidencias</option>
+                  <option value="pending">● Con pendientes</option>
+                  <option value="empty">○ Sin entregas</option>
+                </select>
+
+                {/* Ordenar */}
+                <div className="flex items-center gap-1">
+                  <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value as any)}
+                    className="px-3 py-2 bg-slate-900 border border-shuma-border rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="date">Fecha</option>
+                    <option value="pct">% Completado</option>
+                    <option value="km">Km</option>
+                    <option value="total">Entregas</option>
+                  </select>
+                  <button
+                    onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+                    className="px-2 py-2 bg-slate-900 border border-shuma-border rounded-xl text-xs text-slate-400 hover:text-white transition-colors"
+                    title={sortDir === 'desc' ? 'Descendente' : 'Ascendente'}
+                  >
+                    {sortDir === 'desc' ? '↓' : '↑'}
+                  </button>
+                </div>
+
+                {/* Toggle lista / calendario */}
+                <div className="flex bg-slate-900 border border-shuma-border rounded-xl overflow-hidden">
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`px-3 py-2 text-xs font-bold transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-shuma-muted hover:text-white'}`}
+                    title="Vista lista"
+                  >
+                    ☰
+                  </button>
+                  <button
+                    onClick={() => { setViewMode('calendar'); if (!selectedDate) setSelectedDate(''); }}
+                    className={`px-3 py-2 text-xs font-bold transition-colors ${viewMode === 'calendar' ? 'bg-blue-600 text-white' : 'text-shuma-muted hover:text-white'}`}
+                    title="Vista calendario"
+                  >
+                    📅
+                  </button>
+                </div>
+
+                {/* Date picker — solo en vista lista */}
+                {viewMode === 'list' && (
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-shuma-muted absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="pl-9 pr-3 py-2 bg-slate-900 border border-shuma-border rounded-xl text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                )}
+
+                {selectedDate && viewMode === 'list' && (
+                  <button
                     onClick={() => setSelectedDate('')}
                     className="px-3 py-2 text-xs font-semibold bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition"
                   >
@@ -159,7 +245,124 @@ export default function HistoryPage() {
 
         {/* Body */}
         <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-          {loading ? (
+          {viewMode === 'calendar' ? (
+            (() => {
+              const { year, month } = calendarMonth;
+              const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+              const DAYS   = ['Do','Lu','Ma','Mi','Ju','Vi','Sá'];
+              const firstDay = new Date(year, month, 1).getDay();
+              const daysInMonth = new Date(year, month + 1, 0).getDate();
+              const cells: (number | null)[] = [];
+              for (let i = 0; i < firstDay; i++) cells.push(null);
+              for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+              // Agrupar rutas por fecha
+              const routesByDate = new Map<string, HistoryRoute[]>();
+              routes.forEach(r => {
+                const key = r.date;
+                if (!routesByDate.has(key)) routesByDate.set(key, []);
+                routesByDate.get(key)!.push(r);
+              });
+
+              const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+
+              return (
+                <div style={{ background: 'rgba(17,32,64,0.5)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)', padding: 20 }}>
+                  {/* Navegación de mes */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <button
+                      onClick={() => setCalendarMonth(prev => {
+                        const d = new Date(prev.year, prev.month - 1, 1);
+                        return { year: d.getFullYear(), month: d.getMonth() };
+                      })}
+                      style={{ background: 'none', border: 'none', color: '#5B7BA0', cursor: 'pointer', fontSize: 20, padding: '0 8px' }}
+                    >‹</button>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: '#E8EFF8', fontFamily: "'Exo 2', sans-serif" }}>
+                      {MONTHS[month]} {year}
+                    </span>
+                    <button
+                      onClick={() => setCalendarMonth(prev => {
+                        const d = new Date(prev.year, prev.month + 1, 1);
+                        return { year: d.getFullYear(), month: d.getMonth() };
+                      })}
+                      style={{ background: 'none', border: 'none', color: '#5B7BA0', cursor: 'pointer', fontSize: 20, padding: '0 8px' }}
+                    >›</button>
+                  </div>
+
+                  {/* Días de la semana */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+                    {DAYS.map(d => (
+                      <div key={d} style={{ textAlign: 'center', fontSize: 10, color: '#3B5270', fontFamily: "'Exo 2', sans-serif", letterSpacing: '0.08em', padding: '4px 0' }}>
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Celdas del mes */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+                    {cells.map((day, i) => {
+                      if (!day) return <div key={`empty-${i}`} />;
+                      const iso = `${year}-${String(month + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                      const dayRoutes = routesByDate.get(iso) || [];
+                      const isToday = iso === today;
+                      const isSelected = iso === selectedDate;
+
+                      return (
+                        <button
+                          key={iso}
+                          onClick={() => {
+                            setSelectedDate(iso);
+                            setViewMode('list');
+                          }}
+                          style={{
+                            minHeight: 52, borderRadius: 8, border: isSelected
+                              ? '2px solid #2196F3'
+                              : isToday
+                                ? '1px solid rgba(33,150,243,0.3)'
+                                : '1px solid rgba(255,255,255,0.04)',
+                            background: isSelected
+                              ? 'rgba(33,150,243,0.15)'
+                              : isToday
+                                ? 'rgba(33,150,243,0.06)'
+                                : 'rgba(255,255,255,0.02)',
+                            cursor: 'pointer',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center',
+                            padding: '6px 4px', gap: 4,
+                            transition: 'all 0.15s',
+                          }}
+                          onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; }}
+                          onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = isToday ? 'rgba(33,150,243,0.06)' : 'rgba(255,255,255,0.02)'; }}
+                        >
+                          <span style={{ fontSize: 12, color: isSelected ? '#60a5fa' : isToday ? '#60a5fa' : '#A8BFE0', fontWeight: isToday || isSelected ? 700 : 400 }}>
+                            {day}
+                          </span>
+                          {/* Dots de color por ruta */}
+                          {dayRoutes.length > 0 && (
+                            <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 40 }}>
+                              {dayRoutes.slice(0, 4).map((r: HistoryRoute, ri: number) => (
+                                <div key={ri} style={{
+                                  width: 6, height: 6, borderRadius: '50%',
+                                  backgroundColor: r.color || '#2196F3',
+                                  opacity: 0.85,
+                                }} />
+                              ))}
+                              {dayRoutes.length > 4 && (
+                                <span style={{ fontSize: 8, color: '#5B7BA0' }}>+{dayRoutes.length - 4}</span>
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <p style={{ marginTop: 12, fontSize: 10, color: '#3B5270', fontFamily: "'DM Sans', sans-serif", textAlign: 'center' }}>
+                    Haz click en un día para ver sus rutas
+                  </p>
+                </div>
+              );
+            })()
+          ) : loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
               <p className="text-shuma-muted text-sm">Cargando historial...</p>
@@ -184,7 +387,48 @@ export default function HistoryPage() {
             </div>
           ) : (
             <div className="grid gap-4">
-              {routes.map(route => {
+              {(() => {
+                // Filtrar + buscar + ordenar
+                const filteredRoutes = routes
+                  .filter(route => {
+                    // Búsqueda por texto
+                    if (searchText) {
+                      const s = searchText.toLowerCase();
+                      const matchName   = (route.driver_name || '').toLowerCase().includes(s);
+                      const matchCode   = (route.route_code || '').toLowerCase().includes(s);
+                      const matchAlias  = (route.route_alias || '').toLowerCase().includes(s);
+                      if (!matchName && !matchCode && !matchAlias) return false;
+                    }
+                    // Filtro por estado
+                    if (filterStatus) {
+                      const { total, delivered, partial, failed, pending } = route.stats;
+                      const processed = delivered + partial + failed;
+                      const isDone = pending === 0 && total > 0;
+                      const hasFails = failed > 0 || partial > 0;
+                      if (filterStatus === 'completed'  && !(isDone && !hasFails)) return false;
+                      if (filterStatus === 'incidents'  && !(hasFails)) return false;
+                      if (filterStatus === 'pending'    && !(pending > 0)) return false;
+                      if (filterStatus === 'empty'      && !(total === 0)) return false;
+                    }
+                    return true;
+                  })
+                  .sort((a, b) => {
+                    let va = 0, vb = 0;
+                    if (sortBy === 'date') {
+                      va = new Date(a.date).getTime();
+                      vb = new Date(b.date).getTime();
+                    } else if (sortBy === 'pct') {
+                      va = a.stats.total > 0 ? (a.stats.delivered + a.stats.partial + a.stats.failed) / a.stats.total : 0;
+                      vb = b.stats.total > 0 ? (b.stats.delivered + b.stats.partial + b.stats.failed) / b.stats.total : 0;
+                    } else if (sortBy === 'km') {
+                      va = a.total_km; vb = b.total_km;
+                    } else if (sortBy === 'total') {
+                      va = a.stats.total; vb = b.stats.total;
+                    }
+                    return sortDir === 'desc' ? vb - va : va - vb;
+                  });
+
+                return filteredRoutes.map(route => {
                 const dateObj = new Date(route.date + 'T12:00:00');
                 const formattedDate = new Intl.DateTimeFormat('es-MX', {
                   weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
@@ -199,11 +443,29 @@ export default function HistoryPage() {
                 const isExpanded = expandedRoute === route.id;
 
                 return (
-                  <div key={route.id} className="p-4 rounded-xl border border-shuma-border bg-shuma-surface/30 space-y-3 hover:border-slate-600 transition-colors" style={{ borderLeft: `3px solid ${route.color || '#2196F3'}` }}>
-                    
-                    {/* Cabecera de ruta */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    key={route.id}
+                    className="rounded-xl bg-shuma-surface/30 hover:border-slate-600 transition-all overflow-hidden"
+                    style={{
+                      border: selectedForCompare.includes(route.id)
+                        ? `2px solid ${route.color || '#2196F3'}`
+                        : `1px solid rgba(255,255,255,0.07)`,
+                      borderLeft: selectedForCompare.includes(route.id)
+                        ? `2px solid ${route.color || '#2196F3'}`
+                        : `3px solid ${route.color || '#2196F3'}`,
+                      boxShadow: selectedForCompare.includes(route.id)
+                        ? `0 0 16px ${route.color || '#2196F3'}33`
+                        : 'none',
+                    }}
+                  >
+                    <div className="flex">
+                      {/* Columna izquierda — solo el checkbox */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '0 12px',
+                        borderRight: '1px solid rgba(255,255,255,0.04)',
+                        background: selectedForCompare.includes(route.id) ? `${route.color || '#2196F3'}11` : 'transparent',
+                      }}>
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleCompare(route.id); }}
                           className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
@@ -218,40 +480,43 @@ export default function HistoryPage() {
                             </svg>
                           )}
                         </button>
-                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: route.color || '#2196F3' }} />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <h3 className="font-semibold text-sm text-shuma-text truncate">
-                              {route.route_alias || route.route_code || 'Sin nombre'}
-                            </h3>
-                          </div>
-                          <p className="text-xs text-shuma-muted mt-0.5">
-                            {route.driver_name || 'Sin chofer asignado'}
-                            {route.route_code && route.route_alias && (
-                              <span className="ml-1.5 opacity-40">· {route.route_code}</span>
-                            )}
-                            <span className="ml-1.5 opacity-40">· {formattedDate}</span>
-                            {route.total_km > 0 && ` · ${route.total_km.toFixed(1)} km`}
-                          </p>
-                        </div>
                       </div>
 
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 border ${
-                        isDone && !hasFails
-                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                          : isDone && hasFails
-                            ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                            : hasFails
-                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                              : 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-                      }`}>
-                        {isDone && !hasFails ? '✓ Completada'
-                          : isDone ? '⚠ Con incidencias'
-                          : pending > 0 ? `● ${pending} pendientes`
-                          : total === 0 ? '○ Sin entregas'
-                          : '● En curso'}
-                      </span>
-                    </div>
+                      {/* Columna derecha — contenido de la card */}
+                      <div className="flex-1 p-4 space-y-3 min-w-0">
+                        {/* Cabecera sin checkbox */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <h3 className="font-semibold text-sm text-shuma-text truncate">
+                                {route.route_alias || route.route_code || 'Sin nombre'}
+                              </h3>
+                            </div>
+                            <p className="text-xs text-shuma-muted mt-0.5">
+                              {route.driver_name || 'Sin chofer asignado'}
+                              {route.route_code && route.route_alias && (
+                                <span className="ml-1.5 opacity-40">· {route.route_code}</span>
+                              )}
+                              <span className="ml-1.5 opacity-40">· {formattedDate}</span>
+                              {route.total_km > 0 && ` · ${route.total_km.toFixed(1)} km`}
+                            </p>
+                          </div>
+                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 border ${
+                            isDone && !hasFails
+                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                              : isDone && hasFails
+                                ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                : hasFails
+                                  ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                  : 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                          }`}>
+                            {isDone && !hasFails ? '✓ Completada'
+                              : isDone ? '⚠ Con incidencias'
+                              : pending > 0 ? `● ${pending} pendientes`
+                              : total === 0 ? '○ Sin entregas'
+                              : '● En curso'}
+                          </span>
+                        </div>
 
                     {/* Barra de progreso */}
                     <div>
@@ -264,50 +529,138 @@ export default function HistoryPage() {
                         </div>
                         <span>{pct}% · {processed}/{total}</span>
                       </div>
-                      <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                        <div className="h-1.5 rounded-full transition-all"
-                          style={{ width: `${pct}%`, backgroundColor: route.color || '#2196F3' }} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div className="flex-1 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                          <div className="h-1.5 rounded-full transition-all"
+                            style={{ width: `${pct}%`, backgroundColor: route.color || '#2196F3' }} />
+                        </div>
+                        <span style={{
+                          fontSize: 10, fontFamily: "'Exo 2', sans-serif",
+                          color: pct === 100 ? '#34d399' : pct >= 70 ? '#fbbf24' : '#f87171',
+                          fontWeight: 700, flexShrink: 0, minWidth: 56, textAlign: 'right',
+                        }}>
+                          {pct}% · {processed}/{total}
+                        </span>
                       </div>
                     </div>
 
                     {/* Acciones */}
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {/* Ver Entregas — primario, más prominente */}
                       <button
                         onClick={() => setExpandedRoute(isExpanded ? null : route.id)}
-                        className="flex-1 text-xs text-slate-300 hover:text-white py-1.5 rounded-lg hover:bg-slate-700 transition-colors border border-shuma-border"
+                        style={{
+                          flex: '2 1 120px',
+                          fontSize: 12, fontWeight: 700,
+                          color: 'white',
+                          padding: '8px 14px',
+                          borderRadius: 10,
+                          background: isExpanded ? 'rgba(100,116,139,0.2)' : 'rgba(33,150,243,0.15)',
+                          border: `1px solid ${isExpanded ? 'rgba(100,116,139,0.3)' : 'rgba(33,150,243,0.35)'}`,
+                          cursor: 'pointer',
+                          fontFamily: "'Exo 2', sans-serif",
+                          transition: 'all 0.15s',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = isExpanded ? 'rgba(100,116,139,0.3)' : 'rgba(33,150,243,0.25)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = isExpanded ? 'rgba(100,116,139,0.2)' : 'rgba(33,150,243,0.15)')}
                       >
-                        {isExpanded ? 'Ocultar Entregas' : 'Ver Entregas'}
+                        <Package size={13} />
+                        {isExpanded ? 'Ocultar' : 'Ver Entregas'}
                       </button>
+
+                      {/* Descargar PDF — secundario */}
                       <button
                         onClick={() => handleDownloadPDF(route)}
-                        className="flex-1 text-xs text-blue-400 hover:text-blue-300 py-1.5 rounded-lg hover:bg-blue-500/10 transition-colors border border-blue-500/30"
+                        style={{
+                          flex: '1 1 80px',
+                          fontSize: 11, color: '#94a3b8',
+                          padding: '8px 10px', borderRadius: 10,
+                          background: 'transparent',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          cursor: 'pointer',
+                          fontFamily: "'DM Sans', sans-serif",
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.2)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
                       >
-                        📄 Descargar PDF
+                        📄 PDF
                       </button>
+
+                      {/* Usar como plantilla — secundario */}
                       <button
                         onClick={() => {
-                          // Guardar plantilla en sessionStorage
                           const template = {
-                            driverName:    route.driver_name,
-                            routeCode:     route.route_code,
-                            routeAlias:    route.route_alias,
-                            color:         route.color,
-                            totalKm:       route.total_km,
-                            date:          route.date,
-                            deliveries:    (route.deliveries || []).map((d: any) => ({
-                              name:      d.address?.clientName || d.address?.name || '',
-                              raw:       d.address?.label || d.address?.raw || '',
-                              invoice:   d.address?.invoice || '',
-                              lat:       d.address?.lat,
-                              lng:       d.address?.lng,
+                            driverName:  route.driver_name,
+                            routeCode:   route.route_code,
+                            routeAlias:  route.route_alias,
+                            color:       route.color,
+                            totalKm:     route.total_km,
+                            date:        route.date,
+                            deliveries:  (route.deliveries || []).map((d: any) => ({
+                              name:    d.address?.clientName || d.address?.name || '',
+                              raw:     d.address?.label || d.address?.raw || '',
+                              invoice: d.address?.invoice || '',
+                              lat:     d.address?.lat,
+                              lng:     d.address?.lng,
                             })),
                           };
                           sessionStorage.setItem('shuma_route_template', JSON.stringify(template));
                           router.push('/dispatcher?from=template');
                         }}
-                        className="flex-1 text-xs text-emerald-400 hover:text-emerald-300 py-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors border border-emerald-500/30 hover:border-emerald-500/50"
+                        style={{
+                          flex: '1 1 80px',
+                          fontSize: 11, color: '#94a3b8',
+                          padding: '8px 10px', borderRadius: 10,
+                          background: 'transparent',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          cursor: 'pointer',
+                          fontFamily: "'DM Sans', sans-serif",
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#34d399'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(52,211,153,0.3)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
                       >
-                        ♻️ Usar como plantilla
+                        ♻️ Plantilla
+                      </button>
+
+                      {/* Re-optimizar — nuevo botón */}
+                      <button
+                        onClick={() => {
+                          const reoptPayload = {
+                            driverName:  route.driver_name,
+                            routeCode:   route.route_code,
+                            routeAlias:  route.route_alias,
+                            color:       route.color,
+                            date:        route.date,
+                            autoOptimize: true,   // ← señal para el dispatcher
+                            deliveries:  (route.deliveries || []).map((d: any) => ({
+                              name:    d.address?.clientName || d.address?.name || '',
+                              raw:     d.address?.label || d.address?.raw || '',
+                              invoice: d.address?.invoice || '',
+                              lat:     d.address?.lat,
+                              lng:     d.address?.lng,
+                              merchandiseValue: d.address?.merchandiseValue || 0,
+                            })),
+                          };
+                          sessionStorage.setItem('shuma_route_template', JSON.stringify(reoptPayload));
+                          router.push('/dispatcher?from=reoptimize');
+                        }}
+                        style={{
+                          flex: '1 1 80px',
+                          fontSize: 11, color: '#94a3b8',
+                          padding: '8px 10px', borderRadius: 10,
+                          background: 'transparent',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          cursor: 'pointer',
+                          fontFamily: "'DM Sans', sans-serif",
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#fbbf24'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(251,191,36,0.3)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; }}
+                      >
+                        ⚡ Re-optimizar
                       </button>
                     </div>
 
@@ -320,7 +673,7 @@ export default function HistoryPage() {
                           return mapUrl ? (
                             <div style={{
                               borderRadius: 12, overflow: 'hidden',
-                              border: '1px solid rgba(255,255,255,0.06)',
+                              border: `1px solid ${route.color || '#2196F3'}44`,
                               marginBottom: 12,
                               position: 'relative',
                             }}>
@@ -330,17 +683,38 @@ export default function HistoryPage() {
                                 style={{
                                   width: '100%', height: 160,
                                   objectFit: 'cover', display: 'block',
-                                  filter: 'brightness(0.85) saturate(0.7)',
+                                  filter: 'brightness(0.75) saturate(0.5)',
                                 }}
                                 loading="lazy"
                               />
+                              {/* Overlay con gradiente del color del chofer */}
                               <div style={{
-                                position: 'absolute', bottom: 6, right: 8,
-                                fontSize: 9, color: 'rgba(255,255,255,0.4)',
-                                fontFamily: "'DM Sans', sans-serif",
-                                letterSpacing: '0.05em',
+                                position: 'absolute', inset: 0,
+                                background: `linear-gradient(135deg, ${route.color || '#2196F3'}33 0%, transparent 60%, ${route.color || '#2196F3'}22 100%)`,
+                                pointerEvents: 'none',
+                              }} />
+                              {/* Badge de entregas */}
+                              <div style={{
+                                position: 'absolute', bottom: 8, right: 10,
+                                fontSize: 10, color: 'white',
+                                fontFamily: "'Exo 2', sans-serif",
+                                fontWeight: 700, letterSpacing: '0.06em',
+                                background: 'rgba(0,0,0,0.55)',
+                                borderRadius: 99, padding: '2px 8px',
+                                backdropFilter: 'blur(4px)',
                               }}>
                                 {route.deliveries.filter((d: any) => d.address?.lat).length} entregas
+                              </div>
+                              {/* Nombre del chofer en el mapa */}
+                              <div style={{
+                                position: 'absolute', top: 8, left: 10,
+                                fontSize: 11, color: 'white',
+                                fontFamily: "'Exo 2', sans-serif",
+                                fontWeight: 700,
+                                background: `${route.color || '#2196F3'}CC`,
+                                borderRadius: 99, padding: '2px 10px',
+                              }}>
+                                {route.driver_name || route.route_alias || 'Ruta'}
                               </div>
                             </div>
                           ) : null;
@@ -374,9 +748,12 @@ export default function HistoryPage() {
                         )}
                       </div>
                     )}
-                  </div>
-                );
-              })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           )}
         </main>
