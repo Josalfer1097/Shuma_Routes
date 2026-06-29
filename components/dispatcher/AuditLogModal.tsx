@@ -377,7 +377,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     link.click();
   };
 
-  const exportWithMetadata = useCallback(() => {
+  const exportWithMetadata = () => {
     if (!logs.length) return;
     const rows = [
       ['Fecha', 'Usuario', 'Rol', 'Módulo', 'Acción', 'Entidad', 'IP', 'Dispositivo', 'Metadata'],
@@ -405,7 +405,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     a.download = `bitacora_detallada_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [logs]);
+  };
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleString('es-MX', {
