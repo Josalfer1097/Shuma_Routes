@@ -57,22 +57,22 @@ export async function GET(req: NextRequest) {
 
     if (module)    query = query.eq('module', module);
     if (user_name) query = query.ilike('user_name', `%${user_name}%`);  // ← era eq, ahora ilike
-    if (dateFrom)  query = query.gte('created_at', new Date(dateFrom).toISOString());
-    if (dateTo)    query = query.lte('created_at', new Date(dateTo + 'T23:59:59').toISOString());
-    if (timeFrom && dateFrom) {
-      const [h, m] = timeFrom.split(':');
-      const dt = new Date(dateFrom);
-      dt.setHours(Number(h), Number(m), 0, 0);
-      query = query.gte('created_at', dt.toISOString());
-    }
-    if (timeTo) {
-      const baseDate = dateTo || dateFrom;
-      if (baseDate) {
-        const [h, m] = timeTo.split(':');
-        const dt = new Date(baseDate);
-        dt.setHours(Number(h), Number(m), 59, 999);
-        query = query.lte('created_at', dt.toISOString());
+    if (dateFrom) {
+      const fromDt = new Date(dateFrom + 'T00:00:00');
+      if (timeFrom) {
+        const [h, m] = timeFrom.split(':');
+        fromDt.setHours(Number(h), Number(m), 0, 0);
       }
+      query = query.gte('created_at', fromDt.toISOString());
+    }
+    if (dateTo || dateFrom) {
+      const baseDate = dateTo || dateFrom;
+      const toDt = new Date(baseDate + 'T23:59:59');
+      if (timeTo) {
+        const [h, m] = timeTo.split(':');
+        toDt.setHours(Number(h), Number(m), 59, 999);
+      }
+      query = query.lte('created_at', toDt.toISOString());
     }
     if (entity_id) query = query.eq('entity_id', entity_id);
 
