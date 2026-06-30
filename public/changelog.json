@@ -2,6 +2,22 @@
   "updated": "2026-06-27",
   "items": [
     {
+      "type": "fix",
+      "text": "Dispatcher: Resumen de CSV ahora muestra correctamente el valor total real de mercancía"
+    },
+    {
+      "type": "fix",
+      "text": "Dispatcher: Cálculo de ETA en rutas incluye inteligentemente los 30m de comida"
+    },
+    {
+      "type": "fix",
+      "text": "PDF: Removidos emojis y caracteres no soportados que causaban corrupción de texto"
+    },
+    {
+      "type": "improve",
+      "text": "PDF: Actualización de branding a Shuma y soporte seguro para símbolo de copyright"
+    },
+    {
       "type": "improve",
       "text": "App: Efectos hover premium en las cards del Selector principal"
     },

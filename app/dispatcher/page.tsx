@@ -204,17 +204,20 @@ function calcularViabilidad(vehicles: Vehicle[], clusters: Cluster[], globalConf
 }
 
 // Helper: calcular ETA de una ruta activa
+const LUNCH_MINS_DEFAULT = 30; // debe coincidir con LUNCH_MINS en lib/pdfReport.ts
+
 const calcRouteETA = (
   departureTime: string,        // 'HH:MM'
   totalMinutes: number,         // tiempo total estimado de la ruta
   pending: number,              // paradas pendientes
   total: number,                // total de paradas
-  deadlineTime: string          // 'HH:MM' límite del día
+  deadlineTime: string,         // 'HH:MM' límite del día
+  lunchAlreadyElapsed?: boolean // true si la hora de comida ya pasó hoy
 ): { etaStr: string; isAtRisk: boolean } => {
   try {
-    // Tiempo promedio por parada (mínimo 10 min)
+    // Tiempo promedio por parada (mínimo 10 min) — ya incluye tránsito + descarga
     const avgMinPerStop = total > 0 ? Math.max(totalMinutes / total, 10) : 15;
-    // Tiempo restante estimado
+    // Tiempo restante estimado de paradas
     const remainingMin = Math.round(pending * avgMinPerStop);
 
     // Hora actual en CDMX
@@ -224,8 +227,14 @@ const calcRouteETA = (
     const [nowH, nowM] = nowCDMX.split(':').map(Number);
     const nowTotalMin = nowH * 60 + nowM;
 
-    // ETA = ahora + tiempo restante
-    const etaTotalMin = nowTotalMin + remainingMin;
+    // Sumar tiempo de comida si aún no ha ocurrido (asumimos comida a medio día,
+    // entre 13:00-15:00; si la hora actual ya pasó las 15:00, asumimos que ya comió)
+    const lunchPending = lunchAlreadyElapsed === false
+      ? LUNCH_MINS_DEFAULT
+      : (nowTotalMin < 15 * 60 ? LUNCH_MINS_DEFAULT : 0);
+
+    // ETA = ahora + tiempo restante de paradas + comida pendiente
+    const etaTotalMin = nowTotalMin + remainingMin + lunchPending;
     const etaH = Math.floor(etaTotalMin / 60) % 24;
     const etaM = etaTotalMin % 60;
     const etaStr = `${String(etaH).padStart(2, '0')}:${String(etaM).padStart(2, '0')}`;
@@ -276,7 +285,7 @@ function DispatcherPageContent() {
     setActiveTab(tab);
     try { sessionStorage.setItem('shuma_slideover_tab', tab); } catch {}
   };
-  const [csvSummary, setCsvSummary] = useState<{ count: number; value: number; zones: number } | null>(null);
+
   const [optimizeMode, setOptimizeMode] = useState<'zones' | 'google'>('google');
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -2969,15 +2978,22 @@ supabase.removeChannel(locChannel);
                 <div className="text-xs text-slate-300">
                   <span className="font-bold text-emerald-400">Total direcciones válidas:</span> {state.addresses.length}
                   <span className="mx-2 text-shuma-border">|</span>
-                  <span className="font-bold text-blue-400">Volumen Total:</span> {csvSummary?.value || state.addresses.reduce((acc, curr) => acc + ((curr as any).volume || 0), 0).toFixed(2)} m³
+                  <span className="font-bold text-blue-400">Valor total:</span>{' '}
+                  ${state.addresses
+                    .reduce((acc, curr) => acc + ((curr as any).merchandiseValue || 0), 0)
+                    .toLocaleString('es-MX', { maximumFractionDigits: 0 })}
                   <span className="mx-2 text-shuma-border">|</span>
-                  <span className="font-bold text-purple-400">Zonas identificadas:</span> {csvSummary?.zones || new Set(state.addresses.map(a => (a as any).zone).filter(Boolean)).size}
+                  <span className="font-bold text-purple-400">Zonas estimadas:</span>{' '}
+                  {state.clusters.length > 0
+                    ? state.clusters.length
+                    : state.vehicles.length > 0
+                      ? state.vehicles.length
+                      : Math.max(1, Math.ceil(state.addresses.length / 10))}
                 </div>
                 <button
                   className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-xs hover:bg-red-500/20 transition-colors"
                   onClick={() => {
                     dispatch({ type: 'SET_ADDRESSES', payload: [] });
-                    setCsvSummary(null);
                   }}
                 >
                   Limpiar CSV

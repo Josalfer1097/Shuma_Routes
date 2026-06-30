@@ -103,7 +103,7 @@ export async function generatePDFReport(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(147, 197, 253);
-  doc.text('Sistema de Optimización de Entregas · Grupo Shuma', 20, 25);
+  doc.text('Sistema de Optimizacion de Entregas - Shuma', 20, 25);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(...WHITE);
@@ -147,10 +147,10 @@ export async function generatePDFReport(
     startY: breakY + 4,
     head: [['Concepto', 'Tiempo', '% del Total']],
     body: [
-      ['🚗 Tránsito en ruta (conducción)', fmtMins(totalTransit), `${Math.round(totalTransit/Math.max(1,grandTotal)*100)}%`],
-      ['📦 Tiempo de descarga en paradas', fmtMins(totalUnload),  `${Math.round(totalUnload/Math.max(1,grandTotal)*100)}%`],
-      ['🍽️ Hora de comida (todos los choferes)', fmtMins(totalLunch), `${Math.round(totalLunch/Math.max(1,grandTotal)*100)}%`],
-      ['⏱️ TIEMPO OPERATIVO TOTAL', fmtMins(grandTotal), '100%'],
+      ['Transito en ruta (conduccion)', fmtMins(totalTransit), `${Math.round(totalTransit/Math.max(1,grandTotal)*100)}%`],
+      ['Tiempo de descarga en paradas', fmtMins(totalUnload),  `${Math.round(totalUnload/Math.max(1,grandTotal)*100)}%`],
+      ['Hora de comida (todos los choferes)', fmtMins(totalLunch), `${Math.round(totalLunch/Math.max(1,grandTotal)*100)}%`],
+      ['TIEMPO OPERATIVO TOTAL', fmtMins(grandTotal), '100%'],
     ],
     margin: { left: 20, right: 20 },
     theme: 'striped',
@@ -174,7 +174,7 @@ export async function generatePDFReport(
   doc.text('Resumen de Rutas por Chofer', 20, summaryY);
 
   const summaryRows = routeMetrics.map(m => {
-    const statusIcon = m.status === 'OK' ? '✓ En tiempo' : m.status === 'RIESGO' ? '⚠ Riesgo' : '✗ Excede límite';
+    const statusIcon = m.status === 'OK' ? 'En tiempo' : m.status === 'RIESGO' ? 'Riesgo' : 'Excede limite';
     const valorStr = m.totalValor > 0 ? `$${m.totalValor.toLocaleString('es-MX')}` : '—';
     return [
       m.route.driverName || m.route.driver_name || 'Sin nombre',
@@ -235,7 +235,7 @@ export async function generatePDFReport(
       `• Hora de comida incluida: ${LUNCH_MINS} minutos por chofer`,
       `• Tiempo de descarga: ${getUnloadMins('Camión grande')}m camión grande · ${getUnloadMins('Camión chico')}m camión chico · ${getUnloadMins('Camioneta')}m camioneta`,
       weather
-        ? `• Clima CDMX: ${weather.temp}°C — ${weather.description} · Humedad: ${weather.humidity}% · Viento: ${weather.windSpeed} km/h${weather.alerts?.length > 0 ? ` · ⚠ ${weather.alerts.length} alerta(s) activa(s)` : ''}`
+        ? `• Clima CDMX: ${weather.temp}°C - ${weather.description} · Humedad: ${weather.humidity}% · Viento: ${weather.windSpeed} km/h${weather.alerts?.length > 0 ? ` · ${weather.alerts.length} alerta(s) activa(s)` : ''}`
         : '• Clima CDMX: No disponible',
     ];
     considerations.forEach((line, i) => doc.text(line, 24, noteY + 13 + i * 4));
@@ -246,7 +246,7 @@ export async function generatePDFReport(
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7.5);
       doc.setTextColor(...SLATE6);
-      doc.text('Condiciones del día — Alertas:', 24, alertY);
+      doc.text('Condiciones del dia - Alertas:', 24, alertY);
       doc.setFont('helvetica', 'normal');
       weather.alerts.forEach((alert, i) => {
         alertY += 4;
@@ -420,7 +420,7 @@ export async function generatePDFReport(
       const considerations2 = [
         `• Tiempo de descarga: ${unloadPerStop} min por parada · ${stops.length} paradas = ${fmtMins(stops.length * unloadPerStop)} total`,
         `• Hora de comida: ${LUNCH_MINS} min incluidos en el cálculo de regreso`,
-        weather ? `• Clima: ${weather.temp}°C — ${weather.description} · ${weather.alerts?.length > 0 ? '⚠ ' + weather.alerts[0] : 'Sin alertas'}` : '',
+        weather ? `• Clima: ${weather.temp}°C - ${weather.description} · ${weather.alerts?.length > 0 ? weather.alerts[0].replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '').replace(/[\u2600-\u27BF]/g, '').trim() : 'Sin alertas'}` : '',
         totalValor > 0 ? `• Valor total de mercancía en esta ruta: $${totalValor.toLocaleString('es-MX')} MXN` : '',
       ].filter(Boolean);
 
@@ -437,7 +437,7 @@ export async function generatePDFReport(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...SLATE5);
-    doc.text(`Grupo Shuma © ${year} — Documento confidencial`, 20, pageH - 12);
+    doc.text(`Shuma (c) ${year} - Documento confidencial`, 20, pageH - 12);
     if (i > 1) {
       doc.text(`Página ${i} de ${totalPages}`, pageW - 20, pageH - 12, { align: 'right' });
     }
