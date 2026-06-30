@@ -10,6 +10,7 @@ interface SlideOverProps {
   footer?: React.ReactNode;
   /** Panel width on desktop. Defaults to 500. Mobile always 100vw. */
   width?: number;
+  allowMapInteraction?: boolean;
 }
 
 export default function SlideOver({
@@ -19,6 +20,7 @@ export default function SlideOver({
   children,
   footer,
   width = 880,
+  allowMapInteraction = false,
 }: SlideOverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -45,17 +47,17 @@ export default function SlideOver({
     <>
       {/* ── Overlay ───────────────────────────────────── */}
       <div
-        onClick={onClose}
+        onClick={allowMapInteraction ? undefined : onClose}
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(5,12,26,0.7)',
-          backdropFilter: 'blur(2px)',
-          WebkitBackdropFilter: 'blur(2px)',
+          background: allowMapInteraction ? 'transparent' : 'rgba(5,12,26,0.7)',
+          backdropFilter: allowMapInteraction ? 'none' : 'blur(2px)',
+          WebkitBackdropFilter: allowMapInteraction ? 'none' : 'blur(2px)',
           zIndex: 40,
           opacity: isOpen ? 1 : 0,
-          pointerEvents: isOpen ? 'auto' : 'none',
-          transition: 'opacity 0.3s ease',
+          pointerEvents: isOpen && !allowMapInteraction ? 'auto' : 'none',
+          transition: 'opacity 0.3s ease, background 0.3s ease',
         }}
       />
 

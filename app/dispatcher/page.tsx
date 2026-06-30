@@ -2709,6 +2709,7 @@ supabase.removeChannel(locChannel);
         onClose={() => setIsSlideOverOpen(false)}
         title={SLIDE_TITLES[activeTab] || 'Configuración'}
         width={['config','zones'].includes(activeTab) ? 920 : 960}
+        allowMapInteraction={activeTab === 'routes'}
         footer={
           activeTab === 'config' ? (
             <>
