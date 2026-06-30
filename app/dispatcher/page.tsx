@@ -407,6 +407,51 @@ function DispatcherPageContent() {
   const [fleetMode, setFleetMode] = useState<'auto' | 'manual'>('auto');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
+  const handleStartNewRoute = () => {
+    // Reiniciar SOLO el estado de construcción de ruta — NO toca activeRoutesData
+    // (las rutas ya aceptadas siguen viviendo en Supabase, esto es independiente)
+    dispatch({ type: 'SET_ADDRESSES', payload: [] });
+    dispatch({ type: 'SET_CLUSTERS', payload: [] });
+    dispatch({ type: 'SET_ROUTES', payload: [] });
+    // Mantener vehículos y configuración global — el usuario probablemente
+    // quiere reusar choferes/horarios para la siguiente tanda
+    setActiveTabPersisted('upload');
+    setIsSlideOverOpen(true);
+  };
+
+  const handleEditActiveRoute = (route: any) => {
+    // Solo permitir editar si la ruta NO tiene entregas completadas aún
+    // (editar una ruta a medias podría desincronizar el progreso del chofer)
+    const hasProgress = (route.stats?.delivered || 0) + (route.stats?.partial || 0) + (route.stats?.failed || 0) > 0;
+    if (hasProgress) {
+      showToast('Esta ruta ya tiene entregas en progreso — no se puede editar, crea una ruta adicional en su lugar', 'warn');
+      return;
+    }
+
+    // Cargar las direcciones de la ruta activa en el builder
+    const addresses = (route.deliveries || []).map((d: any, idx: number) => ({
+      id: `edit-${route.id}-${idx}`,
+      name: d.address?.clientName || d.address?.name || '',
+      raw: d.address?.raw || d.address?.label || '',
+      invoice: d.address?.invoice || '',
+      merchandiseValue: d.address?.merchandiseValue || 0,
+      lat: d.address?.lat ?? null,
+      lng: d.address?.lng ?? null,
+      geocoded: d.address?.lat != null && d.address?.lng != null,
+      label: d.address?.raw || d.address?.label || '',
+    }));
+
+    dispatch({ type: 'SET_ADDRESSES', payload: addresses });
+    setIsActiveRoutesOpen(false);
+    setActiveTabPersisted('upload');
+    setIsSlideOverOpen(true);
+    showToast(`Editando ruta de ${route.driver_name} — añade o quita entregas y vuelve a optimizar`, 'ok');
+
+    // Guardar referencia de qué ruta se está editando (para advertir al aceptar)
+    sessionStorage.setItem('shuma_editing_route_id', route.id);
+    sessionStorage.setItem('shuma_editing_driver_name', route.driver_name || '');
+  };
+
   const handleViewOnMap = (route: any, onlyThis: boolean) => {
     setIsActiveRoutesOpen(false);
 
@@ -2538,6 +2583,42 @@ supabase.removeChannel(locChannel);
           {isMapFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
 
+        {/* Botón secundario "+ Nueva ruta" — solo visible cuando ya hay rutas activas */}
+        {activeRoutesData.length > 0 && !isSlideOverOpen && (
+          <button
+            onClick={handleStartNewRoute}
+            title="Crear una ruta adicional sin afectar las existentes"
+            style={{
+              position: 'fixed',
+              bottom: 92,
+              right: 24,
+              zIndex: 49,
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 16px',
+              borderRadius: 99,
+              background: 'rgba(10,22,40,0.9)',
+              border: '1px solid rgba(33,150,243,0.3)',
+              backdropFilter: 'blur(8px)',
+              color: '#60a5fa',
+              fontSize: 12, fontWeight: 600,
+              fontFamily: "'Exo 2', sans-serif",
+              cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(33,150,243,0.15)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'rgba(10,22,40,0.9)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <span>+</span> Nueva ruta
+          </button>
+        )}
+
         {/* ── FAB (bottom-right) — always visible including fullscreen ── */}
         {FAB_CONFIG[activeTab] && (
           <button
@@ -2706,7 +2787,11 @@ supabase.removeChannel(locChannel);
       {/* ═══════════════════════════════════════════════ */}
       <SlideOver
         isOpen={isSlideOverOpen}
-        onClose={() => setIsSlideOverOpen(false)}
+        onClose={() => {
+          setIsSlideOverOpen(false);
+          sessionStorage.removeItem('shuma_editing_route_id');
+          sessionStorage.removeItem('shuma_editing_driver_name');
+        }}
         title={SLIDE_TITLES[activeTab] || 'Configuración'}
         width={['config','zones'].includes(activeTab) ? 920 : 960}
         allowMapInteraction={activeTab === 'routes'}
@@ -3514,6 +3599,25 @@ supabase.removeChannel(locChannel);
                           {/* Botones de acción y badge integrados */}
                           <div className="flex flex-col items-end gap-1.5 shrink-0">
                             <div className="flex gap-1">
+                              <button
+                                onClick={() => handleEditActiveRoute(route)}
+                                disabled={(route.stats?.delivered || 0) + (route.stats?.partial || 0) + (route.stats?.failed || 0) > 0}
+                                title={
+                                  (route.stats?.delivered || 0) + (route.stats?.partial || 0) + (route.stats?.failed || 0) > 0
+                                    ? 'No se puede editar: ya tiene entregas en progreso'
+                                    : 'Añadir o quitar entregas de esta ruta'
+                                }
+                                style={{
+                                  fontSize: 10, padding: '3px 8px', borderRadius: 6,
+                                  background: 'rgba(245,158,11,0.1)',
+                                  border: '1px solid rgba(245,158,11,0.25)',
+                                  color: '#fbbf24', cursor: 'pointer',
+                                  fontFamily: "'Exo 2', sans-serif", fontWeight: 600,
+                                  opacity: (route.stats?.delivered || 0) + (route.stats?.partial || 0) + (route.stats?.failed || 0) > 0 ? 0.4 : 1,
+                                }}
+                              >
+                                ✏️ Editar
+                              </button>
                               <button
                                 onClick={() => handleViewOnMap(route, true)}
                                 className="w-7 h-7 flex items-center justify-center rounded bg-shuma-surface hover:bg-blue-500/10 text-shuma-muted hover:text-blue-400 transition-colors border border-shuma-border hover:border-blue-500/30"

@@ -2,6 +2,18 @@
   "updated": "2026-06-27",
   "items": [
     {
+      "type": "new",
+      "text": "Dispatcher: boton '+ Nueva ruta' para crear una ruta adicional sin afectar las rutas ya aceptadas"
+    },
+    {
+      "type": "new",
+      "text": "Rutas activas: boton Editar para anadir o quitar entregas de una ruta sin progreso aun"
+    },
+    {
+      "type": "improve",
+      "text": "Aviso de chofer duplicado corregido - ya no indica que se reemplazara la ruta existente"
+    },
+    {
       "type": "fix",
       "text": "Dispatcher: Resumen de CSV ahora muestra correctamente el valor total real de mercancía"
     },

@@ -30,6 +30,9 @@ export default function AcceptRouteModal({
 
   if (!isOpen) return null;
 
+  const editingRouteId = typeof window !== 'undefined' ? sessionStorage.getItem('shuma_editing_route_id') : null;
+  const editingDriverName = typeof window !== 'undefined' ? sessionStorage.getItem('shuma_editing_driver_name') : null;
+
   const handleAcceptRoute = async () => {
     if (routes.length === 0) { setError('No hay rutas para guardar'); return; }
 
@@ -46,6 +49,8 @@ export default function AcceptRouteModal({
 
       setSuccess(true);
       sessionStorage.removeItem('shuma_rutas_session');
+      sessionStorage.removeItem('shuma_editing_route_id');
+      sessionStorage.removeItem('shuma_editing_driver_name');
       setTimeout(() => { onSuccess?.(); onClose(); }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
@@ -112,6 +117,19 @@ export default function AcceptRouteModal({
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
                     <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
                     <p className="text-xs text-amber-400 font-medium">{duplicateWarning}</p>
+                  </div>
+                )}
+                {editingRouteId && (
+                  <div style={{
+                    padding: '10px 14px', borderRadius: 10, marginBottom: 12,
+                    background: 'rgba(245,158,11,0.08)',
+                    border: '1px solid rgba(245,158,11,0.25)',
+                  }}>
+                    <p style={{ fontSize: 12, color: '#fbbf24', margin: 0, fontFamily: "'DM Sans', sans-serif" }}>
+                      ✏️ Estás editando la ruta de <strong>{editingDriverName}</strong>. Al guardar se creará
+                      una nueva versión optimizada — la ruta original anterior debe cerrarse manualmente
+                      desde Rutas Activas si ya no la necesitas.
+                    </p>
                   </div>
                 )}
                 <div className="rounded-lg bg-shuma-surface border border-shuma-border overflow-hidden">

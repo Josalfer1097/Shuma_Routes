@@ -34,7 +34,7 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
           }
         }
         if (existingDrivers.length > 0) {
-          setDuplicateWarning(`ATENCIÓN: ${existingDrivers.join(', ')} ya tiene(n) una ruta asignada para hoy. Si guardas, reemplazarás la ruta actual de este(os) chofer(es).`);
+          setDuplicateWarning(`${existingDrivers.join(', ')} ya tiene(n) una ruta activa hoy. Esta nueva ruta se sumará como adicional — no reemplaza la existente. Si tu intención es modificar la ruta actual, ciérrala y usa "Editar ruta" desde el panel de Rutas Activas.`);
         } else {
           setDuplicateWarning(null);
         }
