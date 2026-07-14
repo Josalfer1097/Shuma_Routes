@@ -1,6 +1,10 @@
 {
-  "updated": "2026-06-27",
+  "updated": "2026-07-14",
   "items": [
+    { "type": "new", "text": "Header: reloj CDMX en tiempo real" },
+    { "type": "improve", "text": "Notificaciones: barra de progreso visual en los toast" },
+    { "type": "new", "text": "Rutas activas: click en el nombre del chofer abre WhatsApp directo" },
+    { "type": "new", "text": "App: modal de atajos de teclado (tecla '?')" },
     {
       "type": "new",
       "text": "Dispatcher: boton '+ Nueva ruta' para crear una ruta adicional sin afectar las rutas ya aceptadas"

@@ -1,0 +1,35 @@
+nombre,direccion,factura,valor
+Ferretería Roma Norte,Av. Álvaro Obregón 185 Roma Norte CDMX,FAC-001,8600
+Materiales Condesa,Av. Michoacán 88 Condesa CDMX,FAC-002,14200
+Constructora Polanco,Av. Presidente Masaryk 111 Polanco CDMX,FAC-003,22500
+Distribuidora Del Valle,Av. Coyoacán 1540 Del Valle CDMX,FAC-004,9800
+Herrería Narvarte,Eje 4 Sur Xola 850 Narvarte CDMX,FAC-005,6300
+Acabados Doctores,Dr. Río de la Loza 240 Doctores CDMX,FAC-006,11700
+Materiales Centro Histórico,Calle República de Uruguay 55 Centro CDMX,FAC-007,7400
+Ferretería Tacubaya,Av. Jalisco 20 Tacubaya CDMX,FAC-008,5900
+Constructora Nápoles,Av. Insurgentes Sur 663 Nápoles CDMX,FAC-009,16800
+Distribuidora Portales,Calz. de Tlalpan 2050 Portales CDMX,FAC-010,10500
+Materiales Iztacalco,Av. Té 950 Iztacalco CDMX,FAC-011,8200
+Herrería Iztapalapa,Calz. Ermita Iztapalapa 3200 Iztapalapa CDMX,FAC-012,13400
+Ferretería Tláhuac,Av. Tláhuac 4500 Tláhuac CDMX,FAC-013,7900
+Constructora Xochimilco,Prol. División del Norte 3200 Xochimilco CDMX,FAC-014,12100
+Acabados Coyoacán,Av. Universidad 1900 Coyoacán CDMX,FAC-015,15600
+Materiales Copilco,Av. Copilco 300 Copilco CDMX,FAC-016,6700
+Distribuidora Pedregal,Perif. Sur 4620 Pedregal CDMX,FAC-017,19300
+Ferretería Álvaro Obregón,Av. Revolución 1500 Álvaro Obregón CDMX,FAC-018,8100
+Herrería Mixcoac,Av. Patriotismo 550 Mixcoac CDMX,FAC-019,9600
+Constructora Escandón,Av. Nuevo León 180 Escandón CDMX,FAC-020,11200
+Materiales Cuauhtémoc,Av. Insurgentes Centro 350 Cuauhtémoc CDMX,FAC-021,7800
+Distribuidora Anzures,Av. Ejército Nacional 700 Anzures CDMX,FAC-022,14900
+Ferretería Granada,Av. Ejército Nacional 1005 Granada CDMX,FAC-023,10300
+Acabados Lindavista,Av. Instituto Politécnico Nacional 1900 Lindavista CDMX,FAC-024,13700
+Herrería Gustavo A. Madero,Calz. de Guadalupe 500 GAM CDMX,FAC-025,8500
+Constructora Azcapotzalco,Av. Azcapotzalco 350 Azcapotzalco CDMX,FAC-026,16200
+Materiales Vallejo,Eje 5 Norte Montevideo 800 Vallejo CDMX,FAC-027,9100
+Distribuidora Clavería,Av. Cuitláhuac 1200 Clavería CDMX,FAC-028,7300
+Ferretería Santa Fe,Av. Santa Fe 495 Santa Fe CDMX,FAC-029,21400
+Herrería Benito Juárez,Av. División del Norte 2400 Benito Juárez CDMX,FAC-030,10800
+Materiales Naucalpan,Blvd. Manuel Ávila Camacho 850 Naucalpan Estado de México,FAC-031,17600
+Constructora Tlalnepantla,Av. Gustavo Baz 1200 Tlalnepantla Estado de México,FAC-032,20300
+Distribuidora Ecatepec,Av. Central 600 Ecatepec Estado de México,FAC-033,9400
+Ferretería Nezahualcóyotl,Av. Chimalhuacán 780 Nezahualcóyotl Estado de México,FAC-034,8900

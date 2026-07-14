@@ -24,8 +24,8 @@ import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw, Search, Tr
 import { useEasterEgg } from '@/hooks/useEasterEgg';
 import EasterEggOverlay from '@/components/EasterEggOverlay';
 import Image from 'next/image';
-import WeatherIntelPanel from '@/components/dispatcher/WeatherIntelPanel';
 import AuditLogModal from '@/components/dispatcher/AuditLogModal';
+import ShortcutsModal from '@/components/dispatcher/ShortcutsModal';
 import FontScaleButton from '@/components/dispatcher/FontScaleButton';
 import { useFontSize } from '@/lib/fontScaleContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
@@ -203,6 +203,15 @@ function calcularViabilidad(vehicles: Vehicle[], clusters: Cluster[], globalConf
   });
 }
 
+// Helper: construir link de WhatsApp a partir del teléfono del chofer
+const buildWhatsAppLink = (phone: string | null | undefined): string | null => {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) return `https://wa.me/52${digits}`;
+  if (digits.length >= 10) return `https://wa.me/${digits}`;
+  return null;
+};
+
 // Helper: calcular ETA de una ruta activa
 const LUNCH_MINS_DEFAULT = 30; // debe coincidir con LUNCH_MINS en lib/pdfReport.ts
 
@@ -373,11 +382,14 @@ function DispatcherPageContent() {
   const [inactiveRoutes, setInactiveRoutes] = useState<Set<string>>(new Set());
   const [editingAlias, setEditingAlias] = useState<string | null>(null);
   const [aliasValue, setAliasValue] = useState('');
-  const [toast, setToast] = useState<{ msg: string; type: 'warn' | 'error' | 'ok' } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: 'warn' | 'error' | 'ok'; id: number } | null>(null);
 
   const showToast = (msg: string, type: 'warn' | 'error' | 'ok' = 'warn') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 4000);
+    const id = Date.now();
+    setToast({ msg, type, id });
+    setTimeout(() => {
+      setToast(current => (current?.id === id ? null : current));
+    }, 4000);
   };
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
@@ -406,6 +418,18 @@ function DispatcherPageContent() {
   };
   const [fleetMode, setFleetMode] = useState<'auto' | 'manual'>('auto');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+
+  // Reloj CDMX en tiempo real (header)
+  const [clockTime, setClockTime] = useState(() =>
+    new Date().toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City', hour12: false })
+  );
+  useEffect(() => {
+    const clockInterval = setInterval(() => {
+      setClockTime(new Date().toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City', hour12: false }));
+    }, 1000);
+    return () => clearInterval(clockInterval);
+  }, []);
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
 
   const handleStartNewRoute = () => {
     // Reiniciar SOLO el estado de construcción de ruta — NO toca activeRoutesData
@@ -783,6 +807,10 @@ supabase.removeChannel(locChannel);
           // autofocus in the render
           setTimeout(() => document.getElementById('map-search-input')?.focus(), 50);
         }
+      }
+      if (e.key === '?' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        setIsShortcutsModalOpen(prev => !prev);
       }
     };
     document.addEventListener('keydown', handleKeyDown);
@@ -1412,9 +1440,19 @@ supabase.removeChannel(locChannel);
           animation: 'fadeInDown 0.3s ease-out',
           whiteSpace: 'nowrap', maxWidth: '90vw',
           pointerEvents: 'none',
+          overflow: 'hidden',
         }}>
           <span>{toast.type === 'ok' ? '✅' : toast.type === 'error' ? '🚫' : '⚠️'}</span>
           <span>{toast.msg}</span>
+          <div
+            key={toast.id}
+            style={{
+              position: 'absolute', bottom: 0, left: 0, height: 2,
+              borderRadius: '0 0 20px 20px',
+              background: toast.type === 'ok' ? '#10B981' : toast.type === 'error' ? '#ef4444' : '#f59e0b',
+              animation: 'toastProgress 4s linear forwards',
+            }}
+          />
         </div>
       )}
 
@@ -1561,6 +1599,10 @@ supabase.removeChannel(locChannel);
                     from { opacity: 0; transform: translateY(-6px); }
                     to   { opacity: 1; transform: translateY(0); }
                   }
+                  @keyframes toastProgress {
+                    from { width: 100%; }
+                    to   { width: 0%; }
+                  }
                 `}</style>
 
                 {/* Botón tamaño de texto */}
@@ -1628,6 +1670,23 @@ supabase.removeChannel(locChannel);
 
           {/* ── Right: User info + Logout ── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Reloj CDMX */}
+            <div
+              title="Hora CDMX"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '3px 10px', borderRadius: 99,
+                background: 'rgba(33,150,243,0.08)',
+                border: '1px solid rgba(33,150,243,0.2)',
+                fontSize: fs(11), color: '#5B9BD5',
+                fontFamily: "'Exo 2', sans-serif",
+                fontWeight: 600,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              <span>🕐</span>
+              <span className="hidden-mobile">{clockTime}</span>
+            </div>
             {userName && (
               <span className="hidden-mobile" style={{ fontSize: fs(12), color: '#E8EFF8', fontWeight: 500 }}>
                 {userName}
@@ -3587,7 +3646,23 @@ supabase.removeChannel(locChannel);
                                 </div>
                               )}
                               <p className="text-xs text-shuma-muted mt-0.5">
-                                {route.driver_name || 'Sin chofer asignado'}
+                                {(() => {
+                                  const waLink = buildWhatsAppLink(route.phone);
+                                  if (!route.driver_name) return 'Sin chofer asignado';
+                                  if (!waLink) return route.driver_name;
+                                  return (
+                                    <a
+                                      href={waLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={e => e.stopPropagation()}
+                                      title={`Enviar WhatsApp a ${route.driver_name}`}
+                                      className="hover:text-emerald-400 transition-colors underline decoration-dotted underline-offset-2"
+                                    >
+                                      {route.driver_name} 💬
+                                    </a>
+                                  );
+                                })()}
                                 {route.route_code && route.route_alias && (
                                   <span className="ml-1.5 opacity-40">· {route.route_code}</span>
                                 )}
@@ -3755,6 +3830,8 @@ supabase.removeChannel(locChannel);
           </div>
         </>
       )}
+
+      <ShortcutsModal isOpen={isShortcutsModalOpen} onClose={() => setIsShortcutsModalOpen(false)} />
 
       <AuditLogModal 
         isOpen={isAuditModalOpen}
