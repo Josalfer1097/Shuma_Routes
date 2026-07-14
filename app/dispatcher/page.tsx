@@ -26,6 +26,7 @@ import EasterEggOverlay from '@/components/EasterEggOverlay';
 import Image from 'next/image';
 import AuditLogModal from '@/components/dispatcher/AuditLogModal';
 import ShortcutsModal from '@/components/dispatcher/ShortcutsModal';
+import WeatherIntelPanel from '@/components/dispatcher/WeatherIntelPanel';
 import FontScaleButton from '@/components/dispatcher/FontScaleButton';
 import { useFontSize } from '@/lib/fontScaleContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
