@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     // 3. Conteo de entregas por status para cada ruta
     const { data: deliveries } = await supabaseAdmin
       .from('deliveries')
-      .select('id, route_id, route_driver_id, client_name, address, lat, lng, stop_order, status, invoice, merchandise_value')
+      .select('id, route_id, route_driver_id, client_name, address, lat, lng, stop_order, status, invoice, merchandise_value, distance_m, eta_seconds')
       .in('route_id', routeIds)
       .order('stop_order', { ascending: true });
 
@@ -76,6 +76,8 @@ export async function GET(req: NextRequest) {
           .map(d => ({
             sequence: d.stop_order ?? 0,
             status: d.status,
+            distance: d.distance_m ?? undefined,
+            eta: d.eta_seconds ?? undefined,
             address: {
               id: d.id,
               name: d.client_name || 'Cliente',

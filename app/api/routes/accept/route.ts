@@ -211,6 +211,8 @@ export async function POST(req: NextRequest) {
         stop_order: stop.sequence,
         status: 'pending',
         merchandise_value: (stop.address as any).merchandiseValue || null,
+        distance_m: stop.distance ?? null,
+        eta_seconds: stop.eta ?? null,
       }));
 
       const { error: deliveriesErr } = await supabaseAdmin
