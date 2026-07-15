@@ -177,6 +177,7 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
         const marker = new AdvancedMarkerElement({
           position: { lat: d.lat, lng: d.lng },
           map,
+          gmpClickable: true,
           content: createDepotPin('SALIDA', '#F97316', 1.4), // Naranja, escala 1.4 y sombra
         });
         let depTimeStr = '—';
@@ -205,6 +206,7 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
         const marker = new AdvancedMarkerElement({
           position: { lat: d.lat, lng: d.lng },
           map,
+          gmpClickable: true,
           content: createDepotPin('REGRESO', '#FFD700', 1.4), // Amarillo, escala 1.4 y sombra
         });
         addInfoWindow(marker, `<div style="font-family:sans-serif;padding:6px;color:#333;min-width:200px;">
@@ -317,6 +319,7 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
           const marker = new AdvancedMarkerElement({
             position: { lat, lng },
             map: isVisible ? map : null,
+            gmpClickable: true,
             content: createStopPin(stop.sequence, stopStatusColor),
           });
 
@@ -364,6 +367,7 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
         const marker = new AdvancedMarkerElement({
           position: { lat: depot.lat, lng: depot.lng },
           map,
+          gmpClickable: true,
           content: createDepotPin('SALIDA', '#F97316', 1.4),
         });
         addInfoWindow(marker, `<div style="font-family:sans-serif;padding:4px;"><b>🏭 Depósito</b><br/><small>${depot.label}</small></div>`);
@@ -378,6 +382,7 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
           const marker = new AdvancedMarkerElement({
             position: { lat: addr.lat!, lng: addr.lng! },
             map,
+            gmpClickable: true,
             content: createStopPin('·'),
           });
           const clientNameStr = addr.clientName || addr.name;
@@ -460,6 +465,7 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
         const marker = new AdvancedMarkerElement({
           position: { lat: loc.lat, lng: loc.lng },
           map: isVisible ? map : null,
+          gmpClickable: true,
           content: div,
         });
         marker.zIndex = 9999;
