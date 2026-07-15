@@ -25,7 +25,23 @@ export default function NotificationBell({
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [isReminderPulse, setIsReminderPulse] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
+
+  // Notificaciones que requieren acción del admin (aprobar/rechazar) — no se limpian solo por abrir el panel
+  const pendingActionCount = notifications.filter(
+    n => n.type === 'route_closure_requested' || n.type === 'reopen_requested'
+  ).length;
+
+  // Recordatorio: cada 5 min, si sigue habiendo algo pendiente de acción, pulsa la campana
+  useEffect(() => {
+    if (pendingActionCount === 0) return;
+    const reminderInterval = setInterval(() => {
+      setIsReminderPulse(true);
+      setTimeout(() => setIsReminderPulse(false), 1500);
+    }, 5 * 60 * 1000);
+    return () => clearInterval(reminderInterval);
+  }, [pendingActionCount]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -144,8 +160,12 @@ export default function NotificationBell({
         }}
         className="relative p-2 text-shuma-muted hover:text-white transition-colors"
       >
-        <Bell size={20} />
-        {unreadCount > 0 && (
+        <Bell size={20} className={isReminderPulse ? 'animate-bounce' : ''} />
+        {pendingActionCount > 0 ? (
+          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[9px] font-bold text-white bg-red-500 rounded-full border border-shuma-surface animate-pulse">
+            {pendingActionCount}
+          </span>
+        ) : unreadCount > 0 && (
           <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-shuma-surface animate-pulse" />
         )}
       </button>
