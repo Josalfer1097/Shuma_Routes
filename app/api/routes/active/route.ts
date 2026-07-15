@@ -9,12 +9,13 @@ export async function GET(req: NextRequest) {
     const date = searchParams.get('date')
       || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
 
-    // 1. Obtener rutas del día
+    // 1. Obtener rutas NO cerradas (independiente de la fecha calendario —
+    //    una ruta con entregas pendientes debe seguir visible hasta que se cierre formalmente)
     const { data: routes, error: rErr } = await supabaseAdmin
       .from('routes')
-      .select('id, route_code, route_alias, date, status, total_deliveries, departure_time, created_by, polyline_encoded')
-      .eq('date', date)
+      .select('id, route_code, route_alias, date, status, total_deliveries, departure_time, created_by, polyline_encoded, closure_status')
       .eq('is_latest', true)
+      .or('closure_status.is.null,closure_status.neq.approved')
       .order('created_at', { ascending: true });
 
     if (rErr) throw rErr;
@@ -58,6 +59,7 @@ export async function GET(req: NextRequest) {
         route_alias:  route.route_alias,
         date:         route.date,
         status:       route.status,
+        closure_status: (route as any).closure_status || 'none',
         created_by:   route.created_by,
         departure_time: route.departure_time,
         driver_name:  (rd?.drivers as any)?.name || null,
