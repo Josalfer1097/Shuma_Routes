@@ -309,11 +309,13 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
           }
 
           let stopStatusColor: string | undefined = undefined;
+          let stopStatusLabel = 'Pendiente';
           if (stop.address.invoice) {
-            const status = liveDeliveryStatus[stop.address.invoice];
-            if (status === 'delivered' || status === 'completed') stopStatusColor = '#10B981';
-            else if (status === 'partial') stopStatusColor = '#F59E0B';
-            else if (status === 'failed') stopStatusColor = '#EF4444';
+            const status = liveDeliveryStatus[stop.address.invoice] || stop.status;
+            if (status === 'delivered' || status === 'completed') { stopStatusColor = '#10B981'; stopStatusLabel = '✅ Entregado'; }
+            else if (status === 'partial') { stopStatusColor = '#F59E0B'; stopStatusLabel = '⚠️ Parcial'; }
+            else if (status === 'failed') { stopStatusColor = '#EF4444'; stopStatusLabel = '❌ Fallido'; }
+            else if (status === 'in_route') { stopStatusLabel = '🚚 En ruta'; }
           }
 
           const marker = new AdvancedMarkerElement({
@@ -344,6 +346,7 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
                 Parada ${stop.sequence} · ${route.driverName}
               </div>
               <div style="font-weight:600;color:#1e293b;font-size:13px">${clientNameStr}</div>
+              <div style="font-size:12px;font-weight:700;margin-top:2px;color:${stopStatusColor || '#64748b'}">${stopStatusLabel}</div>
               ${invoiceStr}
               ${valStr}
               <div style="font-size:12px;color:#64748b;margin-top:4px;margin-bottom:8px">${stop.address.raw}</div>
@@ -423,7 +426,7 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
         google.maps.event.removeListener(listener);
       });
     }
-  }, [addresses, routes, depot, mapInitialized]);
+  }, [addresses, routes, depot, mapInitialized, liveDeliveryStatus]);
 
   // ── Toggle visibilidad de rutas (useEffect B) ─────────────────────────
   useEffect(() => {
