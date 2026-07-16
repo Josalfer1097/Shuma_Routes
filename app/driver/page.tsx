@@ -197,10 +197,21 @@ export default function DriverPage() {
 
     const routeId = (route as any).routeId || (route as any).id || null;
 
+    // Throttle: enviar la ubicación como máximo 1 vez cada 25s.
+    // watchPosition dispara con cada movimiento detectado (~cada 2-3s), lo que
+    // quema batería del chofer sin beneficio: el admin refresca cada 30s.
+    let lastSentAt = 0;
+    const SEND_INTERVAL_MS = 25000;
+
     const watchId = navigator.geolocation.watchPosition(
       async (pos) => {
         const { latitude: lat, longitude: lng, accuracy } = pos.coords;
         setLocationEnabled(true);
+
+        const now = Date.now();
+        if (now - lastSentAt < SEND_INTERVAL_MS) return;
+        lastSentAt = now;
+
         try {
           await fetch('/api/driver/location', {
             method: 'POST',

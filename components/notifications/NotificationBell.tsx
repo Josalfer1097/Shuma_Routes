@@ -70,6 +70,8 @@ export default function NotificationBell({
   useEffect(() => {
     if (!targetRole) return;
     fetchNotifications();
+    // Polling: Realtime sobre 'notifications' no funciona con anon key (RLS activo)
+    const notifPolling = setInterval(fetchNotifications, 30000);
 
     const channel = supabase
       .channel(`notifications_${targetRole}`)
@@ -79,7 +81,10 @@ export default function NotificationBell({
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearInterval(notifPolling);
+      supabase.removeChannel(channel);
+    };
   }, [targetRole]);
 
   const markAsRead = async () => {

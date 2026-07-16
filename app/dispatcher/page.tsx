@@ -715,6 +715,8 @@ function DispatcherPageContent() {
       }
     };
     loadStatuses();
+    // Polling: Realtime sobre 'deliveries' no funciona con anon key (RLS activo sin política)
+    const statusPolling = setInterval(loadStatuses, 30000);
 
     // ── Realtime: escuchar cambios en deliveries ──
     // Realtime via Supabase (reemplazó polling 30s — Jun 2026)
@@ -748,7 +750,8 @@ function DispatcherPageContent() {
         }
       });
 
-    // ── Carga inicial de ubicaciones (Realtime solo trae cambios nuevos) ──
+    // ── Carga inicial + polling de ubicaciones ──
+    // Realtime no funciona: la anon key no tiene acceso a driver_locations (RLS)
     const loadInitialLocations = async () => {
       try {
         const res  = await fetch('/api/driver/locations');
@@ -759,6 +762,7 @@ function DispatcherPageContent() {
       }
     };
     loadInitialLocations();
+    const locPolling = setInterval(loadInitialLocations, 30000);
 
     // ── Realtime: escuchar ubicaciones de choferes ──
     const locChannel = supabase
@@ -781,6 +785,8 @@ function DispatcherPageContent() {
       });
 
     return () => {
+      clearInterval(locPolling);
+      clearInterval(statusPolling);
       supabase.removeChannel(channel);
 supabase.removeChannel(locChannel);
     };
@@ -990,6 +996,14 @@ supabase.removeChannel(locChannel);
       const json = await res.json();
       if (json.ok && json.statuses) {
         setLiveDeliveryStatus(json.statuses);
+      }
+      // Refrescar ubicaciones de choferes (faltaba — por eso el botón no movía el marcador)
+      try {
+        const locRes  = await fetch('/api/driver/locations');
+        const locJson = await locRes.json();
+        if (locJson.ok && locJson.locations) setDriverLocations(locJson.locations);
+      } catch (locErr) {
+        console.error('Error refrescando ubicaciones:', locErr);
       }
       const lat = state.globalConfig?.departureDepot?.lat || 19.4326;
       const lng = state.globalConfig?.departureDepot?.lng || -99.1332;
