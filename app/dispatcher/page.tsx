@@ -748,6 +748,18 @@ function DispatcherPageContent() {
         }
       });
 
+    // ── Carga inicial de ubicaciones (Realtime solo trae cambios nuevos) ──
+    const loadInitialLocations = async () => {
+      try {
+        const res  = await fetch('/api/driver/locations');
+        const json = await res.json();
+        if (json.ok && json.locations) setDriverLocations(json.locations);
+      } catch (err) {
+        console.error('Error cargando ubicaciones iniciales:', err);
+      }
+    };
+    loadInitialLocations();
+
     // ── Realtime: escuchar ubicaciones de choferes ──
     const locChannel = supabase
       .channel('dispatcher_driver_locations')

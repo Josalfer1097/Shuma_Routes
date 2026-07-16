@@ -202,16 +202,11 @@ export default function DriverPage() {
         const { latitude: lat, longitude: lng, accuracy } = pos.coords;
         setLocationEnabled(true);
         try {
-          await supabase
-            .from('driver_locations')
-            .upsert({
-              driver_id:  driverId,
-              route_id:   routeId,
-              lat,
-              lng,
-              accuracy,
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'driver_id' });
+          await fetch('/api/driver/location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ driverId, routeId, lat, lng, accuracy }),
+          });
         } catch (err) {
           console.warn('[Geo] Error al enviar ubicación:', err);
         }
