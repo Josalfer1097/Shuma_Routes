@@ -15,7 +15,7 @@ import OptimizeButton from '@/components/dispatcher/OptimizeButton';
 import ReportButton from '@/components/dispatcher/ReportButton';
 import WeatherBanner from '@/components/dispatcher/WeatherBanner';
 import SlideOver from '@/components/dispatcher/SlideOver';
-import { clusterDeliveries } from '@/lib/clustering';
+import { clusterDeliveries, clusterDeliveriesWithDiagnostics } from '@/lib/clustering';
 import type { Cluster, GlobalConfig, ClusteringConfig, Stop } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -1095,8 +1095,17 @@ supabase.removeChannel(locChannel);
     
     setNumClusters(finalClustersCount);
     
-    const generatedClusters = clusterDeliveries(updatedAddresses, state.vehicles, state.clusteringConfig);
-    dispatch({ type: 'SET_CLUSTERS', payload: generatedClusters });
+    const clusterResult = clusterDeliveriesWithDiagnostics(updatedAddresses, state.vehicles, state.clusteringConfig);
+    dispatch({ type: 'SET_CLUSTERS', payload: clusterResult.clusters });
+
+    // Advertir si la capacidad configurada no alcanzaba (antes se perdían entregas en silencio)
+    if (clusterResult.overflow > 0) {
+      showToast(
+        `⚠️ Capacidad configurada: ${clusterResult.totalCapacity} paradas para ${clusterResult.totalAddresses} direcciones. ` +
+        `Se repartieron ${clusterResult.overflow} extra entre los vehículos disponibles.`,
+        'warn'
+      );
+    }
     
     dispatch({ type: 'SET_STEP', payload: 'zones' });
     setActiveTabPersisted('zones');

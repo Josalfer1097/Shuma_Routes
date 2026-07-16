@@ -1,6 +1,15 @@
 import type { Address, Cluster, Depot, ClusteringConfig, Vehicle } from '@/types';
 import DEPOTS from './depots';
 
+export interface ClusterResult {
+  clusters: Cluster[];
+  /** Direcciones válidas que no cupieron en ninguna capacidad configurada */
+  overflow: number;
+  /** Capacidad total configurada vs direcciones a repartir */
+  totalCapacity: number;
+  totalAddresses: number;
+}
+
 const SAN_PABLO = DEPOTS.find(d => d.id === 'san-pablo')!;
 const DIVISION_NORTE = DEPOTS.find(d => d.id === 'division-del-norte')!;
 
@@ -42,6 +51,8 @@ export function clusterDeliveries(
   config: ClusteringConfig,
   overrideNumClusters?: number
 ): Cluster[] {
+  // Mantiene la firma original por compatibilidad con los 5 llamados existentes.
+  // Para obtener el diagnóstico de capacidad, usar clusterDeliveriesWithDiagnostics().
   const valid = addresses.filter(a => a.lat !== null && a.lng !== null);
   if (valid.length === 0) return [];
   
@@ -98,6 +109,23 @@ export function clusterDeliveries(
       }
     });
 
+    // Si la capacidad total configurada no alcanza para todas las direcciones,
+    // se relajan los límites proporcionalmente en vez de perder entregas.
+    // El déficit se reporta aparte para que la UI pueda advertirlo.
+    const configuredTotal = clusterCapacities.reduce(
+      (sum, c) => sum + (c === Infinity ? 0 : c), 0
+    );
+    const hasFiniteCaps = clusterCapacities.some(c => c !== Infinity);
+    if (hasFiniteCaps && configuredTotal < valid.length) {
+      const deficit = valid.length - configuredTotal;
+      const extraPerCluster = Math.ceil(deficit / k);
+      for (let i = 0; i < k; i++) {
+        if (clusterCapacities[i] !== Infinity) {
+          clusterCapacities[i] += extraPerCluster;
+        }
+      }
+    }
+
     for (const addr of valid) {
       let minCost = Infinity;
       let closestIdx = -1;
@@ -117,11 +145,14 @@ export function clusterDeliveries(
       }
 
       if (closestIdx === -1) {
-        let minDistFallback = Infinity;
+        // Ningún cluster con cupo: asignar al que tenga MENOS paradas
+        // (no al más cercano) para no desbalancear la operación.
+        // Esta rama solo se alcanza en casos extremos; el ajuste
+        // proporcional de arriba debería evitarla.
+        let minSize = Infinity;
         for (let i = 0; i < k; i++) {
-          const d = getDistance(addr.lat!, addr.lng!, centroids[i].lat, centroids[i].lng);
-          if (d < minDistFallback) {
-            minDistFallback = d;
+          if (newClusters[i].length < minSize) {
+            minSize = newClusters[i].length;
             closestIdx = i;
           }
         }
@@ -154,6 +185,15 @@ export function clusterDeliveries(
   }
 
   // Build final Cluster objects
+  // Red de seguridad: ninguna dirección válida puede perderse en el reparto
+  const assignedCount = clusters.reduce((sum, c) => sum + c.length, 0);
+  if (assignedCount !== valid.length) {
+    console.error(
+      `[clustering] ERROR: ${valid.length} direcciones válidas pero ${assignedCount} asignadas. ` +
+      `Se perdieron ${valid.length - assignedCount}.`
+    );
+  }
+
   return clusters.map((addrs, i) => {
     const centroid = centroids[i];
     const distToSanPablo = getDistance(centroid.lat, centroid.lng, SAN_PABLO.lat, SAN_PABLO.lng);
@@ -177,4 +217,41 @@ export function clusterDeliveries(
       color: CLUSTER_COLORS[i % CLUSTER_COLORS.length]
     };
   });
+}
+
+/**
+ * Igual que clusterDeliveries, pero además reporta si la capacidad configurada
+ * era insuficiente. Úsalo cuando necesites advertir al usuario.
+ */
+export function clusterDeliveriesWithDiagnostics(
+  addresses: Address[],
+  vehicles: Vehicle[],
+  config: ClusteringConfig,
+  overrideNumClusters?: number
+): ClusterResult {
+  const valid = addresses.filter(a => a.lat !== null && a.lng !== null);
+  const clusters = clusterDeliveries(addresses, vehicles, config, overrideNumClusters);
+
+  const k = overrideNumClusters && overrideNumClusters > 0
+    ? Math.min(overrideNumClusters, valid.length)
+    : Math.min(vehicles.length, valid.length);
+
+  let totalCapacity = 0;
+  let hasFiniteCaps = false;
+  vehicles.slice(0, k).forEach(v => {
+    const capMatch = config.vehicleCapacities.find(c => c.vehicleId === v.id);
+    if (capMatch && capMatch.maxStops > 0) {
+      totalCapacity += capMatch.maxStops;
+      hasFiniteCaps = true;
+    }
+  });
+
+  const assigned = clusters.reduce((sum, c) => sum + c.addresses.length, 0);
+
+  return {
+    clusters,
+    overflow: hasFiniteCaps ? Math.max(0, valid.length - totalCapacity) : 0,
+    totalCapacity: hasFiniteCaps ? totalCapacity : valid.length,
+    totalAddresses: valid.length,
+  };
 }
