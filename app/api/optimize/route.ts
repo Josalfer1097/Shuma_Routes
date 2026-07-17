@@ -1,4 +1,6 @@
 import { GoogleAuth } from 'google-auth-library';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
 
 /* 
  * INSTRUCCIONES PARA CONFIGURAR LA SERVICE ACCOUNT:
@@ -10,8 +12,11 @@ import { GoogleAuth } from 'google-auth-library';
  * 6. Configurar GOOGLE_PROJECT_ID=shuma-rutas (o el ID real del proyecto) en .env.local
  */
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    const auth = await requireAuth(req, ['admin', 'logistics']);
+    if (!auth.ok) return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+
     const serviceAccount = JSON.parse(
       process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}'
     );

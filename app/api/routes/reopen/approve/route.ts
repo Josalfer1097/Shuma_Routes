@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+import { requireAuth } from '@/lib/auth';
+
 export async function POST(req: NextRequest) {
   try {
-    const { requestId, adminName } = await req.json();
-    if (!requestId || !adminName) return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
+    const auth = await requireAuth(req, ['admin', 'logistics']);
+    if (!auth.ok) return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+
+    const adminName = auth.user.fullName || auth.user.username;
+
+    const { requestId } = await req.json();
+    if (!requestId) return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
 
     const { data: request, error: reqErr } = await supabaseAdmin
       .from('delivery_reopen_requests')
@@ -54,7 +61,7 @@ export async function POST(req: NextRequest) {
       entity:    'entrega',
       entity_id: request.delivery_id,
       user_name: adminName,
-      user_role: 'admin',
+      user_role: auth.user.role,
       ip_address: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
       user_agent: req.headers.get('user-agent') || 'unknown',
       module:    'Entregas',

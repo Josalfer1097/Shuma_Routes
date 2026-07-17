@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuthOrInternal } from '@/lib/auth';
 
 webpush.setVapidDetails(
   process.env.VAPID_EMAIL?.startsWith('mailto:') 
@@ -12,6 +13,10 @@ webpush.setVapidDetails(
 
 export async function POST(req: NextRequest) {
   try {
+    // Acepta sesión de usuario O llamada interna del servidor (x-internal-secret)
+    const auth = await requireAuthOrInternal(req, ['admin', 'logistics']);
+    if (!auth.ok) return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+
     const { targetRole, title, body, url, tag } = await req.json();
 
     const { data: subs } = await supabaseAdmin

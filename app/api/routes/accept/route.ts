@@ -251,7 +251,10 @@ export async function POST(req: NextRequest) {
 
       fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/push/send`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-secret': process.env.INTERNAL_API_SECRET || '',
+        },
         body: JSON.stringify({
           targetRole: 'driver',
           title: '🚛 Nueva ruta asignada',

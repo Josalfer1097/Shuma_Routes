@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+import { requireAuth } from '@/lib/auth';
+
 export async function POST(req: NextRequest) {
   try {
-    const { routeId, adminName } = await req.json();
-    if (!routeId || !adminName) return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
+    const auth = await requireAuth(req, ['admin', 'logistics']);
+    if (!auth.ok) return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+
+    // La identidad viene de la sesión verificada, NO del cliente
+    const adminName = auth.user.fullName || auth.user.username;
+
+    const { routeId } = await req.json();
+    if (!routeId) return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
 
     const { error } = await supabaseAdmin
       .from('routes')
@@ -44,7 +52,10 @@ export async function POST(req: NextRequest) {
 
     fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/push/send`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-internal-secret': process.env.INTERNAL_API_SECRET || '',
+      },
       body: JSON.stringify({
         targetRole: 'driver',
         title: '✅ Cierre aprobado',
@@ -59,7 +70,7 @@ export async function POST(req: NextRequest) {
       entity:    'ruta',
       entity_id: routeId,
       user_name: adminName,
-      user_role: 'admin',
+      user_role: auth.user.role,
       ip_address: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
       user_agent: req.headers.get('user-agent') || 'unknown',
       module:    'Rutas',

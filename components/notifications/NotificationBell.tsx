@@ -119,10 +119,9 @@ export default function NotificationBell({
 
   const handleAction = async (action: 'approve_close' | 'reject_close' | 'approve_reopen' | 'reject_reopen', entityId: string | null) => {
     if (!entityId) return;
-    const adminName = sessionStorage.getItem('shuma_name') || 'Admin';
 
     let endpoint = '';
-    let body: any = { adminName };
+    let body: any = {};
 
     if (action === 'approve_close') {
       endpoint = '/api/routes/close/approve';
