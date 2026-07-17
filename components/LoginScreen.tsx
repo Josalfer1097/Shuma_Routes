@@ -38,7 +38,16 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
   const [showContactHint, setShowContactHint] = useState(false);
   const router = useRouter();
   const userInputRef = useRef<HTMLInputElement>(null);
+  const successTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const errorTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const easterEgg = useEasterEgg();
+
+  useEffect(() => {
+    return () => {
+      successTimers.current.forEach(clearTimeout);
+      errorTimers.current.forEach(clearTimeout);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isBlocked) return;
@@ -91,41 +100,36 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
         if (role === 'driver' && data.driver_id) {
           sessionStorage.setItem('shuma_driver_id', data.driver_id);
         }
-        
+
         setShowContactHint(false);
         setFailedCount(0);
         setFailedUsername('');
+        setPass(''); // no dejar la contraseña en memoria una vez autenticado
 
         // Scan de verificación breve antes del estado de éxito
         setScanningEye(true);
-        setTimeout(() => {
+        successTimers.current.push(setTimeout(() => {
           setScanningEye(false);
           setAccessGranted(true);
-          setTimeout(() => {
+          successTimers.current.push(setTimeout(() => {
             router.push(redirectPath);
-          }, 1400);
-        }, 500);
+          }, 1400));
+        }, 500));
+      } else if (data.code === 'account_locked') {
+        // Bloqueo real del servidor: usar el tiempo que el servidor indica, no un valor adivinado
+        setIsBlocked(true);
+        setBlockCountdown(data.retryAfterSeconds || 900);
+        setErrorMsg(`🔒 Cuenta bloqueada temporalmente por intentos fallidos. Intenta de nuevo en ${Math.ceil((data.retryAfterSeconds || 900) / 60)} min.`);
+        setGlitching(true);
+        errorTimers.current.push(setTimeout(() => {
+          setGlitching(false);
+          setError(true);
+          setShaking(true);
+          errorTimers.current.push(setTimeout(() => setShaking(false), 500));
+        }, 680));
       } else {
-        const newAttempts = Math.min(attempts + 1, 5);
-        setAttempts(newAttempts);
-
-        if (newAttempts >= 3) {
-          setIsBlocked(true);
-          fetch('/api/audit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'Cuenta bloqueada',
-              entity: 'session',
-              entity_id: null,
-              user_name: user.toLowerCase().trim(),
-              user_role: 'unknown',
-              module: 'Autenticación',
-              metadata: { attempts: newAttempts, reason: '3 intentos fallidos' },
-            }),
-          }).catch(console.error);
-        }
-
+        // Mensaje siempre genérico: el backend ya no distingue usuario inexistente
+        // de contraseña incorrecta, y aquí tampoco se debe re-inferir la diferencia.
         if (user === failedUsername) {
           const newCount = failedCount + 1;
           setFailedCount(newCount);
@@ -136,32 +140,14 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
           setShowContactHint(false);
         }
 
-        const rawError = (data.error || '').toLowerCase();
-        let friendlyError = '❌ Credenciales incorrectas — verifica tu usuario y contraseña';
-
-        if (rawError.includes('not found') || rawError.includes('no encontrado') ||
-            rawError.includes('does not exist') || rawError.includes('invalid user')) {
-          friendlyError = `👤 Usuario "${user}" no encontrado en el sistema`;
-        } else if (rawError.includes('password') || rawError.includes('contraseña') ||
-                   rawError.includes('incorrect') || rawError.includes('wrong')) {
-          friendlyError = '🔒 Contraseña incorrecta — inténtalo de nuevo';
-        } else if (rawError.includes('inactive') || rawError.includes('disabled') ||
-                   rawError.includes('inactivo')) {
-          friendlyError = `🚫 La cuenta "${user}" está desactivada. Contacta a TI`;
-        } else if (rawError.includes('role') || rawError.includes('rol')) {
-          friendlyError = '⚠️ Rol de acceso incorrecto — usa el acceso correspondiente';
-        } else if (data.error) {
-          friendlyError = `⚠️ ${data.error}`;
-        }
-
-        setErrorMsg(friendlyError);
+        setErrorMsg('❌ Usuario o contraseña incorrectos');
         setGlitching(true);
-        setTimeout(() => {
+        errorTimers.current.push(setTimeout(() => {
           setGlitching(false);
           setError(true);
           setShaking(true);
-          setTimeout(() => setShaking(false), 500);
-        }, 680);
+          errorTimers.current.push(setTimeout(() => setShaking(false), 500));
+        }, 680));
       }
     } catch {
       const newAttempts = Math.min(attempts + 1, 5);
@@ -725,7 +711,10 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
               </div>
             </div>
 
-            <div className="ls-fields-fade">
+            <form
+              className="ls-fields-fade"
+              onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
+            >
               <div className="ls-field">
               <div className="ls-field-label">Usuario</div>
               <div className={`ls-field-row ${focusU ? "focused" : ""} ${error ? "err" : ""}`}>
@@ -739,7 +728,7 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
                   onFocus={() => setFocusU(true)}
                   onBlur={() => setFocusU(false)}
                   onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                  autoComplete="off"
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -762,7 +751,7 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
                   onKeyUp={(e) => {
                     setCapsLockOn(e.getModifierState && e.getModifierState('CapsLock'));
                   }}
-                  autoComplete="off"
+                  autoComplete="current-password"
                 />
                 <button className="ls-eye-btn" onClick={toggleEye} type="button" aria-label="Mostrar contraseña">
                   {showPass
@@ -878,7 +867,7 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
               </div>
             )}
 
-            </div>
+            </form>
           </div>
 
           <button className="ls-back-link" onClick={() => window.location.href = '/'}>

@@ -17,7 +17,9 @@
     "@supabase/supabase-js": "^2.108.1",
     "@types/google.maps": "^3.65.0",
     "@types/papaparse": "^5.5.2",
+    "bcryptjs": "^3.0.3",
     "google-auth-library": "^10.7.0",
+    "jose": "^6.2.3",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^1.17.0",
@@ -29,6 +31,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
