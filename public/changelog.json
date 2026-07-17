@@ -1,6 +1,9 @@
 {
-  "updated": "2026-07-16",
+  "updated": "2026-07-17",
   "items": [
+    { "type": "fix", "text": "Selector: las teclas A y C ya no se activan mientras hay una ventana abierta o se esta escribiendo" },
+    { "type": "fix", "text": "Selector: ya no parpadea la pantalla al entrar con una sesion activa" },
+    { "type": "improve", "text": "Selector: mejoras internas de estabilidad y consumo de memoria" },
     { "type": "fix", "text": "Zonas: ninguna direccion se pierde al repartir - si la capacidad configurada no alcanza, el excedente se distribuye entre los vehiculos y se avisa con una alerta" },
     { "type": "fix", "text": "Zonas: el excedente se asigna al vehiculo con menos carga en vez del mas cercano, para no desbalancear la operacion" },
     { "type": "improve", "text": "Mapa y notificaciones: actualizacion automatica cada 30 segundos sin recargar la pagina" },

@@ -26,7 +26,8 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch('/api/health')
+    const controller = new AbortController();
+    fetch('/api/health', { signal: controller.signal })
       .then(r => r.json())
       .then(j => {
         if (j.services) {
@@ -39,49 +40,68 @@ export default function HomePage() {
           setSysStatus(j.ok ? 'ok' : 'error');
         }
       })
-      .catch(() => setSysStatus('error'));
+      .catch(err => {
+        if (err?.name === 'AbortError') return;
+        setSysStatus('error');
+      });
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
-    fetch('/changelog.json')
+    const controller = new AbortController();
+    fetch('/changelog.json', { signal: controller.signal })
       .then(r => r.json())
       .then(setChangelog)
       .catch(() => {});
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'a' || e.key === 'A') {
-        setPulsingCard('admin');
-        setTimeout(() => {
-          setLeaving(true);
-          setTimeout(() => router.push('/admin-login'), 280);
-        }, 200);
-      }
-      if (e.key === 'c' || e.key === 'C') {
-        setPulsingCard('driver');
-        setTimeout(() => {
-          setLeaving(true);
-          setTimeout(() => router.push('/driver-login'), 280);
-        }, 200);
-      }
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let navigating = false;
+
+    const goTo = (card: 'admin' | 'driver', path: string) => {
+      if (navigating) return;
+      navigating = true;
+      setPulsingCard(card);
+      timers.push(setTimeout(() => {
+        setLeaving(true);
+        timers.push(setTimeout(() => router.push(path), 280));
+      }, 200));
     };
+
+    const handleKey = (e: KeyboardEvent) => {
+      // No interferir si el usuario está escribiendo o hay un modal abierto
+      const target = e.target as HTMLElement | null;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target?.isContentEditable
+      ) return;
+      if (showChangelog || easterEgg.isActive) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      if (e.key === 'a' || e.key === 'A') goTo('admin', '/admin-login');
+      if (e.key === 'c' || e.key === 'C') goTo('driver', '/driver-login');
+    };
+
     document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, []);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      timers.forEach(clearTimeout);
+    };
+  }, [router, showChangelog, easterEgg.isActive]);
 
   useEffect(() => {
-    setReady(true);
+    // Verificar sesión ANTES de mostrar el selector, para evitar el parpadeo
     const auth = sessionStorage.getItem('shuma_auth');
     const role = sessionStorage.getItem('shuma_role');
     if (auth === '1' && role) {
-      if (role === 'driver') {
-        router.push('/driver');
-      } else {
-        router.push('/dispatcher');
-      }
+      router.push(role === 'driver' ? '/driver' : '/dispatcher');
+      return; // no marcar ready: se mantiene la pantalla de carga durante el redirect
     }
-  }, []);
+    setReady(true);
+  }, [router]);
 
   if (!ready) return (
     <div style={{ position: 'fixed', inset: 0, background: '#050C1A', zIndex: 99998 }} />
@@ -485,7 +505,7 @@ export default function HomePage() {
             e.currentTarget.style.borderColor = changelog ? 'rgba(33,150,243,0.2)' : 'transparent';
           }}
         >
-          v7.30.0{changelog ? ' · Ver novedades  ' : ''}
+          v7.30.1{changelog ? ' · Ver novedades  ' : ''}
         </button>
         <style>{`
           @keyframes rgbRoll {
@@ -548,16 +568,21 @@ export default function HomePage() {
                   fontSize: 16, fontWeight: 700, color: '#E8EFF8',
                   fontFamily: "'Exo 2', sans-serif", margin: 0,
                 }}>
-                  🌟 Novedades v7.30.0
+                  🌟 Novedades v7.30.1
                 </h2>
                 <p style={{
                   fontSize: 11, color: '#5B7BA0', margin: '4px 0 0',
                   fontFamily: "'DM Sans', sans-serif",
                 }}>
                   Actualizado:{' '}
-                  {new Date(changelog.updated + 'T12:00:00').toLocaleDateString('es-MX', {
-                    day: 'numeric', month: 'long', year: 'numeric',
-                  })}
+                  {(() => {
+                    const d = new Date(changelog.updated + 'T12:00:00');
+                    return isNaN(d.getTime())
+                      ? changelog.updated
+                      : d.toLocaleDateString('es-MX', {
+                          day: 'numeric', month: 'long', year: 'numeric',
+                        });
+                  })()}
                 </p>
               </div>
               <button
