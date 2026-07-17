@@ -14,8 +14,8 @@ import { requireAuth } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth(req, ['admin', 'logistics']);
-    if (!auth.ok) return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+    const session = await requireAuth(req, ['admin', 'logistics']);
+    if (!session.ok) return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
 
     const serviceAccount = JSON.parse(
       process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}'
