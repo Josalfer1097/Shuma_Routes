@@ -64,8 +64,8 @@ export default function ParticleField() {
         ctx!.lineWidth = p.size * 0.6;
         ctx!.lineCap = 'round';
         ctx!.beginPath();
-        ctx!.moveTo(x - dx / 2, y - dy / 2); -
-          ctx!.lineTo(x + dx / 2, y + dy / 2);
+        ctx!.moveTo(x - dx / 2, y - dy / 2);
+        ctx!.lineTo(x + dx / 2, y + dy / 2);
         ctx!.stroke();
       });
       animId = requestAnimationFrame(draw);
