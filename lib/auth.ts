@@ -2,8 +2,22 @@ import { SignJWT, jwtVerify } from 'jose';
 import { NextRequest, NextResponse } from 'next/server';
 
 const SESSION_COOKIE = 'shuma_session';
-const secret = new TextEncoder().encode(process.env.SESSION_JWT_SECRET || '');
 
+/**
+ * Obtiene el secreto de firma. Falla ruidosamente si no está configurado:
+ * un secreto vacío produciría tokens inválidos y un login que parece
+ * exitoso pero deja al usuario con 401 en todos los endpoints.
+ */
+function getSecret(): Uint8Array {
+  const raw = process.env.SESSION_JWT_SECRET;
+  if (!raw || raw.trim().length < 16) {
+    throw new Error(
+      '[auth] SESSION_JWT_SECRET no está configurada o es demasiado corta. ' +
+      'Agrégala en las variables de entorno (Production y Preview) y haz Redeploy.'
+    );
+  }
+  return new TextEncoder().encode(raw);
+}
 export interface SessionPayload {
   sub: string;        // user_profiles.id
   username: string;
@@ -17,12 +31,12 @@ export async function signSession(payload: SessionPayload): Promise<string> {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('12h')
-    .sign(secret);
+    .sign(getSecret());
 }
 
 export async function verifySession(token: string): Promise<SessionPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, getSecret());
     return payload as unknown as SessionPayload;
   } catch {
     return null;
