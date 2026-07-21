@@ -73,9 +73,14 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from('notifications').insert({
         type: 'route_closure_resolved',
         title: 'Cierre Aprobado',
-        body: `Tu solicitud de cierre para ${routeName} fue aprobada.`,
+        body: `Tu solicitud de cierre para ${routeName} fue aprobada por ${adminName}.`,
         entity_id: routeId,
         target_role: routeData.closure_requested_by, // driverId
+        metadata: {
+          ruta_code: routeData.route_code || null,
+          aprobado_por: adminName,
+          entregas_a_pendientes: pendingCandidates?.length || 0,
+        },
       });
     }
 

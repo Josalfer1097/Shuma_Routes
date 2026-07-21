@@ -50,9 +50,13 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from('notifications').insert({
         type: 'reopen_resolved',
         title: 'Reapertura Aprobada',
-        body: `Tu solicitud de reapertura para la entrega ${deliveryData.invoice} fue aprobada.`,
+        body: `Tu solicitud de reapertura para la entrega ${deliveryData.invoice} fue aprobada por ${adminName}.`,
         entity_id: request.delivery_id,
         target_role: request.requested_by, // driverId
+        metadata: {
+          factura: deliveryData.invoice,
+          aprobado_por: adminName,
+        },
       });
     }
 

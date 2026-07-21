@@ -12,6 +12,7 @@ interface Notification {
   entity_id: string | null;
   read: boolean;
   created_at: string;
+  metadata?: Record<string, any> | null;
 }
 
 export default function NotificationBell({
@@ -25,6 +26,7 @@ export default function NotificationBell({
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isReminderPulse, setIsReminderPulse] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
 
@@ -246,7 +248,33 @@ export default function NotificationBell({
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-white text-xs">{notif.title}</p>
-                      <p className="text-shuma-muted text-xs mt-0.5 mb-2">{notif.body}</p>
+                      <p className="text-shuma-muted text-xs mt-0.5 mb-1">{notif.body}</p>
+                      {notif.metadata && Object.keys(notif.metadata).length > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedId(expandedId === notif.id ? null : notif.id);
+                          }}
+                          className="text-[10px] text-blue-400/70 hover:text-blue-400 mb-1 flex items-center gap-0.5"
+                        >
+                          {expandedId === notif.id ? '▲ Ocultar detalles' : '▼ Ver detalles'}
+                        </button>
+                      )}
+                      {expandedId === notif.id && notif.metadata && (
+                        <div
+                          className="bg-shuma-border/20 border border-shuma-border rounded-lg p-2 mb-2 text-[11px] space-y-0.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {Object.entries(notif.metadata).map(([key, value]) => (
+                            value ? (
+                              <div key={key} className="flex justify-between gap-2">
+                                <span className="text-shuma-muted capitalize">{key.replace(/_/g, ' ')}:</span>
+                                <span className="text-white text-right">{String(value)}</span>
+                              </div>
+                            ) : null
+                          ))}
+                        </div>
+                      )}
                     </div>
                     {!notif.read && (
                       <button

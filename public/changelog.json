@@ -1,6 +1,8 @@
 {
   "updated": "2026-07-21",
   "items": [
+    { "type": "improve", "text": "Notificaciones: ahora muestran el nombre del chofer o administrador que realizo cada accion" },
+    { "type": "new", "text": "Notificaciones: boton para ver el detalle (factura, cliente, motivo) sin salir del panel" },
     { "type": "new", "text": "Las entregas fallidas o parciales de una ruta cerrada pasan automaticamente a una bandeja de pendientes para reasignarlas despues" },
     { "type": "improve", "text": "Limpieza: Removido diagnóstico temporal de sesión; ocultados archivos CSV de prueba" },
     { "type": "improve", "text": "Seguridad: las aprobaciones y rechazos de cierre ahora registran en bitacora la identidad verificada del usuario, no la declarada" },

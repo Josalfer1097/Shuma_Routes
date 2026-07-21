@@ -22,19 +22,9 @@ export async function POST(req: NextRequest) {
     // Obtener info de la entrega para notificar al admin
     const { data: deliveryData } = await supabaseAdmin
       .from('deliveries')
-      .select('invoice, route_id')
+      .select('invoice, route_id, client_name, address')
       .eq('id', deliveryId)
       .single();
-
-    if (deliveryData) {
-      await supabaseAdmin.from('notifications').insert({
-        type: 'reopen_requested',
-        title: 'Solicitud de Reapertura',
-        body: `El chofer solicita reabrir la entrega ${deliveryData.invoice}`,
-        entity_id: newReq.id,
-        target_role: 'admin',
-      });
-    }
 
     const { data: driverInfo } = await supabaseAdmin
       .from('drivers')
@@ -42,6 +32,23 @@ export async function POST(req: NextRequest) {
       .eq('id', driverId)
       .single();
     const driverName = driverInfo?.name || driverId;
+
+    if (deliveryData) {
+      await supabaseAdmin.from('notifications').insert({
+        type: 'reopen_requested',
+        title: 'Solicitud de Reapertura',
+        body: `${driverName} solicita reabrir la entrega ${deliveryData.invoice}`,
+        entity_id: newReq.id,
+        target_role: 'admin',
+        metadata: {
+          chofer: driverName,
+          factura: deliveryData.invoice,
+          cliente: deliveryData.client_name || null,
+          direccion: deliveryData.address || null,
+          motivo: reason || 'Sin motivo especificado',
+        },
+      });
+    }
 
     await supabaseAdmin.from('audit_log').insert({
       action:    'Solicitud de reapertura',

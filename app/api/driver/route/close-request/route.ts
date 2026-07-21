@@ -21,12 +21,20 @@ export async function POST(req: NextRequest) {
     const { data: routeData } = await supabaseAdmin.from('routes').select('route_code, route_alias').eq('id', routeId).single();
     const routeName = routeData?.route_alias || routeData?.route_code || 'Ruta';
 
+    const { data: driverInfo } = await supabaseAdmin.from('drivers').select('name').eq('id', driverId).single();
+    const driverName = driverInfo?.name || 'Chofer';
+
     await supabaseAdmin.from('notifications').insert({
       type: 'route_closure_requested',
       title: 'Solicitud de Cierre',
-      body: `El chofer ha solicitado cerrar la ruta ${routeName}`,
+      body: `${driverName} ha solicitado cerrar la ruta ${routeName}`,
       entity_id: routeId,
       target_role: 'admin',
+      metadata: {
+        chofer: driverName,
+        ruta_code: routeData?.route_code || null,
+        route_id: routeId,
+      },
     });
 
     return NextResponse.json({ ok: true });

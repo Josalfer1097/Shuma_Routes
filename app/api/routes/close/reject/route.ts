@@ -44,9 +44,14 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from('notifications').insert({
         type: 'route_closure_resolved',
         title: 'Cierre Rechazado',
-        body: `Tu solicitud de cierre para ${routeName} fue rechazada. Motivo: ${reason || 'Sin detalles'}`,
+        body: `Tu solicitud de cierre para ${routeName} fue rechazada por ${adminName}. Motivo: ${reason || 'Sin detalles'}`,
         entity_id: routeId,
         target_role: routeData.closure_requested_by, // driverId
+        metadata: {
+          ruta_code: routeData.route_code || null,
+          rechazado_por: adminName,
+          motivo: reason || 'Sin detalles',
+        },
       });
     }
 
