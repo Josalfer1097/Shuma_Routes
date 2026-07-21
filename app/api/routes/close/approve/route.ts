@@ -25,6 +25,35 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
+    // ── Bandeja de Pendientes: mover entregas failed/partial a la cola de reasignación ──
+    const { data: pendingCandidates } = await supabaseAdmin
+      .from('deliveries')
+      .select('id, invoice, status, attempt_count')
+      .eq('route_id', routeId)
+      .in('status', ['failed', 'partial']);
+
+    if (pendingCandidates && pendingCandidates.length > 0) {
+      const nowIso = new Date().toISOString();
+
+      for (const d of pendingCandidates) {
+        await supabaseAdmin
+          .from('deliveries')
+          .update({
+            is_pending: true,
+            attempt_count: (d.attempt_count || 1) + 1,
+            pending_since: nowIso,
+          })
+          .eq('id', d.id);
+
+        await supabaseAdmin.from('delivery_events').insert({
+          delivery_id: d.id,
+          event_type: 'moved_to_pending',
+          notes: `Ruta ${routeId} cerrada con esta entrega en estado '${d.status}'. Pasa a bandeja de pendientes (intento ${(d.attempt_count || 1) + 1}).`,
+          created_at: nowIso,
+        });
+      }
+    }
+
     // Marcar la notificación original de solicitud de cierre como leída
     await supabaseAdmin
       .from('notifications')
@@ -78,6 +107,7 @@ export async function POST(req: NextRequest) {
         ruta_code: routeData?.route_code || null,
         solicitado_por: routeData?.closure_requested_by || null,
         accion: 'aprobado',
+        entregas_a_pendientes: pendingCandidates?.length || 0,
       },
       created_at: new Date().toISOString(),
     }).then(({error}) => { if (error) console.error(error); });
