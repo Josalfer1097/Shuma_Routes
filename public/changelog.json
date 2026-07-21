@@ -1,6 +1,9 @@
 {
   "updated": "2026-07-21",
   "items": [
+    { "type": "new", "text": "Notificacion al administrador cuando un chofer inicia su ruta" },
+    { "type": "improve", "text": "Notificaciones de entregas ahora muestran cliente, direccion y factura al expandir detalles" },
+    { "type": "fix", "text": "Notificaciones de cierre de ruta ya no muestran identificadores internos, ahora muestran resumen de entregas" },
     { "type": "improve", "text": "Notificaciones: ahora muestran el nombre del chofer o administrador que realizo cada accion" },
     { "type": "new", "text": "Notificaciones: boton para ver el detalle (factura, cliente, motivo) sin salir del panel" },
     { "type": "new", "text": "Las entregas fallidas o parciales de una ruta cerrada pasan automaticamente a una bandeja de pendientes para reasignarlas despues" },

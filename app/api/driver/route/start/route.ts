@@ -66,6 +66,20 @@ export async function POST(req: NextRequest) {
       created_at: now,
     });
 
+    // 6. Notificar al admin
+    await supabaseAdmin.from('notifications').insert({
+      type: 'route_started',
+      title: 'Ruta Iniciada',
+      body: `${driverName || 'Un chofer'} inició la ruta ${routeData?.route_code || ''}`,
+      entity_id: routeId,
+      target_role: 'admin',
+      metadata: {
+        chofer: driverName || 'Chofer',
+        ruta_code: routeData?.route_code || null,
+        entregas: deliveries?.length || 0,
+      },
+    });
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[driver/route/start] Error:', err);

@@ -98,6 +98,13 @@ export async function POST(req: NextRequest) {
         entity_id:   deliveryId,
         target_role: 'admin',
         read:        false,
+        metadata: {
+          cliente:   delivery?.client_name || null,
+          direccion: delivery?.address || null,
+          factura:   delivery?.invoice || null,
+          ruta_code: route?.route_code || null,
+          ...(status !== 'completed' ? { motivo: notes || 'Sin motivo especificado' } : {}),
+        },
       }).then(({error}) => { if (error) console.error(error); }); // No bloquear si falla
     }
 

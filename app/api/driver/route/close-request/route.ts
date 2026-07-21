@@ -24,6 +24,17 @@ export async function POST(req: NextRequest) {
     const { data: driverInfo } = await supabaseAdmin.from('drivers').select('name').eq('id', driverId).single();
     const driverName = driverInfo?.name || 'Chofer';
 
+    // Resumen de entregas de esta ruta, para dar contexto útil sin exponer IDs
+    const { data: routeDeliveries } = await supabaseAdmin
+      .from('deliveries')
+      .select('status')
+      .eq('route_id', routeId);
+
+    const resumen = (routeDeliveries || []).reduce((acc: Record<string, number>, d) => {
+      acc[d.status] = (acc[d.status] || 0) + 1;
+      return acc;
+    }, {});
+
     await supabaseAdmin.from('notifications').insert({
       type: 'route_closure_requested',
       title: 'Solicitud de Cierre',
@@ -33,7 +44,10 @@ export async function POST(req: NextRequest) {
       metadata: {
         chofer: driverName,
         ruta_code: routeData?.route_code || null,
-        route_id: routeId,
+        entregadas: resumen.delivered || 0,
+        parciales: resumen.partial || 0,
+        fallidas: resumen.failed || 0,
+        sin_completar: (resumen.pending || 0) + (resumen.in_route || 0),
       },
     });
 
