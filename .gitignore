@@ -64,4 +64,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-*.json
+*.jsonprueba_*.csv
+entregas_*.csv

@@ -21,19 +21,6 @@ function parseDevice(ua: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  // Diagnóstico temporal: confirmar que el secreto de sesión llegó al servidor
-  const hasSecret = !!process.env.SESSION_JWT_SECRET;
-  const secretLen = (process.env.SESSION_JWT_SECRET || '').length;
-  if (!hasSecret) {
-    console.error('[auth/admin] SESSION_JWT_SECRET NO está definida en el entorno');
-    return NextResponse.json({
-      ok: false,
-      error: 'Error de configuración del servidor. Contacta a TI.',
-      diagnostico: 'SESSION_JWT_SECRET ausente',
-    }, { status: 500 });
-  }
-  console.log('[auth/admin] SESSION_JWT_SECRET presente, longitud:', secretLen);
-
   const { username, password } = await req.json();
 
   const ip =

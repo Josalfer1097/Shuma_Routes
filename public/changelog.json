@@ -1,6 +1,7 @@
 {
-  "updated": "2026-07-17",
+  "updated": "2026-07-21",
   "items": [
+    { "type": "improve", "text": "Limpieza: Removido diagnóstico temporal de sesión; ocultados archivos CSV de prueba" },
     { "type": "improve", "text": "Seguridad: las aprobaciones y rechazos de cierre ahora registran en bitacora la identidad verificada del usuario, no la declarada" },
     { "type": "improve", "text": "Seguridad: las acciones criticas requieren sesion activa con el rol correspondiente" },
     { "type": "fix", "text": "Selector: las teclas A y C ya no se activan mientras hay una ventana abierta o se esta escribiendo" },
