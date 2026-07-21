@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       .from('deliveries')
       .select('id, invoice, status, attempt_count')
       .eq('route_id', routeId)
-      .in('status', ['failed', 'partial']);
+      .in('status', ['failed', 'partial', 'pending']);
 
     if (pendingCandidates && pendingCandidates.length > 0) {
       const nowIso = new Date().toISOString();
