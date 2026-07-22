@@ -13,9 +13,10 @@ interface Props {
   userName?: string;
   userRole?: string;
   onRouteAccepted?: () => void;
+  onSetBlockingAction?: (action: string | null) => void;
 }
 
-export default function ReportButton({ routes, weather, globalConfig, userName, userRole, onRouteAccepted }: Props) {
+export default function ReportButton({ routes, weather, globalConfig, userName, userRole, onRouteAccepted, onSetBlockingAction }: Props) {
   const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
@@ -152,6 +153,7 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
         userRole={userRole || 'admin'}
         onSuccess={() => { setIsAccepted(true); onRouteAccepted?.(); }}
         duplicateWarning={duplicateWarning}
+        onSetBlockingAction={onSetBlockingAction}
       />
     </div>
   );

@@ -1,6 +1,10 @@
 {
-  "updated": "2026-07-21",
+  "updated": "2026-07-22",
   "items": [
+    { "type": "new", "text": "Indicadores de carga en aprobaciones, optimizacion y aceptacion de rutas: ya no parece que la app se congelo" },
+    { "type": "new", "text": "Mensajes de confirmacion al aprobar o rechazar cierres y reaperturas" },
+    { "type": "fix", "text": "Los botones de aprobar y rechazar ya no permiten doble clic accidental" },
+    { "type": "fix", "text": "Si una aprobacion falla, ahora se avisa en pantalla en lugar de fallar en silencio" },
     { "type": "new", "text": "Notificacion al administrador cuando un chofer inicia su ruta" },
     { "type": "improve", "text": "Notificaciones de entregas ahora muestran cliente, direccion y factura al expandir detalles" },
     { "type": "fix", "text": "Notificaciones de cierre de ruta ya no muestran identificadores internos, ahora muestran resumen de entregas" },

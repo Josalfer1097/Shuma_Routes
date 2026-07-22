@@ -13,6 +13,7 @@ interface Props {
   userRole: string;
   onSuccess?: () => void;
   duplicateWarning?: string | null;
+  onSetBlockingAction?: (action: string | null) => void;
 }
 
 export default function AcceptRouteModal({
@@ -23,6 +24,7 @@ export default function AcceptRouteModal({
   userRole,
   onSuccess,
   duplicateWarning,
+  onSetBlockingAction,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -36,6 +38,7 @@ export default function AcceptRouteModal({
   const handleAcceptRoute = async () => {
     if (routes.length === 0) { setError('No hay rutas para guardar'); return; }
 
+    onSetBlockingAction?.('Guardando ruta y asignando entregas...');
     setLoading(true);
     setError(null);
     try {
@@ -56,6 +59,7 @@ export default function AcceptRouteModal({
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
       setLoading(false);
+      onSetBlockingAction?.(null);
     }
   };
 

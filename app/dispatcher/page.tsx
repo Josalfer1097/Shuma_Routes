@@ -988,6 +988,7 @@ supabase.removeChannel(locChannel);
   }, [state.globalConfig?.departureDepot]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [blockingAction, setBlockingAction] = useState<string | null>(null);
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -1167,6 +1168,7 @@ supabase.removeChannel(locChannel);
       return;
     }
 
+    setBlockingAction('Optimizando rutas con Google Maps...');
     setIsOptimizing(true);
     dispatch({ type: 'SET_ERROR', payload: null });
     dispatch({ type: 'SET_STEP', payload: 'optimizing' });
@@ -1218,6 +1220,7 @@ supabase.removeChannel(locChannel);
       dispatch({ type: 'SET_ERROR', payload: msg });
     } finally {
       setIsOptimizing(false);
+      setBlockingAction(null);
     }
   }, [state.addresses, state.vehicles, state.depot, state.clusters]);
 
@@ -1235,6 +1238,7 @@ supabase.removeChannel(locChannel);
       return;
     }
 
+    setBlockingAction('Optimizando rutas con Google Maps...');
     setIsOptimizing(true);
     dispatch({ type: 'SET_ERROR', payload: null });
     dispatch({ type: 'SET_STEP', payload: 'optimizing' });
@@ -1270,6 +1274,7 @@ supabase.removeChannel(locChannel);
       dispatch({ type: 'SET_ERROR', payload: msg });
     } finally {
       setIsOptimizing(false);
+      setBlockingAction(null);
     }
   }, [state.addresses, state.vehicles, state.globalConfig]);
 
@@ -1454,6 +1459,40 @@ supabase.removeChannel(locChannel);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#050C1A', overflow: 'hidden' }}>
+      {blockingAction && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9998,
+            background: 'rgba(5, 12, 26, 0.55)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'all',
+          }}
+        >
+          <div
+            style={{
+              background: 'rgba(15, 23, 42, 0.95)',
+              border: '1px solid rgba(148, 163, 184, 0.2)',
+              borderRadius: 16,
+              padding: '20px 28px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            }}
+          >
+            <RefreshCw size={18} className="animate-spin" style={{ color: '#60a5fa' }} />
+            <span style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 500 }}>
+              {blockingAction}
+            </span>
+          </div>
+        </div>
+      )}
+
       {toast && (
         <div style={{
           position: 'absolute', bottom: 80, left: '50%',
@@ -1797,6 +1836,7 @@ supabase.removeChannel(locChannel);
 
             <NotificationBell 
               targetRole="admin" 
+              onToast={showToast}
               onNavigateToRoute={(entityId) => {
                 const route = activeRoutesData.find((r: any) => r.id === entityId);
                 if (route) {
@@ -3026,6 +3066,7 @@ supabase.removeChannel(locChannel);
                 globalConfig={state.globalConfig} 
                 userName={userName}
                 userRole={userRole}
+                onSetBlockingAction={setBlockingAction}
               />
             </>
           ) : undefined

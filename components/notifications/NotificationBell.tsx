@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase-client';
-import { Bell, CheckCircle, XCircle } from 'lucide-react';
+import { Bell, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface Notification {
   id: string;
@@ -18,11 +18,14 @@ interface Notification {
 export default function NotificationBell({
   targetRole,
   onNavigateToRoute,
+  onToast,
 }: {
   targetRole: string;
   onNavigateToRoute?: (entityId: string) => void;
+  onToast?: (msg: string, type?: 'warn' | 'error' | 'ok') => void;
 }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all');
@@ -142,6 +145,10 @@ export default function NotificationBell({
       body.requestId = entityId;
     }
 
+    // Evitar doble click: si ya hay una acción en curso, ignorar
+    if (actionLoading) return;
+    setActionLoading(entityId);
+
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -150,9 +157,21 @@ export default function NotificationBell({
       });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || 'Error en la acción');
+
+      const mensajes: Record<string, string> = {
+        approve_close: '✅ Cierre de ruta aprobado',
+        reject_close: '❌ Cierre de ruta rechazado',
+        approve_reopen: '✅ Reapertura aprobada',
+        reject_reopen: '❌ Reapertura rechazada',
+      };
+      onToast?.(mensajes[action] || 'Acción completada', 'ok');
+
       fetchNotifications();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error in action:', e);
+      onToast?.(`No se pudo completar la acción: ${e?.message || 'error desconocido'}`, 'error');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -290,16 +309,26 @@ export default function NotificationBell({
                   {targetRole === 'admin' && (notif.type === 'route_closure_requested' || notif.type === 'reopen_requested') && (
                     <div className="flex gap-2 mt-2">
                       <button
+                        disabled={actionLoading === notif.entity_id}
                         onClick={(e) => { e.stopPropagation(); handleAction(notif.type === 'route_closure_requested' ? 'approve_close' : 'approve_reopen', notif.entity_id); }}
-                        className="flex items-center gap-1 px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20 text-xs hover:bg-emerald-500/20"
+                        className="flex items-center gap-1 px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20 text-xs hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <CheckCircle size={12} /> Aprobar
+                        {actionLoading === notif.entity_id ? (
+                          <><Loader2 size={12} className="animate-spin" /> Procesando...</>
+                        ) : (
+                          <><CheckCircle size={12} /> Aprobar</>
+                        )}
                       </button>
                       <button
+                        disabled={actionLoading === notif.entity_id}
                         onClick={(e) => { e.stopPropagation(); handleAction(notif.type === 'route_closure_requested' ? 'reject_close' : 'reject_reopen', notif.entity_id); }}
-                        className="flex items-center gap-1 px-2 py-1 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20 text-xs hover:bg-red-500/20"
+                        className="flex items-center gap-1 px-2 py-1 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20 text-xs hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <XCircle size={12} /> Rechazar
+                        {actionLoading === notif.entity_id ? (
+                          <><Loader2 size={12} className="animate-spin" /> Procesando...</>
+                        ) : (
+                          <><XCircle size={12} /> Rechazar</>
+                        )}
                       </button>
                     </div>
                   )}
