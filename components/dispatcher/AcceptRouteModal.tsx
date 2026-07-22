@@ -51,7 +51,7 @@ export default function AcceptRouteModal({
       if (!json.ok) throw new Error(json.error || 'Error al guardar rutas');
 
       setSuccess(true);
-      sessionStorage.removeItem('shuma_rutas_session');
+      localStorage.removeItem('shuma_rutas_session');
       sessionStorage.removeItem('shuma_editing_route_id');
       sessionStorage.removeItem('shuma_editing_driver_name');
       setTimeout(() => { onSuccess?.(); onClose(); }, 1500);

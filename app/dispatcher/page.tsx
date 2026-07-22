@@ -597,6 +597,35 @@ function DispatcherPageContent() {
     };
   }, [fetchActiveRoutes]);
 
+  // Enfocar una ruta específica si viene ?focus=RT-... desde el dashboard
+  useEffect(() => {
+    if (!activeRoutesData.length) return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const focusCode = params.get('focus');
+      if (!focusCode) return;
+
+      const route = activeRoutesData.find(
+        (r: any) => r.route_code === focusCode || r.route_alias === focusCode
+      );
+      if (!route) {
+        showToast(`No se encontró la ruta ${focusCode} entre las rutas activas`, 'warn');
+      } else {
+        const firstStop = (route.deliveries || []).find(
+          (d: any) => d.address?.lat && d.address?.lng
+        );
+        if (firstStop && mapViewRef.current) {
+          mapViewRef.current.panToDelivery(firstStop.address.lat, firstStop.address.lng);
+        }
+        setExpandedActiveRoute(route.id);
+        showToast(`Mostrando ruta ${focusCode}`, 'ok');
+      }
+
+      // Limpiar el parámetro para que no se re-dispare al refrescar
+      window.history.replaceState({}, '', '/dispatcher');
+    } catch { /* ignore */ }
+  }, [activeRoutesData]);
+
   const saveAlias = async (routeId: string) => {
     await fetch('/api/routes/alias', {
       method: 'PATCH',
@@ -693,7 +722,7 @@ function DispatcherPageContent() {
         step: state.step,
         savedAt: new Date().toISOString(),
       };
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
     } catch { /* ignore quota errors */ }
   }, [state.globalConfig, state.vehicles, state.addresses, state.clusters, state.step]);
 
@@ -929,7 +958,14 @@ supabase.removeChannel(locChannel);
 
       // Verificar si hay sesión guardada
       try {
-        const saved = sessionStorage.getItem('shuma_rutas_session');
+        // Migración: si existe una sesión vieja en sessionStorage, moverla a localStorage
+        const legacy = sessionStorage.getItem('shuma_rutas_session');
+        if (legacy && !localStorage.getItem('shuma_rutas_session')) {
+          localStorage.setItem('shuma_rutas_session', legacy);
+          sessionStorage.removeItem('shuma_rutas_session');
+        }
+
+        const saved = localStorage.getItem('shuma_rutas_session');
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed.globalConfig && (parsed.vehicles?.length > 0 || parsed.addresses?.length > 0)) {
@@ -956,7 +992,7 @@ supabase.removeChannel(locChannel);
     sessionStorage.removeItem('shuma_user');
     sessionStorage.removeItem('shuma_name');
     sessionStorage.removeItem('shuma_driver_id');
-    sessionStorage.removeItem('shuma_rutas_session');
+    localStorage.removeItem('shuma_rutas_session');
     localStorage.removeItem('shuma_auth');
     localStorage.removeItem('shuma-rutas-font-scale');
     document.documentElement.style.setProperty('--font-scale', '1');
@@ -2878,7 +2914,7 @@ supabase.removeChannel(locChannel);
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={() => {
-                  sessionStorage.removeItem('shuma_rutas_session');
+                  localStorage.removeItem('shuma_rutas_session');
                   setSessionToRestore(null);
                 }}
                 style={{
@@ -2892,7 +2928,7 @@ supabase.removeChannel(locChannel);
               <button
                 onClick={() => {
                   try {
-                    const saved = sessionStorage.getItem('shuma_rutas_session');
+                    const saved = localStorage.getItem('shuma_rutas_session');
                     if (!saved) return;
                     const parsed = JSON.parse(saved);
                     if (parsed.globalConfig) dispatch({ type: 'SET_GLOBAL_CONFIG', payload: parsed.globalConfig });
@@ -3179,7 +3215,7 @@ supabase.removeChannel(locChannel);
             }}
             onReset={() => {
               if (confirm('¿Estás seguro de reiniciar toda la configuración y vaciar los datos actuales?')) {
-                sessionStorage.removeItem('shuma_rutas_session');
+                localStorage.removeItem('shuma_rutas_session');
                 dispatch({ type: 'RESET_STATE' });
                 setConfigSaved(false);
               }
