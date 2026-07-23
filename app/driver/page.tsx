@@ -128,7 +128,7 @@ export default function DriverPage() {
     const cacheKey = getCacheKey(id);
     try {
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
-      const res   = await fetch(`/api/driver/route?driver_id=${id}&date=${today}`);
+      const res   = await fetch(`/api/driver/route?date=${today}`, { credentials: 'include' });
       const json  = await res.json();
       if (json.ok && json.route) {
         setRoute(json.route);
@@ -215,6 +215,7 @@ export default function DriverPage() {
         try {
           await fetch('/api/driver/location', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ driverId, routeId, lat, lng, accuracy }),
           });
@@ -355,7 +356,9 @@ export default function DriverPage() {
             formData.append('deliveryId', selectedStop.stop.id);
             formData.append('invoice', selectedStop.stop.address.invoice || selectedStop.stop.id);
             const photoRes = await fetch('/api/driver/upload-photo', {
-              method: 'POST', body: formData,
+              method: 'POST',
+              credentials: 'include',
+              body: formData,
             });
             if (!photoRes.ok) {
               const errJson = await photoRes.json().catch(() => ({}));
@@ -371,6 +374,7 @@ export default function DriverPage() {
       // Marcar entrega
       const res = await fetch('/api/driver/deliver', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           deliveryId:      selectedStop.stop.id,
@@ -408,6 +412,7 @@ export default function DriverPage() {
     try {
       const res = await fetch('/api/driver/deliver/reopen-request', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           deliveryId: selectedStop.stop.id,
@@ -433,6 +438,7 @@ export default function DriverPage() {
     try {
       const res = await fetch('/api/driver/route/close-request', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ routeId: route.routeId, driverId }),
       });
@@ -471,6 +477,7 @@ export default function DriverPage() {
     try {
       const res = await fetch('/api/driver/route/start', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           routeId:       route.routeId,

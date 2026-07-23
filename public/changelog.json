@@ -1,6 +1,7 @@
 {
   "updated": "2026-07-22",
   "items": [
+    { "type": "improve", "text": "Seguridad: cada chofer ahora solo puede ver y modificar sus propias entregas y rutas, verificado en el servidor" },
     { "type": "improve", "text": "El boton Ver mapa de las alertas ahora centra el mapa directamente en la ruta con retraso" },
     { "type": "fix", "text": "La ruta en construccion (CSV cargado y zonas sin aceptar) ya no se pierde al cerrar el navegador" },
     { "type": "new", "text": "Indicadores de carga en aprobaciones, optimizacion y aceptacion de rutas: ya no parece que la app se congelo" },

@@ -1,10 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const { deliveryId, driverId, reason } = await req.json();
+    const session = await requireAuth(req, ['driver']);
+    if (!session.ok) {
+      return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+    }
+
+    const { deliveryId, reason } = await req.json();
+    const driverId = session.user.driverId;
     if (!deliveryId || !driverId) return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
+
+    // Verificar pertenencia de la entrega
+    const { data: delivery } = await supabaseAdmin
+      .from('deliveries')
+      .select('route_driver_id')
+      .eq('id', deliveryId)
+      .single();
+
+    if (!delivery) {
+      return NextResponse.json({ ok: false, error: 'Entrega no encontrada' }, { status: 404 });
+    }
+
+    const { data: routeDriver } = await supabaseAdmin
+      .from('route_drivers')
+      .select('driver_id')
+      .eq('id', delivery.route_driver_id)
+      .single();
+
+    if (!routeDriver || routeDriver.driver_id !== driverId) {
+      return NextResponse.json({ ok: false, error: 'No tienes permiso sobre esta entrega' }, { status: 403 });
+    }
 
     const { data: newReq, error } = await supabaseAdmin
       .from('delivery_reopen_requests')

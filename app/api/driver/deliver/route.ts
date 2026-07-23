@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const { deliveryId, status, notes, partialQuantity, photoUrls = [], driverName } = await req.json();
+    const session = await requireAuth(req, ['driver']);
+    if (!session.ok) {
+      return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+    }
+
+    const { deliveryId, status, notes, partialQuantity, photoUrls = [] } = await req.json();
+    const driverName = session.user.fullName || 'chofer';
 
     if (!deliveryId || !status) {
       return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
@@ -17,6 +24,22 @@ export async function POST(req: NextRequest) {
       .select('id, invoice, client_name, address, route_id, route_driver_id, stop_order, merchandise_value')
       .eq('id', deliveryId)
       .single();
+
+    if (!delivery) {
+      return NextResponse.json({ ok: false, error: 'Entrega no encontrada' }, { status: 404 });
+    }
+
+    // 2. Verificar pertenencia: la entrega debe estar asignada a UN route_driver
+    //    cuyo driver_id sea el del chofer autenticado (sesión, no body)
+    const { data: routeDriver } = await supabaseAdmin
+      .from('route_drivers')
+      .select('driver_id')
+      .eq('id', delivery.route_driver_id)
+      .single();
+
+    if (!routeDriver || routeDriver.driver_id !== session.user.driverId) {
+      return NextResponse.json({ ok: false, error: 'No tienes permiso sobre esta entrega' }, { status: 403 });
+    }
 
     // 2. Obtener route_code de la ruta
     const { data: route } = delivery?.route_id ? await supabaseAdmin

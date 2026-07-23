@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireAuth(req, ['driver']);
+    if (!session.ok) {
+      return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+    }
+
     const { searchParams } = new URL(req.url);
-    const driverId = searchParams.get('driver_id');
     const date     = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const driverId = session.user.driverId;
 
     if (!driverId) {
-      return NextResponse.json({ ok: false, error: 'driver_id requerido' }, { status: 400 });
+      return NextResponse.json({ ok: false, error: 'Sesión sin chofer asociado' }, { status: 400 });
     }
 
     // 1. Buscar route_drivers del día para este chofer

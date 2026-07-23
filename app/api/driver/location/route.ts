@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const { driverId, routeId, lat, lng, accuracy } = await req.json();
+    const session = await requireAuth(req, ['driver']);
+    if (!session.ok) {
+      return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+    }
+
+    const { routeId, lat, lng, accuracy } = await req.json();
+    const driverId = session.user.driverId;
 
     if (!driverId || typeof lat !== 'number' || typeof lng !== 'number') {
       return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });

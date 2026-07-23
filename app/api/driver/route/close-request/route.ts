@@ -1,10 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const { routeId, driverId } = await req.json();
+    const session = await requireAuth(req, ['driver']);
+    if (!session.ok) {
+      return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+    }
+
+    const { routeId } = await req.json();
+    const driverId = session.user.driverId;
     if (!routeId || !driverId) return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
+
+    // Verificar pertenencia: debe existir un route_driver que ligue a este chofer con esta ruta
+    const { data: routeDriverCheck } = await supabaseAdmin
+      .from('route_drivers')
+      .select('id')
+      .eq('route_id', routeId)
+      .eq('driver_id', driverId)
+      .single();
+
+    if (!routeDriverCheck) {
+      return NextResponse.json({ ok: false, error: 'No tienes permiso sobre esta ruta' }, { status: 403 });
+    }
 
     const { error } = await supabaseAdmin
       .from('routes')
