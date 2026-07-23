@@ -243,14 +243,36 @@ export default function NotificationBell({
                  : 'No hay notificaciones'}
               </p>
             ) : (
-              filteredNotifs.map(notif => (
+              filteredNotifs.map((notif, idx) => {
+                const isToday = (d: string) => {
+                  const nd = new Date(d);
+                  const now = new Date();
+                  return nd.getFullYear() === now.getFullYear()
+                    && nd.getMonth() === now.getMonth()
+                    && nd.getDate() === now.getDate();
+                };
+                const todayFlag = isToday(notif.created_at);
+                const prevFlag = idx > 0 ? isToday(filteredNotifs[idx - 1].created_at) : null;
+                const showDivider = idx === 0 ? !todayFlag : (prevFlag === true && !todayFlag);
+                return (
+                <div key={`wrap-${notif.id}`}>
+                  {showDivider && (
+                    <div className="px-3 py-1.5 bg-shuma-border/20 text-[10px] font-semibold text-shuma-muted uppercase tracking-wide">
+                      Anteriores
+                    </div>
+                  )}
+                  {idx === 0 && todayFlag && (
+                    <div className="px-3 py-1.5 bg-shuma-border/20 text-[10px] font-semibold text-shuma-muted uppercase tracking-wide">
+                      Hoy
+                    </div>
+                  )}
                 <div
                   key={notif.id}
                   onClick={() => {
                     if (
                       notif.entity_id &&
                       onNavigateToRoute &&
-                      (notif.type === 'route_closure_resolved' || notif.type === 'reopen_resolved')
+                      (notif.type === 'route_closure_resolved' || notif.type === 'reopen_resolved' || notif.type === 'route_at_risk')
                     ) {
                       onNavigateToRoute(notif.entity_id);
                       setIsOpen(false);
@@ -259,7 +281,7 @@ export default function NotificationBell({
                   className={`p-3 text-sm border-b border-shuma-border last:border-0 ${
                     !notif.read ? 'bg-blue-500/5 border-l-2 border-l-blue-500/40' : ''
                   } ${
-                    (notif.type === 'route_closure_resolved' || notif.type === 'reopen_resolved') && notif.entity_id
+                    (notif.type === 'route_closure_resolved' || notif.type === 'reopen_resolved' || notif.type === 'route_at_risk') && notif.entity_id
                       ? 'cursor-pointer hover:bg-shuma-border/30 transition-colors'
                       : ''
                   }`}
@@ -341,7 +363,8 @@ export default function NotificationBell({
                     {new Date(notif.created_at).toLocaleString('es-MX')}
                   </p>
                 </div>
-              ))
+                </div>
+              );})
             )}
           </div>
         </div>

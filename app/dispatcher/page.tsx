@@ -661,10 +661,22 @@ function DispatcherPageContent() {
 
       if (isAtRisk && !alertedRiskyRoutes.current.has(route.id)) {
         alertedRiskyRoutes.current.add(route.id);
+        const routeName = route.route_alias || route.route_code || route.driver_name || 'Ruta';
         showToast(
-          `⚠ Ruta en riesgo: ${route.route_alias || route.route_code || route.driver_name} — puede no llegar antes de las ${deadline}`,
+          `⚠ Ruta en riesgo: ${routeName} — puede no llegar antes de las ${deadline}`,
           'warn'
         );
+        fetch('/api/routes/alert-risk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            routeId: route.id,
+            routeName,
+            routeCode: route.route_code || null,
+            deadline,
+          }),
+        }).catch(() => {});
       }
     });
   }, [activeRoutesData, state.globalConfig?.deadlineTime]);
