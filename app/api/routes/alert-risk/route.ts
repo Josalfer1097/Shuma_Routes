@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireAuth(req, ['admin']);
+    const session = await requireAuth(req, ['admin', 'logistics']);
     if (!session.ok) {
       return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
     }
