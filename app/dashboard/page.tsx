@@ -58,8 +58,8 @@ export default function DashboardPage() {
         }
 
         const [resHistory, resActive] = await Promise.all([
-          fetch(historyUrl),
-          fetch(activeUrl),
+          fetch(historyUrl, { credentials: 'include' }),
+          fetch(activeUrl, { credentials: 'include' }),
         ]);
 
         const jsonHistory = await resHistory.json();
@@ -132,7 +132,7 @@ export default function DashboardPage() {
     const checkRisk = async () => {
       try {
         const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
-        const res = await fetch(`/api/routes/active?date=${today}`);
+        const res = await fetch(`/api/routes/active?date=${today}`, { credentials: 'include' });
         const j = await res.json();
         if (!j.ok || !j.routes) return;
         // Considerar en riesgo si hay entregas pendientes y han pasado más de 6 horas

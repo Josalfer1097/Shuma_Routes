@@ -348,9 +348,9 @@ function DispatcherPageContent() {
   }, [templateId]);
 
   useEffect(() => {
-    fetch('/api/drivers').then(r => r.json()).then(d => {
+    fetch('/api/drivers', { credentials: 'include' }).then(r => r.json()).then(d => {
       if (d.ok && d.drivers) setDbDriversCount(d.drivers.length);
-    }).catch(() => {});
+    }).catch(err => console.error('[dispatcher] Error al cargar choferes:', err));
   }, []);
   const hasShownOptimTip = useRef(false);
   const [configSaved, setConfigSaved] = useState(false);
@@ -561,7 +561,7 @@ function DispatcherPageContent() {
     setLoadingActiveRoutes(true);
     try {
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
-      const res   = await fetch(`/api/routes/active?date=${today}`);
+      const res   = await fetch(`/api/routes/active?date=${today}`, { credentials: 'include' });
       const json  = await res.json();
       if (json.ok) setActiveRoutesData(json.routes || []);
     } catch (e) {
@@ -676,7 +676,7 @@ function DispatcherPageContent() {
             routeCode: route.route_code || null,
             deadline,
           }),
-        }).catch(() => {});
+        }).catch(err => console.error('[dispatcher] Error al registrar alerta de riesgo:', err));
       }
     });
   }, [activeRoutesData, state.globalConfig?.deadlineTime]);

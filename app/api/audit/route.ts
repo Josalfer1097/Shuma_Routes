@@ -1,10 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getOptionalSession, requireAuth } from '@/lib/auth';
+
+// Eventos que legítimamente ocurren SIN sesión iniciada:
+// pantalla de login (bloqueo de cuenta) y banner de privacidad.
+const PREAUTH_ALLOWED_ACTIONS = new Set([
+  'Cuenta bloqueada',
+  'Cookies aceptadas (todas)',
+  'Cookies aceptadas (esenciales)',
+]);
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, entity, entity_id, user_name, user_role, module, metadata } = body;
+    const { action, entity, entity_id, module, metadata } = body;
+
+    if (!action || !entity) {
+      return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
+    }
+
+    const session = await getOptionalSession(req);
+
+    let userName: string;
+    let userRole: string;
+    let finalMetadata = metadata;
+
+    if (session) {
+      // Identidad SIEMPRE de la sesión verificada, nunca del body
+      userName = session.username;
+      userRole = session.role;
+    } else {
+      // Sin sesión: solo eventos conocidos de pre-login
+      if (!PREAUTH_ALLOWED_ACTIONS.has(action)) {
+        return NextResponse.json({ ok: false, error: 'No autenticado' }, { status: 401 });
+      }
+      // El nombre que manda el cliente aquí NO está verificado: se marca como tal
+      userName = typeof body.user_name === 'string'
+        ? body.user_name.slice(0, 120)
+        : 'anonymous';
+      userRole = 'unknown';
+      finalMetadata = { ...(metadata || {}), identidad_no_verificada: true };
+    }
 
     const ip =
       req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -17,12 +53,12 @@ export async function POST(req: NextRequest) {
       action,
       entity,
       entity_id,
-      user_name,
-      user_role,
+      user_name: userName,
+      user_role: userRole,
       ip_address: ip,
       user_agent: userAgent,
       module: module || 'general',
-      metadata,
+      metadata: finalMetadata,
       created_at: new Date().toISOString(),
     });
 
@@ -36,6 +72,11 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireAuth(req, ['admin', 'logistics', 'viewer']);
+    if (!session.ok) {
+      return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+    }
+
     const { searchParams } = new URL(req.url);
     const module     = searchParams.get('module')     || '';
     const user_name  = searchParams.get('user_name')  || '';

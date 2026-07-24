@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth';
 
 import { decodeGooglePolyline } from '@/lib/here';
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireAuth(req, ['admin', 'logistics', 'viewer']);
+    if (!session.ok) {
+      return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+    }
+
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date')
       || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });

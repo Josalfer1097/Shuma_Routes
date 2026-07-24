@@ -102,3 +102,15 @@ export async function requireAuthOrInternal(
   if (!auth.ok) return auth;
   return { ok: true, user: auth.user };
 }
+
+/**
+ * Devuelve la sesión si la cookie es válida, o null si no hay sesión.
+ * A diferencia de requireAuth, NO rechaza la request: sirve para
+ * endpoints que aceptan tráfico autenticado y no autenticado, pero que
+ * necesitan saber cuál es cuál (ej. /api/audit).
+ */
+export async function getOptionalSession(req: NextRequest): Promise<SessionPayload | null> {
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+  return await verifySession(token);
+}

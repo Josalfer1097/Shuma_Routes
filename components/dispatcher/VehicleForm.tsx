@@ -47,7 +47,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
   const [showDriverDropdown, setShowDriverDropdown] = useState(false);
 
   useEffect(() => {
-    fetch('/api/drivers')
+    fetch('/api/drivers', { credentials: 'include' })
       .then(r => r.json())
       .then(json => {
         if (json.ok) {

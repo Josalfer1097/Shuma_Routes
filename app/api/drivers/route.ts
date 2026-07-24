@@ -1,11 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const session = await requireAuth(req, ['admin', 'logistics', 'viewer']);
+    if (!session.ok) {
+      return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+    }
+
     const { data: drivers, error } = await supabaseAdmin
       .from('drivers')
-      .select('id, name, employee_id, active, phone')
+      .select('id, name, employee_id, active')
       .eq('active', true)
       .order('name', { ascending: true });
 

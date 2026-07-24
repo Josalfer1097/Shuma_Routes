@@ -86,7 +86,7 @@ export default function RoutePanel({
   } | null>(null);
 
   useEffect(() => {
-    fetch('/api/drivers')
+    fetch('/api/drivers', { credentials: 'include' })
       .then(r => r.json())
       .then(json => {
         if (json.ok) {

@@ -312,7 +312,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
       params.set('limit', String(PAGE_SIZE));
       params.set('offset', String((currentPage - 1) * PAGE_SIZE));
 
-      const res  = await fetch(`/api/audit?${params.toString()}`);
+      const res  = await fetch(`/api/audit?${params.toString()}`, { credentials: 'include' });
       const json = await res.json();
       if (!json.ok) throw new Error('Error al cargar bitácora');
       setLogs(json.data || []);
@@ -336,7 +336,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     if (!isOpen || userRole !== 'admin') return;
     const check = async () => {
       try {
-        const res = await fetch('/api/audit?limit=1&offset=0');
+        const res = await fetch('/api/audit?limit=1&offset=0', { credentials: 'include' });
         const j = await res.json();
         if (j.data?.[0]?.id && lastLogIdRef.current && j.data[0].id !== lastLogIdRef.current) {
           setNewLogsCount(prev => prev + 1);
