@@ -1,6 +1,8 @@
 {
-  "updated": "2026-07-24",
+  "updated": "2026-07-27",
   "items": [
+    { "type": "fix", "text": "Seguridad: crear, guardar y renombrar rutas ahora requiere haber iniciado sesion" },
+    { "type": "fix", "text": "Se corrigio un caso donde un chofer podia iniciar sesion sin quedar correctamente vinculado, mostrando ahora un aviso claro" },
     { "type": "fix", "text": "Seguridad (Crítica): Se implementó derivación de identidad segura mediante sesión verificada en la bitácora de auditoría, cerrando brecha de falsificación." },
     { "type": "improve", "text": "Privacidad: Se removió la exposición innecesaria de números telefónicos de los choferes en los endpoints de lectura." },
     { "type": "improve", "text": "Las alertas de ruta en riesgo ahora quedan guardadas en notificaciones, no solo como aviso momentaneo" },

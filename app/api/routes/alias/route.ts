@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth';
 
 export async function PATCH(req: NextRequest) {
   try {
+    const session = await requireAuth(req, ['admin', 'logistics']);
+    if (!session.ok) {
+      return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+    }
+
     const { routeId, alias } = await req.json();
     if (!routeId) return NextResponse.json({ ok: false }, { status: 400 });
 

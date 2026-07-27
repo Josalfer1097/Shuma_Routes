@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth';
 import type { Route } from '@/types';
 
 export async function POST(req: NextRequest) {
   try {
-    const { routes, userName, userRole }: { routes: Route[]; userName: string; userRole: string } =
-      await req.json();
+    const session = await requireAuth(req, ['admin', 'logistics']);
+    if (!session.ok) {
+      return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+    }
+
+    const { routes }: { routes: Route[] } = await req.json();
+    const userName = session.user.fullName || session.user.username;
+    const userRole = session.user.role;
 
     if (!routes || routes.length === 0) {
       return NextResponse.json({ ok: false, error: 'No hay rutas para guardar' }, { status: 400 });

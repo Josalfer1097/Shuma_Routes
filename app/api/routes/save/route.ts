@@ -1,9 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { routes, globalConfig, date, user } = await req.json();
+    const session = await requireAuth(req, ['admin', 'logistics']);
+    if (!session.ok) {
+      return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+    }
+
+    const { routes, globalConfig, date } = await req.json();
+    const user = session.user.fullName || session.user.username;
 
     const totalDeliveries = routes.reduce((acc: number, r: any) => acc + r.stops.length, 0);
     const totalDrivers    = routes.length;

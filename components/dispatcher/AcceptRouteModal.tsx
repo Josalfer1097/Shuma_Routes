@@ -45,7 +45,8 @@ export default function AcceptRouteModal({
       const res = await fetch('/api/routes/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ routes, userName, userRole }),
+        credentials: 'include',
+        body: JSON.stringify({ routes }),
       });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || 'Error al guardar rutas');

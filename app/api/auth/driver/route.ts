@@ -59,6 +59,15 @@ export async function POST(req: NextRequest) {
 
   const { valid, needsRehash } = await verifyPassword(password, data.password_hash);
 
+  if (valid && !data.driver_id) {
+    await logAction('login_error', 'session', data.id, data.username, data.role,
+      'Autenticación', { reason: 'missing_driver_id' }, ip, ua);
+    return NextResponse.json({
+      ok: false, code: 'profile_incomplete',
+      error: 'Tu cuenta no tiene un chofer asignado. Contacta al administrador.',
+    }, { status: 409 });
+  }
+
   if (!valid) {
     const newAttempts = (data.failed_attempts || 0) + 1;
     const update: Record<string, unknown> = { failed_attempts: newAttempts };
