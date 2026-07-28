@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 
-export function usePushNotifications(userRole: string, userId?: string) {
+export function usePushNotifications() {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -24,10 +24,9 @@ export function usePushNotifications(userRole: string, userId?: string) {
       await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           subscription: sub.toJSON(),
-          userRole,
-          userId,
         }),
       });
       setSubscribed(true);

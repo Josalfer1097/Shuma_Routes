@@ -114,7 +114,7 @@ export default function DriverPage() {
   const [locationEnabled, setLocationEnabled] = useState(false);
 
   const { permission: pushPermission, subscribe: subscribePush } =
-    usePushNotifications('driver', driverId || undefined);
+    usePushNotifications();
 
   useEffect(() => {
     if (route && pushPermission === 'default') {

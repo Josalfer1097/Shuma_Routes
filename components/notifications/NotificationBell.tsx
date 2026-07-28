@@ -61,7 +61,7 @@ export default function NotificationBell({
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch(`/api/notifications?target_role=${targetRole}`);
+      const res = await fetch(`/api/notifications?target_role=${targetRole}`, { credentials: 'include' });
       const json = await res.json();
       if (json.ok) {
         setNotifications(json.notifications || []);
@@ -100,6 +100,7 @@ export default function NotificationBell({
     await fetch('/api/notifications', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ ids: unread }),
     });
   };
@@ -112,6 +113,7 @@ export default function NotificationBell({
     await fetch('/api/notifications', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ ids: [id] }),
     });
   };

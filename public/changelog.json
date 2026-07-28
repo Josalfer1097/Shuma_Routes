@@ -1,10 +1,11 @@
 {
-  "updated": "2026-07-27",
+  "updated": "2026-07-28",
   "items": [
+    { "type": "fix", "text": "Seguridad: las notificaciones, el historial de rutas, el estado de entregas, el clima y las suscripciones de aviso ahora requieren haber iniciado sesion" },
     { "type": "fix", "text": "Seguridad: crear, guardar y renombrar rutas ahora requiere haber iniciado sesion" },
     { "type": "fix", "text": "Se corrigio un caso donde un chofer podia iniciar sesion sin quedar correctamente vinculado, mostrando ahora un aviso claro" },
-    { "type": "fix", "text": "Seguridad (Crítica): Se implementó derivación de identidad segura mediante sesión verificada en la bitácora de auditoría, cerrando brecha de falsificación." },
-    { "type": "improve", "text": "Privacidad: Se removió la exposición innecesaria de números telefónicos de los choferes en los endpoints de lectura." },
+    { "type": "fix", "text": "Seguridad: se reforzo la bitacora del sistema para que cada registro quede ligado a una sesion real, evitando registros falsos" },
+    { "type": "improve", "text": "Privacidad: los numeros de telefono de los choferes ya no se comparten donde no hacia falta" },
     { "type": "improve", "text": "Las alertas de ruta en riesgo ahora quedan guardadas en notificaciones, no solo como aviso momentaneo" },
     { "type": "improve", "text": "Seguridad: cada chofer ahora solo puede ver y modificar sus propias entregas y rutas, verificado en el servidor" },
     { "type": "improve", "text": "El boton Ver mapa de las alertas ahora centra el mapa directamente en la ruta con retraso" },

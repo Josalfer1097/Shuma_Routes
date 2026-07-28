@@ -104,7 +104,7 @@ export default function DashboardPage() {
 
         if (prevUrl) {
           try {
-            const resPrev = await fetch(prevUrl);
+            const resPrev = await fetch(prevUrl, { credentials: 'include' });
             const jsonPrev = await resPrev.json();
             if (jsonPrev.ok && jsonPrev.routes) {
               setPrevRoutes(jsonPrev.routes.map((r: any) => ({

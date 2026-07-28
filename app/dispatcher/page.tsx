@@ -548,7 +548,7 @@ function DispatcherPageContent() {
   const [etaTick, setEtaTick] = useState(0);
   const [forecast, setForecast] = useState<HourlyForecast[]>([]);
 
-  const { permission: pushPermission, subscribe: subscribePush } = usePushNotifications('admin');
+  const { permission: pushPermission, subscribe: subscribePush } = usePushNotifications();
 
   useEffect(() => {
     if (pushPermission === 'default') {
@@ -749,7 +749,7 @@ function DispatcherPageContent() {
     // ── Carga inicial de statuses ──
     const loadStatuses = async () => {
       try {
-        const res  = await fetch('/api/deliveries/status');
+        const res  = await fetch('/api/deliveries/status', { credentials: 'include' });
         const json = await res.json();
         if (json.ok && json.statuses) setLiveDeliveryStatus(json.statuses);
       } catch (err) {
@@ -1042,7 +1042,7 @@ supabase.removeChannel(locChannel);
     setIsRefreshing(true);
     try {
       await fetchActiveRoutes();
-      const res = await fetch('/api/deliveries/status');
+      const res = await fetch('/api/deliveries/status', { credentials: 'include' });
       const json = await res.json();
       if (json.ok && json.statuses) {
         setLiveDeliveryStatus(json.statuses);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
 
 export interface HourlyForecast {
   time: number;
@@ -118,6 +119,11 @@ async function fetchForecast(lat: string, lng: string, apiKey: string): Promise<
 }
 
 export async function GET(req: NextRequest) {
+  const session = await requireAuth(req, ['admin', 'logistics', 'viewer']);
+  if (!session.ok) {
+    return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
+  }
+
   const { searchParams } = new URL(req.url);
   const lat  = searchParams.get('lat');
   const lng  = searchParams.get('lng');

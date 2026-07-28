@@ -26,7 +26,7 @@ export interface WeatherData {
 
 export async function getWeatherCDMX(lat: number, lng: number): Promise<WeatherData> {
   try {
-    const res = await fetch(`/api/weather?type=current&lat=${lat}&lng=${lng}`);
+    const res = await fetch(`/api/weather?type=current&lat=${lat}&lng=${lng}`, { credentials: 'include' });
     const json = await res.json();
     if (json.ok && json.data) return json.data as WeatherData;
     throw new Error('Respuesta inválida de /api/weather');
@@ -46,7 +46,7 @@ export async function getForecastCDMX(
   lng: number
 ): Promise<HourlyForecast[]> {
   try {
-    const res = await fetch(`/api/weather?type=forecast&lat=${lat}&lng=${lng}`);
+    const res = await fetch(`/api/weather?type=forecast&lat=${lat}&lng=${lng}`, { credentials: 'include' });
     const json = await res.json();
     if (json.ok && json.data) return json.data as HourlyForecast[];
     return [];

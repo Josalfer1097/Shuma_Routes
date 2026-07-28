@@ -109,7 +109,7 @@ export default function HistoryPage() {
       } else {
         url = `/api/routes/history?date=${date}`;
       }
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: 'include' });
       const data = await res.json();
       if (data.ok) {
         setRoutes(data.routes);
