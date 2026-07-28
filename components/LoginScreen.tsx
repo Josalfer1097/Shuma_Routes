@@ -127,6 +127,18 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
           setShaking(true);
           errorTimers.current.push(setTimeout(() => setShaking(false), 500));
         }, 680));
+      } else if (data.code === 'profile_incomplete') {
+        // Contraseña correcta, pero el perfil no tiene chofer vinculado.
+        // No es un intento fallido: no se incrementa failedCount ni se
+        // activa el aviso de "contacta al administrador" por intentos.
+        setErrorMsg(`⚠️ ${data.error || 'Tu cuenta no tiene un chofer asignado. Contacta al administrador.'}`);
+        setGlitching(true);
+        errorTimers.current.push(setTimeout(() => {
+          setGlitching(false);
+          setError(true);
+          setShaking(true);
+          errorTimers.current.push(setTimeout(() => setShaking(false), 500));
+        }, 680));
       } else {
         // Mensaje siempre genérico: el backend ya no distingue usuario inexistente
         // de contraseña incorrecta, y aquí tampoco se debe re-inferir la diferencia.
