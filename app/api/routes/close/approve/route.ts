@@ -35,23 +35,30 @@ export async function POST(req: NextRequest) {
     if (pendingCandidates && pendingCandidates.length > 0) {
       const nowIso = new Date().toISOString();
 
-      for (const d of pendingCandidates) {
-        await supabaseAdmin
-          .from('deliveries')
-          .update({
-            is_pending: true,
-            attempt_count: (d.attempt_count || 1) + 1,
-            pending_since: nowIso,
-          })
-          .eq('id', d.id);
+      // Antes: 2 consultas secuenciales POR entrega (N+1).
+      // Ahora: 1 upsert (permite valores distintos de attempt_count por
+      // fila en una sola llamada) + 1 insert masivo de eventos.
+      const deliveryUpdates = pendingCandidates.map(d => ({
+        id: d.id,
+        is_pending: true,
+        attempt_count: (d.attempt_count || 1) + 1,
+        pending_since: nowIso,
+      }));
 
-        await supabaseAdmin.from('delivery_events').insert({
-          delivery_id: d.id,
-          event_type: 'moved_to_pending',
-          notes: `Ruta ${routeId} cerrada con esta entrega en estado '${d.status}'. Pasa a bandeja de pendientes (intento ${(d.attempt_count || 1) + 1}).`,
-          created_at: nowIso,
-        });
-      }
+      const deliveryEvents = pendingCandidates.map(d => ({
+        delivery_id: d.id,
+        event_type: 'moved_to_pending',
+        notes: `Ruta ${routeId} cerrada con esta entrega en estado '${d.status}'. Pasa a bandeja de pendientes (intento ${(d.attempt_count || 1) + 1}).`,
+        created_at: nowIso,
+      }));
+
+      const [{ error: updateErr }, { error: eventsErr }] = await Promise.all([
+        supabaseAdmin.from('deliveries').upsert(deliveryUpdates, { onConflict: 'id' }),
+        supabaseAdmin.from('delivery_events').insert(deliveryEvents),
+      ]);
+
+      if (updateErr) console.error('[close-approve] Error moviendo entregas a pendientes:', updateErr);
+      if (eventsErr) console.error('[close-approve] Error registrando eventos de pendientes:', eventsErr);
     }
 
     // Marcar la notificación original de solicitud de cierre como leída
