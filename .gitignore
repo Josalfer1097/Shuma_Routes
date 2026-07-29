@@ -66,3 +66,17 @@ yarn-error.log*
 next-env.d.ts
 *.jsonprueba_*.csv
 entregas_*.csv
+
+# env files sueltos (mantener .env.example versionado)
+.env
+.env.production
+.env.development
+*.key
+
+# graphify (herramienta de analisis local, no es parte de la app)
+graphify-out/
+.graphify_analysis.json
+.graphify_labels.json
+.graphify_labels.json.sig
+.graphify_root
+GRAPH_REPORT.md
