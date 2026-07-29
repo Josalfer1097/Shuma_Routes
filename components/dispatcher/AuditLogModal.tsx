@@ -752,7 +752,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
           {totalCount > 0 && (
             <div className="px-4 py-1.5 bg-shuma-surface/50 border-b border-shuma-border/30 text-[11px] text-shuma-muted font-medium">
               {totalCount} registro{totalCount !== 1 ? 's' : ''} encontrado{totalCount !== 1 ? 's' : ''}
-              {searchText && <span className="text-blue-400 ml-1">· búsqueda: "{searchText}"</span>}
+              {searchText && <span className="text-blue-400 ml-1">· búsqueda: &quot;{searchText}&quot;</span>}
             </div>
           )}
 

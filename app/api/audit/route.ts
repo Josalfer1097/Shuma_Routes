@@ -13,7 +13,7 @@ const PREAUTH_ALLOWED_ACTIONS = new Set([
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, entity, entity_id, module, metadata } = body;
+    const { action, entity, entity_id, module: moduleName, metadata } = body;
 
     if (!action || !entity) {
       return NextResponse.json({ ok: false, error: 'Faltan datos' }, { status: 400 });
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       user_role: userRole,
       ip_address: ip,
       user_agent: userAgent,
-      module: module || 'general',
+      module: moduleName || 'general',
       metadata: finalMetadata,
       created_at: new Date().toISOString(),
     });
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const module     = searchParams.get('module')     || '';
+    const moduleFilter = searchParams.get('module')     || '';
     const user_name  = searchParams.get('user_name')  || '';
     const dateFrom   = searchParams.get('dateFrom')   || '';
     const dateTo     = searchParams.get('dateTo')     || '';
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (module)    query = query.eq('module', module);
+    if (moduleFilter)    query = query.eq('module', moduleFilter);
     if (user_name) query = query.ilike('user_name', `%${user_name}%`);  // ← era eq, ahora ilike
     if (dateFrom) {
       const fromDt = new Date(dateFrom + 'T00:00:00');
