@@ -291,10 +291,10 @@ function DispatcherPageContent() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const fs = useFontSize();
   const [activeTab, setActiveTab] = useState<'config' | 'upload' | 'zones' | 'routes'>('config');
-  const setActiveTabPersisted = (tab: typeof activeTab) => {
+  const setActiveTabPersisted = useCallback((tab: typeof activeTab) => {
     setActiveTab(tab);
     try { sessionStorage.setItem('shuma_slideover_tab', tab); } catch {}
-  };
+  }, []);
 
   const [optimizeMode, setOptimizeMode] = useState<'zones' | 'google'>('google');
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -345,7 +345,7 @@ function DispatcherPageContent() {
         })
         .catch(console.error);
     }
-  }, [templateId]);
+  }, [templateId, setActiveTabPersisted]);
 
   useEffect(() => {
     fetch('/api/drivers', { credentials: 'include' }).then(r => r.json()).then(d => {
@@ -876,7 +876,7 @@ supabase.removeChannel(locChannel);
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showMapSearch]);
+  }, [showMapSearch, isSlideOverOpen, state.addresses.length, state.vehicles.length]);
 
   useEffect(() => {
     if (!mapSearchText) {
@@ -997,7 +997,7 @@ supabase.removeChannel(locChannel);
         localStorage.setItem('shuma_last_active_time', String(Date.now()));
       } catch {}
     }
-  }, []);
+  }, [setActiveTabPersisted]);
 
   const handleLogout = () => {
     sessionStorage.removeItem('shuma_auth');
@@ -1176,10 +1176,10 @@ supabase.removeChannel(locChannel);
         setActiveTabPersisted('zones');
       }, 2000);
     }
-  }, [state.vehicles, state.clusteringConfig]);
+  }, [state.vehicles, state.clusteringConfig, setActiveTabPersisted]);
 
   // Helper para persistencia
-  const saveRoutesData = (newRoutes: Route[]) => {
+  const saveRoutesData = useCallback((newRoutes: Route[]) => {
     if (typeof window === 'undefined') return;
     sessionStorage.setItem('shuma_routes', JSON.stringify(newRoutes));
     if (state.globalConfig) {
@@ -1196,7 +1196,7 @@ supabase.removeChannel(locChannel);
         date: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }),
       })
     }).catch(e => console.error('Error guardando en BD:', e));
-  };
+  }, [state.globalConfig]);
 
   // Optimización de rutas
   const handleOptimize = useCallback(async () => {
@@ -1271,7 +1271,7 @@ supabase.removeChannel(locChannel);
       setIsOptimizing(false);
       setBlockingAction(null);
     }
-  }, [state.addresses, state.vehicles, state.depot, state.clusters]);
+  }, [state.addresses, state.vehicles, state.depot, state.clusters, state.globalConfig, testMode, saveRoutesData, setActiveTabPersisted]);
 
   const handleGoogleIntelligence = useCallback(async () => {
     if (state.vehicles.length === 0) {
@@ -1325,7 +1325,7 @@ supabase.removeChannel(locChannel);
       setIsOptimizing(false);
       setBlockingAction(null);
     }
-  }, [state.addresses, state.vehicles, state.globalConfig]);
+  }, [state.addresses, state.vehicles, state.globalConfig, saveRoutesData, setActiveTabPersisted]);
 
   // Compartir link con el chofer
   const handleShareRoute = useCallback((vehicleId: string) => {
@@ -1400,7 +1400,7 @@ supabase.removeChannel(locChannel);
       dispatch({ type: 'SET_STEP', payload: 'results' });
       setIsOptimizing(false);
     }
-  }, [state.clusters, state.vehicles, state.globalConfig]);
+  }, [state.clusters, state.vehicles, state.globalConfig, state.routes, testMode, saveRoutesData]);
 
   const handleSaveManualOrder = useCallback(async (manualRoutes: Route[]) => {
     // Guarda el orden manual directamente en el state SIN llamar a Google
@@ -1420,7 +1420,7 @@ supabase.removeChannel(locChannel);
     } finally {
       setIsOptimizing(false);
     }
-  }, []);
+  }, [saveRoutesData]);
 
   const handleReoptimizeSingle = useCallback(async (vehicleId: string, manualStops: Stop[]) => {
     setIsOptimizing(true);
@@ -1466,7 +1466,7 @@ supabase.removeChannel(locChannel);
     } finally {
       setIsOptimizing(false);
     }
-  }, [state.vehicles, state.globalConfig, state.routes]);
+  }, [state.vehicles, state.globalConfig, state.routes, testMode, saveRoutesData]);
 
 
 
