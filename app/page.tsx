@@ -8,7 +8,7 @@ import { useEasterEgg } from '@/hooks/useEasterEgg';
 import EasterEggOverlay from '@/components/EasterEggOverlay';
 
 export default function HomePage() {
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(false); 
   const [leaving, setLeaving] = useState(false);
   const [pulsingCard, setPulsingCard] = useState<'admin' | 'driver' | null>(null);
   type ServiceStatus = { ok: boolean; label: string; error: string | null };
@@ -505,7 +505,7 @@ export default function HomePage() {
             e.currentTarget.style.borderColor = changelog ? 'rgba(33,150,243,0.2)' : 'transparent';
           }}
         >
-          v7.40.0{changelog ? ' · Ver novedades  ' : ''}
+          v7.41.0{changelog ? ' · Ver novedades  ' : ''}
         </button>
         <style>{`
           @keyframes rgbRoll {
@@ -568,7 +568,7 @@ export default function HomePage() {
                   fontSize: 16, fontWeight: 700, color: '#E8EFF8',
                   fontFamily: "'Exo 2', sans-serif", margin: 0,
                 }}>
-                  🌟 Novedades v7.40.0
+                  🌟 Novedades v7.41.0
                 </h2>
                 <p style={{
                   fontSize: 11, color: '#5B7BA0', margin: '4px 0 0',

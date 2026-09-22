@@ -1,19 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Permitir imágenes desde OpenStreetMap tiles
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '*.tile.openstreetmap.org',
-      },
-      {
-        protocol: 'https',
-        hostname: 'nominatim.openstreetmap.org',
-      },
-    ],
-  },
-
   // Headers de seguridad básicos
   async headers() {
     return [

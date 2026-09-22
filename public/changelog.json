@@ -1,6 +1,8 @@
 {
-  "updated": "2026-07-28",
+  "updated": "2026-09-22",
   "items": [
+    { "type": "improve", "text": "Se actualizaron componentes internos del sistema para cerrar riesgos de seguridad conocidos" },
+    { "type": "improve", "text": "Se retiro una funcion antigua de carga de plantillas que ya no se usaba; las plantillas desde el historial siguen funcionando igual" },
     { "type": "fix", "text": "Se corrigio un caso donde la ventana de configuracion podia cerrarse sin preguntar si se queria guardar" },
     { "type": "fix", "text": "Se corrigio un caso donde optimizar rutas podia usar la hora de salida o el deposito configurados previamente en vez de los mas recientes" },
     { "type": "improve", "text": "Se agrego una revision automatica de calidad de codigo antes de cada publicacion, para detectar errores antes de que lleguen a produccion" },

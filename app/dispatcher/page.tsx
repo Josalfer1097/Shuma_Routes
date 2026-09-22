@@ -18,7 +18,7 @@ import SlideOver from '@/components/dispatcher/SlideOver';
 import { clusterDeliveries, clusterDeliveriesWithDiagnostics } from '@/lib/clustering';
 import type { Cluster, GlobalConfig, ClusteringConfig, Stop } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw, Search, Truck } from 'lucide-react';
 import { useEasterEgg } from '@/hooks/useEasterEgg';
@@ -325,27 +325,6 @@ function DispatcherPageContent() {
     const t = setInterval(() => setTick(n => n + 1), 60000);
     return () => clearInterval(t);
   }, []);
-
-  const searchParams = useSearchParams();
-  const templateId = searchParams.get('template');
-
-  useEffect(() => {
-    if (templateId) {
-      fetch(`/api/routes/template?id=${templateId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.ok && data.addresses) {
-            dispatch({ type: 'SET_ADDRESSES', payload: data.addresses });
-            if (data.vehicles) {
-              data.vehicles.forEach((v: any) => dispatch({ type: 'ADD_VEHICLE', payload: v }));
-            }
-            setActiveTabPersisted('config');
-            setIsSlideOverOpen(true);
-          }
-        })
-        .catch(console.error);
-    }
-  }, [templateId, setActiveTabPersisted]);
 
   useEffect(() => {
     fetch('/api/drivers', { credentials: 'include' }).then(r => r.json()).then(d => {
