@@ -20,7 +20,7 @@ import type { Cluster, GlobalConfig, ClusteringConfig, Stop } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { Suspense } from 'react';
-import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw, Search, Truck } from 'lucide-react';
+import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw, Search, Truck, Inbox } from 'lucide-react';
 import { useEasterEgg } from '@/hooks/useEasterEgg';
 import EasterEggOverlay from '@/components/EasterEggOverlay';
 import Image from 'next/image';
@@ -1655,6 +1655,7 @@ supabase.removeChannel(locChannel);
                         {[
                           { icon: <BarChart2 size={14} />, label: 'Dashboard', href: '/dashboard' },
                           { icon: <History size={14} />, label: 'Histórico', href: '/history' },
+                          { icon: <Inbox size={14} />, label: 'Pendientes', href: '/pending' },
                           { icon: <Search size={14} />, label: 'Bitácora', action: () => { setIsAuditModalOpen(true); setIsMoreMenuOpen(false); } },
                           { 
                             icon: (

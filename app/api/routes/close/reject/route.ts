@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { notifyDriverSafely } from '@/lib/push';
 
 import { requireAuth } from '@/lib/auth';
 
@@ -55,20 +56,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/push/send`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-internal-secret': process.env.INTERNAL_API_SECRET || '',
-      },
-      body: JSON.stringify({
-        targetRole: 'driver',
-        title: '❌ Cierre rechazado',
-        body:  reason || 'Solicitud rechazada por el administrador',
-        url:   '/driver',
-        tag:   'route-close',
-      }),
-    }).catch(console.error);
+    // Push solo al chofer que solicitó el cierre (antes llegaba a todos los choferes)
+    await notifyDriverSafely(routeData?.closure_requested_by, {
+      title: '❌ Cierre rechazado',
+      body:  reason || 'Solicitud rechazada por el administrador',
+      url:   '/driver',
+      tag:   'route-close',
+    }, 'close-reject');
 
     await supabaseAdmin.from('audit_log').insert({
       action:    'Cierre de ruta rechazado',

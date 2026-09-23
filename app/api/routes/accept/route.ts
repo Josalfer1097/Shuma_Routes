@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { notifyDriverSafely } from '@/lib/push';
 import { requireAuth } from '@/lib/auth';
 import type { Route } from '@/types';
 
@@ -256,20 +257,13 @@ export async function POST(req: NextRequest) {
         created_at: now.toISOString(),
       });
 
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/push/send`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-internal-secret': process.env.INTERNAL_API_SECRET || '',
-        },
-        body: JSON.stringify({
-          targetRole: 'driver',
-          title: '🚛 Nueva ruta asignada',
-          body:  'Tienes una ruta nueva para hoy. Ingresa a la app.',
-          url:   '/driver',
-          tag:   'new-route',
-        }),
-      }).catch(console.error);
+      // Push solo al chofer asignado a esta ruta (antes llegaba a todos los choferes)
+      await notifyDriverSafely(driverId, {
+        title: '🚛 Nueva ruta asignada',
+        body:  'Tienes una ruta nueva para hoy. Ingresa a la app.',
+        url:   '/driver',
+        tag:   'new-route',
+      }, 'accept');
     }
 
     return NextResponse.json({ ok: true, saved: routes.length });
