@@ -1,6 +1,10 @@
 {
-  "updated": "2026-09-23",
+  "updated": "2026-09-24",
   "items": [
+    { "type": "new", "text": "Ahora se puede cargar directamente el Excel de embarques del sistema; solo se toman las facturas de San Pablo" },
+    { "type": "new", "text": "Las facturas de un mismo cliente en la misma direccion se agrupan en una sola parada" },
+    { "type": "new", "text": "Antes de ubicar las entregas se muestra una revision: direcciones faltantes, destinos fuera de zona y correccion manual de direcciones o coordenadas" },
+    { "type": "improve", "text": "Las entregas que ya traen coordenadas del sistema no se vuelven a buscar en el mapa, y la busqueda de direcciones prioriza el Valle de Mexico" },
     { "type": "new", "text": "Nueva Bandeja de Pendientes: las entregas que no se completaron se pueden mover a otra ruta abierta o dejar en espera para la siguiente planeacion" },
     { "type": "new", "text": "Al reasignar una entrega parcial se registra cuantas piezas faltan, y cada entrega muestra su numero de intento" },
     { "type": "fix", "text": "Al aprobar un cierre de ruta, las entregas no completadas ahora pasan correctamente a pendientes" },

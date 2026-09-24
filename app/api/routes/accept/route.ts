@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
             return '08:00';
           })(),
           status: 'optimized',
-          total_deliveries: route.stops.length,
+          total_deliveries: route.stops.reduce((n, st) => n + (Array.isArray(st.address.invoices) && st.address.invoices.length > 0 ? st.address.invoices.length : 1), 0),
           total_drivers: 1,
           polyline_encoded: route.polylineEncoded || null,
           created_by: userName,
@@ -206,22 +206,40 @@ export async function POST(req: NextRequest) {
       }
 
       // 4. Insertar entregas con route_driver_id y merchandise_value
-      const deliveries = route.stops.map(stop => ({
-        route_id: routeData.id,
-        route_driver_id: routeDriverId,
-        driver_id: driverId,
-        invoice: stop.address.invoice || 'SIN-FACTURA',
-        client_name: stop.address.clientName || stop.address.name || '',
-        address: stop.address.raw || '',
-        lat: stop.address.lat,
-        lng: stop.address.lng,
-        geocoded: stop.address.geocoded || false,
-        stop_order: stop.sequence,
-        status: 'pending',
-        merchandise_value: (stop.address as any).merchandiseValue || null,
-        distance_m: stop.distance ?? null,
-        eta_seconds: stop.eta ?? null,
-      }));
+      // Carga del ERP: una parada puede traer varias facturas del mismo cliente.
+      // Se crea una entrega por factura, todas con el mismo orden de visita,
+      // para conservar estado, pendientes e historial por factura.
+      const deliveries = route.stops.flatMap(stop => {
+        const base = {
+          route_id: routeData.id,
+          route_driver_id: routeDriverId,
+          driver_id: driverId,
+          client_name: stop.address.clientName || stop.address.name || '',
+          address: stop.address.raw || '',
+          lat: stop.address.lat,
+          lng: stop.address.lng,
+          geocoded: stop.address.geocoded || false,
+          stop_order: stop.sequence,
+          status: 'pending',
+          distance_m: stop.distance ?? null,
+          eta_seconds: stop.eta ?? null,
+        };
+
+        const invoices = Array.isArray(stop.address.invoices) ? stop.address.invoices : [];
+        if (invoices.length > 0) {
+          return invoices.map(inv => ({
+            ...base,
+            invoice: inv.invoice || 'SIN-FACTURA',
+            merchandise_value: typeof inv.amount === 'number' ? inv.amount : null,
+          }));
+        }
+
+        return [{
+          ...base,
+          invoice: stop.address.invoice || 'SIN-FACTURA',
+          merchandise_value: stop.address.merchandiseValue || null,
+        }];
+      });
 
       const { error: deliveriesErr } = await supabaseAdmin
         .from('deliveries')
@@ -247,10 +265,11 @@ export async function POST(req: NextRequest) {
           driver_id:        driverId,
           matricula:        route.matricula,
           vehiculo_id:      vehicleIdFromDb,
-          total_entregas:   route.stops.length,
+          total_paradas:    route.stops.length,
+          total_entregas:   deliveries.length,
           total_km:         ((route.totalDistance || 0) / 1000).toFixed(1),
           tiempo_estimado_min: Math.round((route.totalDuration || 0) / 60),
-          facturas:         route.stops.map(s => s.address.invoice).filter(Boolean),
+          facturas:         deliveries.map(d => d.invoice).filter(Boolean),
           depot_id:         depotId,
           hora_salida:      routeData.departure_time,
         },

@@ -15,7 +15,9 @@ export async function geocodeAddress(
 
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
     query
-  )}&key=${GOOGLE_API_KEY}&language=es&region=${countryCode.toUpperCase()}`;
+  )}&key=${GOOGLE_API_KEY}&language=es&region=${countryCode.toUpperCase()}` +
+    // Sesgo al Valle de México: prioriza resultados de la zona sin excluir el resto
+    `&bounds=18.9,-99.6%7C20.1,-98.6`;
 
   try {
     const res = await fetch(url);

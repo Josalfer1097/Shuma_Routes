@@ -1058,6 +1058,10 @@ supabase.removeChannel(locChannel);
     geocodeCancelRef.current = false;   // resetear cancelación
     geocodeTimestampsRef.current = [];  // resetear timestamps
 
+    // Resultados por texto dentro de esta carga: el mismo texto no se consulta dos veces
+    const geocodeCache = new Map<string, { lat: number; lng: number; label: string } | null>();
+    let geocodeCalls = 0;
+
     for (let i = 0; i < addresses.length; i++) {
       // ← CANCELACIÓN: salir del loop si se presionó Cancelar
       if (geocodeCancelRef.current) {
@@ -1067,7 +1071,25 @@ supabase.removeChannel(locChannel);
         return; // salir de la función de geocoding
       }
 
-      if (i > 0) {
+      // Ya trae ubicación (coordenada del ERP o capturada a mano): no se geocodifica
+      const current = addresses[i];
+      if (current.geocoded && current.lat !== null && current.lng !== null) {
+        updatedAddresses[i] = current;
+        continue;
+      }
+
+      const cacheKey = current.raw.trim().toUpperCase();
+      if (geocodeCache.has(cacheKey)) {
+        const cached = geocodeCache.get(cacheKey);
+        const fromCache: Address = cached
+          ? { ...current, lat: cached.lat, lng: cached.lng, label: cached.label, geocoded: true }
+          : { ...current, geocoded: true, geocodeError: 'No encontrada' };
+        updatedAddresses[i] = fromCache;
+        dispatch({ type: 'UPDATE_ADDRESS', payload: fromCache });
+        continue;
+      }
+
+      if (geocodeCalls > 0) {
         await new Promise<void>((resolve) => {
           const t = setTimeout(resolve, 1100);
           // Chequear cancelación dentro del delay también
@@ -1093,8 +1115,10 @@ supabase.removeChannel(locChannel);
       const t0 = Date.now(); // timestamp antes de geocodificar
       let updated: Address;
 
+      geocodeCalls += 1;
       try {
         const geo = await geocodeAddress(addr.raw);
+        geocodeCache.set(cacheKey, geo);
         if (geo) {
           updated = { ...addr, lat: geo.lat, lng: geo.lng, label: geo.label, geocoded: true };
         } else {

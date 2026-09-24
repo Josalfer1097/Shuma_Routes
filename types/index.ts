@@ -22,6 +22,28 @@ export interface Address {
   /** Estado de geocodificación */
   geocoded: boolean;
   geocodeError?: string;
+  /**
+   * Facturas que se entregan en esta parada (carga desde el Excel del ERP).
+   * Si existe, `accept` crea una entrega por factura con el mismo orden de visita.
+   */
+  invoices?: AddressInvoice[];
+  /** Origen de la ubicación: coordenada del ERP, texto geocodificado o captura manual. */
+  locationSource?: 'erp' | 'texto' | 'manual';
+}
+
+export interface AddressInvoiceItem {
+  code: string;
+  description: string;
+  quantity: number;
+  nonMerchandise: boolean;
+}
+
+export interface AddressInvoice {
+  invoice: string;
+  date: string | null;
+  amount: number | null;
+  pieces: number;
+  items: AddressInvoiceItem[];
 }
 
 export interface Depot {

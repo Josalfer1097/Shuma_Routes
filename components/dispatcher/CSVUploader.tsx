@@ -4,6 +4,8 @@ import { useCallback, useRef, useState, useEffect } from 'react';
 import Papa from 'papaparse';
 import type { Address } from '@/types';
 import { nanoid } from 'nanoid';
+import ErpImportPreview from './ErpImportPreview';
+import { processErpRows, type ErpImportResult } from '@/lib/erpImport';
 
 interface Props {
   onAddressesLoaded: (addresses: Address[]) => void;
@@ -32,6 +34,8 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
   const [preview, setPreview] = useState<Address[]>(persistedAddresses || []);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(persistedFileName || null);
+  const [erpResult, setErpResult] = useState<ErpImportResult | null>(null);
+  const [erpLoading, setErpLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const downloadTemplate = () => {
@@ -132,23 +136,72 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
     [onAddressesLoaded]
   );
 
+  /** Excel de embarques del ERP (.xls / .xlsx): vista previa antes de geocodificar. */
+  const parseErpExcel = useCallback(async (file: File) => {
+    setError(null);
+    setFileName(file.name);
+    setErpResult(null);
+    setErpLoading(true);
+    try {
+      const XLSX = await import('xlsx');
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      if (!sheet) throw new Error('El archivo no tiene hojas');
+      // raw: true conserva la precisión completa de las coordenadas
+      const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: '' });
+      const result = processErpRows(rows);
+      if (result.errors.length > 0) {
+        setError(result.errors.join(' '));
+        return;
+      }
+      setErpResult(result);
+    } catch (err) {
+      console.error('[erp-import]', err);
+      setError(`No se pudo leer el Excel: ${err instanceof Error ? err.message : 'formato no reconocido'}`);
+    } finally {
+      setErpLoading(false);
+    }
+  }, []);
+
+  const parseFile = useCallback(
+    (file: File) => {
+      const name = file.name.toLowerCase();
+      if (name.endsWith('.xls') || name.endsWith('.xlsx')) {
+        void parseErpExcel(file);
+      } else if (name.endsWith('.csv')) {
+        setErpResult(null);
+        parseCSV(file);
+      } else {
+        setError('Formato no soportado. Sube el Excel del ERP (.xls, .xlsx) o un CSV.');
+      }
+    },
+    [parseCSV, parseErpExcel]
+  );
+
+  const confirmErp = useCallback(
+    (addresses: Address[]) => {
+      setErpResult(null);
+      setPreview(addresses);
+      onAddressesLoaded(addresses);
+    },
+    [onAddressesLoaded]
+  );
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
       const file = e.dataTransfer.files[0];
-      if (file?.name.endsWith('.csv')) {
-        parseCSV(file);
-      } else {
-        setError('Por favor sube un archivo .csv');
-      }
+      if (file) parseFile(file);
     },
-    [parseCSV]
+    [parseFile]
   );
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) parseCSV(file);
+    if (file) parseFile(file);
+    // Permite volver a cargar el mismo archivo después de cancelar
+    e.target.value = '';
   };
 
   return (
@@ -177,12 +230,12 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
           </svg>
         </div>
         <p className="text-sm font-medium text-shuma-text">
-          {fileName ? fileName : 'Arrastra tu CSV aquí'}
+          {erpLoading ? 'Leyendo Excel…' : fileName ? fileName : 'Arrastra el Excel del ERP o un CSV'}
         </p>
         <p className="text-xs text-shuma-muted">o haz clic para seleccionar</p>
         <p className="text-xs text-shuma-muted mt-1">
-          Columnas requeridas: <code className="text-blue-400">nombre, direccion</code>
-          {'  '}Opcional: <code className="text-amber-400">factura, valor</code>
+          Excel de embarques del ERP (<code className="text-blue-400">.xls</code>, <code className="text-blue-400">.xlsx</code>)
+          {' '}o CSV con <code className="text-amber-400">nombre, direccion, factura, valor</code>
         </p>
         <button
           type="button"
@@ -222,7 +275,7 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
         <input
           ref={inputRef}
           type="file"
-          accept=".csv"
+          accept=".csv,.xls,.xlsx"
           className="hidden"
           onChange={handleFileInput}
           disabled={disabled}
@@ -239,8 +292,18 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
         </div>
       )}
 
+      {/* Vista previa del Excel del ERP */}
+      {erpResult && (
+        <ErpImportPreview
+          result={erpResult}
+          fileName={fileName || 'Excel del ERP'}
+          onConfirm={confirmErp}
+          onCancel={() => { setErpResult(null); setFileName(null); }}
+        />
+      )}
+
       {/* Preview */}
-      {preview.length > 0 && (
+      {!erpResult && preview.length > 0 && (
         <div className="rounded-lg border border-shuma-border overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2 bg-shuma-surface/50">
             <span className="text-xs font-medium text-shuma-text">
