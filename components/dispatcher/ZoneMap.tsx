@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Cluster } from '@/types';
 import DEPOTS from '@/lib/depots';
+import { ensureMapsLoader } from '@/lib/googleMaps';
 
 interface Props {
   clusters: Cluster[];
@@ -77,6 +78,8 @@ export default function ZoneMap({ clusters, onConfirm, onRegroup }: Props) {
     let active = true;
 
     const initMap = async () => {
+      // Antes dependía de que MapView ya hubiera configurado el SDK
+      await ensureMapsLoader();
       const { Map } = await google.maps.importLibrary('maps') as google.maps.MapsLibrary;
       await google.maps.importLibrary('marker');
 

@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { compressImage } from '@/lib/imageCompress';
 import NotificationBell from '@/components/notifications/NotificationBell';
-import { supabase } from '@/lib/supabase-client';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 function PhotoPicker({ photoPreviews, onAdd, onRemove, fileInputRef, isCompressing, onChange }: {
@@ -88,7 +87,6 @@ export default function DriverPage() {
   const [driverName, setDriverName]   = useState('');
   const [driverId, setDriverId]       = useState('');
   const [error, setError]             = useState('');
-  const [realtimeConnected, setRealtimeConnected] = useState(false);
   const [justDeliveredId, setJustDeliveredId] = useState<string | null>(null);
   const [showSummary, setShowSummary] = useState(false);
 
@@ -258,31 +256,24 @@ export default function DriverPage() {
   useEffect(() => {
     if (!driverId) return;
 
-    // ── Realtime: escuchar cambios en las entregas de este chofer ──
-    // Se activa cuando:
-    // - El admin reabre una entrega (status cambia a 'pending')
-    // - Cualquier cambio de status en sus deliveries
-    const deliveriesChannel = supabase
-      .channel(`driver_deliveries_${driverId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'deliveries',
-          filter: `driver_id=eq.${driverId}`,
-        },
-        (_payload) => {
-          // Re-fetch la ruta completa para tener el estado más reciente
-          fetchRoute(driverId, true);
-        }
-      )
-      .subscribe((status) => {
-        setRealtimeConnected(status === 'SUBSCRIBED');
-      });
+    // ── Actualización automática cada 30 s ──
+    // Antes se usaba Realtime, pero la anon key no tiene acceso a deliveries (RLS),
+    // así que el chofer nunca recibía cambios en vivo (ej. entregas reasignadas
+    // desde la Bandeja de Pendientes o reaperturas). Solo se consulta con la
+    // pestaña visible para no gastar datos ni batería en segundo plano.
+    const poll = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchRoute(driverId, false);
+    }, 30000);
+
+    // Al volver a la app, actualizar de inmediato
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchRoute(driverId, false);
+    };
+    document.addEventListener('visibilitychange', onVisible);
 
     return () => {
-      supabase.removeChannel(deliveriesChannel);
+      clearInterval(poll);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [driverId, fetchRoute]);
 
@@ -785,9 +776,9 @@ export default function DriverPage() {
                 <div className="flex items-center gap-1.5">
                   <div
                     className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                      realtimeConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'
+                      !isOffline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'
                     }`}
-                    title={realtimeConnected ? 'Actualizaciones en tiempo real activas' : 'Sin conexión en tiempo real'}
+                    title={!isOffline ? 'Actualización automática cada 30 s' : 'Sin conexión'}
                   />
                   {routeStarted && (
                     <div

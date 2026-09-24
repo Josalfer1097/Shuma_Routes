@@ -1,6 +1,11 @@
 {
   "updated": "2026-09-24",
   "items": [
+    { "type": "new", "text": "Al corregir una direccion en la revision del Excel aparece un buscador que sugiere direcciones mientras escribes, como en Google Maps" },
+    { "type": "improve", "text": "Si la sesion termina, el sistema te regresa al inicio de sesion con un aviso, en lugar de mostrar pantallas vacias" },
+    { "type": "improve", "text": "La app del chofer se actualiza sola cada 30 segundos, por ejemplo cuando se le agrega una entrega desde la Bandeja de Pendientes" },
+    { "type": "improve", "text": "Las direcciones se ubican en el mapa hasta cinco veces mas rapido" },
+    { "type": "fix", "text": "La lista de choferes ahora avisa cuando no se pudo cargar, en lugar de indicar que todos ya estaban asignados" },
     { "type": "new", "text": "Ahora se puede cargar directamente el Excel de embarques del sistema; solo se toman las facturas de San Pablo" },
     { "type": "new", "text": "Las facturas de un mismo cliente en la misma direccion se agrupan en una sola parada" },
     { "type": "new", "text": "Antes de ubicar las entregas se muestra una revision: direcciones faltantes, destinos fuera de zona y correccion manual de direcciones o coordenadas" },

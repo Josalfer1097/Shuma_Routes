@@ -30,7 +30,6 @@ import WeatherIntelPanel from '@/components/dispatcher/WeatherIntelPanel';
 import FontScaleButton from '@/components/dispatcher/FontScaleButton';
 import { useFontSize } from '@/lib/fontScaleContext';
 import NotificationBell from '@/components/notifications/NotificationBell';
-import { supabase } from '@/lib/supabase-client';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 import type { MapViewRef } from '@/components/dispatcher/MapView';
@@ -550,32 +549,6 @@ function DispatcherPageContent() {
     }
   }, []);
 
-  useEffect(() => {
-    // ── Realtime: escuchar cambios de estado en routes ──
-    // Cuando una ruta cambia de status (ej. cerrada, aprobada),
-    // recargamos el panel de rutas activas automáticamente.
-    const routesChannel = supabase
-      .channel('dispatcher_routes_realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'routes',
-          filter: `date=eq.${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })}`,
-        },
-        (_payload) => {
-          // Re-fetch rutas activas cuando hay cambio en alguna ruta de hoy
-          fetchActiveRoutes();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(routesChannel);
-    };
-  }, [fetchActiveRoutes]);
-
   // Enfocar una ruta específica si viene ?focus=RT-... desde el dashboard
   useEffect(() => {
     if (!activeRoutesData.length) return;
@@ -736,40 +709,8 @@ function DispatcherPageContent() {
       }
     };
     loadStatuses();
-    // Polling: Realtime sobre 'deliveries' no funciona con anon key (RLS activo sin política)
+    // Polling cada 30 s (Realtime retirado: la anon key no tiene acceso por RLS)
     const statusPolling = setInterval(loadStatuses, 30000);
-
-    // ── Realtime: escuchar cambios en deliveries ──
-    // Realtime via Supabase (reemplazó polling 30s — Jun 2026)
-    const channel = supabase
-      .channel('dispatcher_deliveries_realtime')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'deliveries' },
-        (payload) => {
-          const updated = payload.new as {
-            invoice?: string;
-            status?: string;
-            id?: string;
-          };
-          if (updated.invoice && updated.status) {
-            // Actualizar el status del marcador en el mapa
-            setLiveDeliveryStatus(prev => ({
-              ...prev,
-              [updated.invoice!]: updated.status!,
-            }));
-          }
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] Suscrito a deliveries ✓');
-        }
-        if (status === 'CHANNEL_ERROR') {
-          console.warn('[Realtime] Error de canal, recargando statuses...');
-          loadStatuses(); // fallback: recargar via REST si falla el canal
-        }
-      });
 
     // ── Carga inicial + polling de ubicaciones ──
     // Realtime no funciona: la anon key no tiene acceso a driver_locations (RLS)
@@ -785,31 +726,9 @@ function DispatcherPageContent() {
     loadInitialLocations();
     const locPolling = setInterval(loadInitialLocations, 30000);
 
-    // ── Realtime: escuchar ubicaciones de choferes ──
-    const locChannel = supabase
-      .channel('dispatcher_driver_locations')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'driver_locations' },
-        (payload) => {
-          const newLoc = payload.new as { driver_id: string; lat: number; lng: number; updated_at: string };
-          if (newLoc && newLoc.driver_id && newLoc.lat && newLoc.lng) {
-            setDriverLocations(prev => ({
-              ...prev,
-              [newLoc.driver_id]: { lat: newLoc.lat, lng: newLoc.lng, updated_at: newLoc.updated_at }
-            }));
-          }
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') console.log('[Realtime] Suscrito a driver_locations ✓');
-      });
-
     return () => {
       clearInterval(locPolling);
       clearInterval(statusPolling);
-      supabase.removeChannel(channel);
-supabase.removeChannel(locChannel);
     };
   }, []);
 
@@ -1091,7 +1010,9 @@ supabase.removeChannel(locChannel);
 
       if (geocodeCalls > 0) {
         await new Promise<void>((resolve) => {
-          const t = setTimeout(resolve, 1100);
+          // Google Geocoding admite ~50 consultas/s; 150 ms deja margen amplio
+          // (la pausa de 1.1 s era el límite del proveedor anterior, Nominatim)
+          const t = setTimeout(resolve, 150);
           // Chequear cancelación dentro del delay también
           const check = setInterval(() => {
             if (geocodeCancelRef.current) {
@@ -1100,7 +1021,7 @@ supabase.removeChannel(locChannel);
               resolve();
             }
           }, 100);
-          setTimeout(() => clearInterval(check), 1200);
+          setTimeout(() => clearInterval(check), 250);
         });
       }
 
@@ -2225,9 +2146,10 @@ supabase.removeChannel(locChannel);
           // ETA estimado
           const avgMs = geocodeTimestampsRef.current.length > 0
             ? geocodeTimestampsRef.current.reduce((a, b) => a + b, 0) / geocodeTimestampsRef.current.length
-            : 1100;
+            : 300;
           const remaining = total - done;
-          const etaSeconds = Math.ceil((remaining * (avgMs + 1100)) / 1000);
+          // avgMs = duración de la consulta; 150 ms = pausa entre consultas
+          const etaSeconds = Math.ceil((remaining * (avgMs + 150)) / 1000);
           const etaLabel = etaSeconds > 60
             ? `~${Math.ceil(etaSeconds / 60)} min`
             : `~${etaSeconds}s`;

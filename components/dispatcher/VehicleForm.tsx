@@ -37,6 +37,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
   const [driversDB, setDriversDB]   = useState<DriverFromDB[]>([]);
   const [vehiclesDB, setVehiclesDB] = useState<SupabaseVehicle[]>([]);
   const [loadingDB, setLoadingDB]   = useState(true);
+  const [loadError, setLoadError]   = useState<string | null>(null);
 
   const [selectedDriverId,  setSelectedDriverId]  = useState('');
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
@@ -59,9 +60,15 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
           if (first) setSelectedDriverId(first.id);
           // Preseleccionar primer vehículo
           if (json.vehicles?.length > 0) setSelectedVehicleId(json.vehicles[0].id);
+        } else {
+          // Antes el error se ignoraba y la lista vacía se mostraba como "Todos asignados"
+          setLoadError(json.error || 'No se pudieron cargar los choferes.');
         }
       })
-      .catch(console.error)
+      .catch(err => {
+        console.error('[VehicleForm] Error cargando choferes:', err);
+        setLoadError('No se pudieron cargar los choferes. Revisa tu conexión.');
+      })
       .finally(() => setLoadingDB(false));
   }, []);
 
@@ -366,7 +373,15 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
         </form>
       ) : (
         <div className="bg-shuma-surface p-4 rounded-xl border border-shuma-border text-center text-sm text-shuma-muted">
-          {vehicles.length >= 10 ? 'Máximo 10 choferes por ruta' : 'Todos los choferes han sido asignados'}
+          {loadError
+            ? `${loadError} Recarga la página o vuelve a iniciar sesión.`
+            : loadingDB
+              ? 'Cargando choferes…'
+              : vehicles.length >= 10
+                ? 'Máximo 10 choferes por ruta'
+                : driversDB.length === 0
+                  ? 'No hay choferes registrados'
+                  : 'Todos los choferes han sido asignados'}
         </div>
       )}
 

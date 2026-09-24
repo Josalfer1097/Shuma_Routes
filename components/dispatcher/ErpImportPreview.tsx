@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { Address } from '@/types';
 import { classifyStop, parseLatLng, type ErpImportResult, type ErpStop, type StopStatus } from '@/lib/erpImport';
+import AddressAutocomplete, { type PickedPlace } from './AddressAutocomplete';
 
 interface Props {
   result: ErpImportResult;
@@ -96,6 +97,24 @@ export default function ErpImportPreview({ result, fileName, onConfirm, onCancel
     setDraft('');
   };
 
+  /** Sugerencia elegida en el buscador: dirección oficial y coordenada exacta. */
+  const applyPlace = (stop: ErpStop, place: PickedPlace) => {
+    const updated: ErpStop = {
+      ...stop,
+      addressText: place.formattedAddress,
+      lat: place.lat,
+      lng: place.lng,
+      source: 'manual',
+    };
+    const c = classifyStop(updated.addressText, updated.lat, updated.lng, 'manual');
+    updated.status = c.status;
+    updated.reasons = [...c.reasons.filter(r => !r.startsWith('Sin dirección en texto')), 'Ubicación elegida en el buscador'];
+    setStops(prev => prev.map(s => (s.id === stop.id ? updated : s)));
+    setExcluded(prev => { const n = new Set(prev); n.delete(stop.id); return n; });
+    setEditingId(null);
+    setDraft('');
+  };
+
   const toggle = (setFn: typeof setExcluded, id: string) =>
     setFn(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
@@ -180,14 +199,14 @@ export default function ErpImportPreview({ result, fileName, onConfirm, onCancel
               </div>
 
               {editingId === stop.id && (
-                <div className="mt-2 flex gap-1.5">
-                  <input
-                    autoFocus
+                <div className="mt-2 flex gap-1.5 items-start">
+                  <AddressAutocomplete
                     value={draft}
-                    onChange={e => setDraft(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') applyEdit(stop); if (e.key === 'Escape') setEditingId(null); }}
-                    placeholder="Dirección completa o coordenadas: 19.35, -99.09"
-                    className="flex-1 min-w-0 px-2 py-1.5 bg-slate-900 border border-shuma-border rounded-lg text-[11px] text-slate-200 focus:outline-none focus:border-blue-500"
+                    onChange={setDraft}
+                    onPick={place => applyPlace(stop, place)}
+                    onSubmitText={() => applyEdit(stop)}
+                    onCancel={() => setEditingId(null)}
+                    placeholder="Busca la dirección o pega coordenadas: 19.35, -99.09"
                   />
                   <button onClick={() => applyEdit(stop)} className="px-2 py-1.5 rounded-lg text-[11px] bg-blue-600 text-white hover:bg-blue-500">Aplicar</button>
                   <button onClick={() => setEditingId(null)} className="px-2 py-1.5 rounded-lg text-[11px] text-shuma-muted hover:text-white">×</button>

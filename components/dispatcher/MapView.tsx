@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
-import { setOptions } from '@googlemaps/js-api-loader';
+import { ensureMapsLoader } from '@/lib/googleMaps';
 import { formatDuration, formatDistance } from '@/lib/osrm';
 import type { Address, Route } from '@/types';
 
@@ -77,10 +77,7 @@ const MapView = forwardRef<MapViewRef, Props>(function MapView(
     let active = true;
 
     const initMap = async () => {
-      setOptions({
-        key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-        v: 'weekly',
-      });
+      await ensureMapsLoader();
 
       // Importar librerías requeridas (maps y marker para AdvancedMarkerElement)
       const { Map, InfoWindow } = await google.maps.importLibrary('maps') as google.maps.MapsLibrary;

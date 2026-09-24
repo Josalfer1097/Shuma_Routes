@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase-client';
 import { Bell, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface Notification {
@@ -75,20 +74,11 @@ export default function NotificationBell({
   useEffect(() => {
     if (!targetRole) return;
     fetchNotifications();
-    // Polling: Realtime sobre 'notifications' no funciona con anon key (RLS activo)
+    // Polling cada 30 s (Realtime retirado: la anon key no tiene acceso por RLS)
     const notifPolling = setInterval(fetchNotifications, 30000);
-
-    const channel = supabase
-      .channel(`notifications_${targetRole}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `target_role=eq.${targetRole}` }, payload => {
-        setNotifications(prev => [payload.new as Notification, ...prev]);
-        setUnreadCount(prev => prev + 1);
-      })
-      .subscribe();
 
     return () => {
       clearInterval(notifPolling);
-      supabase.removeChannel(channel);
     };
   }, [targetRole]);
 

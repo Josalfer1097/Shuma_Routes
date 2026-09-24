@@ -1,12 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // La llave de Maps está restringida por sitio web. El servidor no manda
+  // "Referer" por sí solo, así que se identifica con el dominio desde el que
+  // se consulta (producción, vercel.app o localhost): los mismos permitidos.
+  const origin = new URL(req.url).origin;
   const [supabaseResult, googleResult] = await Promise.allSettled([
     supabaseAdmin.from('depots').select('name').limit(2),
     fetch(
       `https://maps.googleapis.com/maps/api/geocode/json?latlng=19.3550675,-99.0939998&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&result_type=street_address`,
-      { signal: AbortSignal.timeout(5000) }
+      { signal: AbortSignal.timeout(5000), headers: { Referer: `${origin}/` } }
     ).then(r => r.json()),
   ]);
 
