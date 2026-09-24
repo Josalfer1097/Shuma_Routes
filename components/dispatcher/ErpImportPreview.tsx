@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Address } from '@/types';
 import { classifyStop, parseLatLng, type ErpImportResult, type ErpStop, type StopStatus } from '@/lib/erpImport';
 import AddressAutocomplete, { type PickedPlace } from './AddressAutocomplete';
+import { loadErpDraft, saveErpDraft } from '@/lib/erpDraft';
 
 interface Props {
   result: ErpImportResult;
@@ -47,14 +48,30 @@ function stopToAddress(stop: ErpStop): Address {
 }
 
 export default function ErpImportPreview({ result, fileName, onConfirm, onCancel }: Props) {
-  const [stops, setStops] = useState<ErpStop[]>(result.stops);
+  // Si hay un borrador de esta misma carga (se cambió de pestaña o se recargó), se retoma
+  const [initialDraft] = useState(() => {
+    const d = loadErpDraft();
+    return d && d.fileName === fileName && d.result.stats.invoices === result.stats.invoices ? d : null;
+  });
+  const [stops, setStops] = useState<ErpStop[]>(initialDraft?.stops ?? result.stops);
   // Fuera de zona: excluidas por defecto; el admin puede incluirlas
-  const [includedOutside, setIncludedOutside] = useState<Set<string>>(new Set());
-  // Por revisar: bloquean hasta corregirse o excluirse explícitamente
-  const [excluded, setExcluded] = useState<Set<string>>(new Set());
+  const [includedOutside, setIncludedOutside] = useState<Set<string>>(new Set(initialDraft?.includedOutside ?? []));
+  // Cualquier parada se puede excluir; las "Por revisar" bloquean hasta corregirse o excluirse
+  const [excluded, setExcluded] = useState<Set<string>>(new Set(initialDraft?.excluded ?? []));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Guardar cada cambio para no perder la revisión al cambiar de pestaña
+  useEffect(() => {
+    saveErpDraft({
+      fileName,
+      result,
+      stops,
+      excluded: Array.from(excluded),
+      includedOutside: Array.from(includedOutside),
+    });
+  }, [fileName, result, stops, excluded, includedOutside]);
 
   const counts = useMemo(() => {
     const c: Record<StopStatus, number> = { listo: 0, geocodificar: 0, revisar: 0, fuera_zona: 0 };
@@ -137,6 +154,11 @@ export default function ErpImportPreview({ result, fileName, onConfirm, onCancel
               {STATUS_UI[st].label}: {counts[st]}
             </span>
           ))}
+          {excluded.size > 0 && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full border bg-slate-500/15 text-slate-300 border-slate-500/30">
+              Excluidas a mano: {excluded.size}
+            </span>
+          )}
         </div>
       </div>
 
@@ -146,7 +168,8 @@ export default function ErpImportPreview({ result, fileName, onConfirm, onCancel
           const ui = STATUS_UI[stop.status];
           const isExcluded = excluded.has(stop.id);
           const isOutsideIncluded = includedOutside.has(stop.id);
-          const dimmed = isExcluded || (stop.status === 'fuera_zona' && !isOutsideIncluded);
+          const isEditing = editingId === stop.id;
+          const dimmed = !isEditing && (isExcluded || (stop.status === 'fuera_zona' && !isOutsideIncluded));
 
           return (
             <li key={stop.id} className={`px-3 py-2 ${dimmed ? 'opacity-50' : ''}`}>
@@ -180,12 +203,11 @@ export default function ErpImportPreview({ result, fileName, onConfirm, onCancel
                 </div>
 
                 <div className="flex flex-col items-end gap-1 shrink-0">
-                  {stop.status === 'fuera_zona' && (
+                  {stop.status === 'fuera_zona' ? (
                     <button onClick={() => toggle(setIncludedOutside, stop.id)} className="text-[10px] text-amber-300 hover:text-amber-200">
                       {isOutsideIncluded ? 'Excluir' : 'Incluir'}
                     </button>
-                  )}
-                  {stop.status === 'revisar' && (
+                  ) : (
                     <button onClick={() => toggle(setExcluded, stop.id)} className="text-[10px] text-slate-400 hover:text-white">
                       {isExcluded ? 'Incluir' : 'Excluir'}
                     </button>

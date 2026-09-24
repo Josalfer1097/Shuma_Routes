@@ -1,6 +1,9 @@
 {
   "updated": "2026-09-24",
   "items": [
+    { "type": "improve", "text": "En la revision del Excel ahora se puede excluir cualquier parada, no solo las que estan por revisar" },
+    { "type": "fix", "text": "La revision del Excel ya no se pierde al cambiar de pestaña; se conserva hasta confirmarla, cancelarla o cerrar la ventana" },
+    { "type": "fix", "text": "Las sugerencias del buscador de direcciones ya no se enciman con la lista de paradas" },
     { "type": "new", "text": "Al corregir una direccion en la revision del Excel aparece un buscador que sugiere direcciones mientras escribes, como en Google Maps" },
     { "type": "improve", "text": "Si la sesion termina, el sistema te regresa al inicio de sesion con un aviso, en lugar de mostrar pantallas vacias" },
     { "type": "improve", "text": "La app del chofer se actualiza sola cada 30 segundos, por ejemplo cuando se le agrega una entrega desde la Bandeja de Pendientes" },

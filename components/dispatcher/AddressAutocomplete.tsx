@@ -151,7 +151,9 @@ export default function AddressAutocomplete({ value, onChange, onPick, onSubmitT
         <ul
           id={listboxId}
           role="listbox"
-          className="absolute z-30 left-0 right-0 mt-1 rounded-lg border border-shuma-border bg-slate-900 shadow-xl overflow-hidden"
+          // En el flujo de la fila (no flotante): dentro de una lista con scroll, un menú
+          // flotante quedaba recortado o debajo de las filas siguientes
+          className="mt-1 rounded-lg border border-shuma-border bg-slate-900 max-h-56 overflow-y-auto"
         >
           {suggestions.map((s, i) => (
             <li key={s.placeId} role="option" aria-selected={i === activeIndex}>

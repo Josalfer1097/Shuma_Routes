@@ -7,6 +7,7 @@ import type {
 } from '@/types';
 import { getWeatherCDMX, getForecastCDMX, type WeatherData, type HourlyForecast } from '@/lib/weather';
 import { geocodeBatch, geocodeAddress } from '@/lib/nominatim';
+import { clearErpDraft } from '@/lib/erpDraft';
 import { optimizeRoutes, optimizeRoutesGoogle, assignVehicleColors, optimizeSingleVehicle, redrawPolylineForRoute } from '@/lib/vroom';
 import CSVUploader from '@/components/dispatcher/CSVUploader';
 import VehicleForm from '@/components/dispatcher/VehicleForm';
@@ -898,6 +899,7 @@ function DispatcherPageContent() {
   }, [setActiveTabPersisted]);
 
   const handleLogout = () => {
+    clearErpDraft();
     sessionStorage.removeItem('shuma_auth');
     sessionStorage.removeItem('shuma_role');
     sessionStorage.removeItem('shuma_user');
@@ -2854,6 +2856,7 @@ function DispatcherPageContent() {
               <button
                 onClick={() => {
                   localStorage.removeItem('shuma_rutas_session');
+                  clearErpDraft();
                   setSessionToRestore(null);
                 }}
                 style={{
@@ -3155,6 +3158,7 @@ function DispatcherPageContent() {
             onReset={() => {
               if (confirm('¿Estás seguro de reiniciar toda la configuración y vaciar los datos actuales?')) {
                 localStorage.removeItem('shuma_rutas_session');
+                clearErpDraft();
                 dispatch({ type: 'RESET_STATE' });
                 setConfigSaved(false);
               }

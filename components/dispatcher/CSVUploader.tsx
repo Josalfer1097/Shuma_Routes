@@ -6,6 +6,7 @@ import type { Address } from '@/types';
 import { nanoid } from 'nanoid';
 import ErpImportPreview from './ErpImportPreview';
 import { processErpRows, type ErpImportResult } from '@/lib/erpImport';
+import { clearErpDraft, loadErpDraft, saveErpDraft } from '@/lib/erpDraft';
 
 interface Props {
   onAddressesLoaded: (addresses: Address[]) => void;
@@ -33,8 +34,9 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<Address[]>(persistedAddresses || []);
   const [error, setError] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(persistedFileName || null);
-  const [erpResult, setErpResult] = useState<ErpImportResult | null>(null);
+  const [fileName, setFileName] = useState<string | null>(() => loadErpDraft()?.fileName ?? persistedFileName ?? null);
+  // Si había una revisión del Excel en curso (se cambió de pestaña), se retoma
+  const [erpResult, setErpResult] = useState<ErpImportResult | null>(() => loadErpDraft()?.result ?? null);
   const [erpLoading, setErpLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -154,6 +156,8 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
         setError(result.errors.join(' '));
         return;
       }
+      // Borrador nuevo: reemplaza cualquier revisión anterior
+      saveErpDraft({ fileName: file.name, result, stops: result.stops, excluded: [], includedOutside: [] });
       setErpResult(result);
     } catch (err) {
       console.error('[erp-import]', err);
@@ -180,6 +184,7 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
 
   const confirmErp = useCallback(
     (addresses: Address[]) => {
+      clearErpDraft();
       setErpResult(null);
       setPreview(addresses);
       onAddressesLoaded(addresses);
@@ -298,7 +303,7 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
           result={erpResult}
           fileName={fileName || 'Excel del ERP'}
           onConfirm={confirmErp}
-          onCancel={() => { setErpResult(null); setFileName(null); }}
+          onCancel={() => { clearErpDraft(); setErpResult(null); setFileName(null); }}
         />
       )}
 
