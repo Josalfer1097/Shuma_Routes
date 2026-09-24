@@ -1,27 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-export async function GET(req: NextRequest) {
-  // La llave de Maps está restringida por sitio web. El servidor no manda
-  // "Referer" por sí solo, así que se identifica con el dominio desde el que
-  // se consulta (producción, vercel.app o localhost): los mismos permitidos.
-  const origin = new URL(req.url).origin;
-  const [supabaseResult, googleResult] = await Promise.allSettled([
+/**
+ * Estado de servicios para la portada.
+ *
+ * Google Maps: la llave del navegador está restringida por sitio web, y los
+ * servicios web de Google rechazan esas llaves desde un servidor
+ * ("API keys with referer restrictions cannot be used with this API").
+ * Por eso aquí solo se verifica que la llave esté configurada; el uso real
+ * de Google (mapa, buscador, geocodificación) ocurre y falla visiblemente
+ * en el navegador.
+ */
+export async function GET() {
+  const supabaseResult = await Promise.allSettled([
     supabaseAdmin.from('depots').select('name').limit(2),
-    fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?latlng=19.3550675,-99.0939998&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&result_type=street_address`,
-      { signal: AbortSignal.timeout(5000), headers: { Referer: `${origin}/` } }
-    ).then(r => r.json()),
-  ]);
+  ]).then(([r]) => r);
 
-  const supabaseOk =
-    supabaseResult.status === 'fulfilled' && !supabaseResult.value.error;
+  const supabaseOk = supabaseResult.status === 'fulfilled' && !supabaseResult.value.error;
 
-  let googleOk = false;
-  if (googleResult.status === 'fulfilled') {
-    const status = googleResult.value?.status;
-    googleOk = status === 'OK' || status === 'ZERO_RESULTS';
-  }
+  const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+  const googleOk = mapsKey.length > 0;
 
   const allOk = supabaseOk && googleOk;
 
@@ -34,18 +32,14 @@ export async function GET(req: NextRequest) {
           label: 'Supabase DB',
           error: supabaseResult.status === 'rejected'
             ? 'Sin respuesta'
-            : supabaseResult.status === 'fulfilled' && supabaseResult.value.error
+            : supabaseResult.value.error
               ? supabaseResult.value.error.message
               : null,
         },
         google: {
           ok: googleOk,
-          label: 'Google Maps API',
-          error: googleResult.status === 'rejected'
-            ? 'Sin respuesta'
-            : !googleOk
-              ? (googleResult.value?.status ?? 'Error desconocido')
-              : null,
+          label: 'Google Maps (llave)',
+          error: googleOk ? null : 'Falta NEXT_PUBLIC_GOOGLE_MAPS_API_KEY',
         },
       },
     },

@@ -1,6 +1,8 @@
 {
   "updated": "2026-09-24",
   "items": [
+    { "type": "fix", "text": "La ubicacion de direcciones en el mapa vuelve a funcionar con la llave de Google protegida para el sitio" },
+    { "type": "fix", "text": "El indicador de estado de la portada ya no marca error en Google Maps cuando el servicio funciona" },
     { "type": "improve", "text": "En la revision del Excel ahora se puede excluir cualquier parada, no solo las que estan por revisar" },
     { "type": "fix", "text": "La revision del Excel ya no se pierde al cambiar de pestaña; se conserva hasta confirmarla, cancelarla o cerrar la ventana" },
     { "type": "fix", "text": "Las sugerencias del buscador de direcciones ya no se enciman con la lista de paradas" },
