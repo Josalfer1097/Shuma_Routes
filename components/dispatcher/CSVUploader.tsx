@@ -2,17 +2,20 @@
 
 import { useCallback, useRef, useState, useEffect } from 'react';
 import Papa from 'papaparse';
-import type { Address } from '@/types';
+import type { Address, LeftOutStop } from '@/types';
 import { nanoid } from 'nanoid';
 import ErpImportPreview from './ErpImportPreview';
+import LoadingOverlay from '@/components/LoadingOverlay';
 import { processErpRows, type ErpImportResult } from '@/lib/erpImport';
 import { clearErpDraft, loadErpDraft, saveErpDraft } from '@/lib/erpDraft';
 
 interface Props {
-  onAddressesLoaded: (addresses: Address[]) => void;
+  onAddressesLoaded: (addresses: Address[], leftOut?: LeftOutStop[]) => void;
   disabled?: boolean;
   persistedAddresses?: Address[];
   persistedFileName?: string;
+  /** Avisa si hay una revisión del Excel abierta (para el botón del pie). */
+  onReviewChange?: (active: boolean) => void;
 }
 
 interface CSVRow {
@@ -30,7 +33,7 @@ interface CSVRow {
   [key: string]: string | undefined;
 }
 
-export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddresses, persistedFileName }: Props) {
+export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddresses, persistedFileName, onReviewChange }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<Address[]>(persistedAddresses || []);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +41,10 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
   // Si había una revisión del Excel en curso (se cambió de pestaña), se retoma
   const [erpResult, setErpResult] = useState<ErpImportResult | null>(() => loadErpDraft()?.result ?? null);
   const [erpLoading, setErpLoading] = useState(false);
+
+  useEffect(() => {
+    onReviewChange?.(erpResult !== null);
+  }, [erpResult, onReviewChange]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const downloadTemplate = () => {
@@ -183,11 +190,11 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
   );
 
   const confirmErp = useCallback(
-    (addresses: Address[]) => {
+    (addresses: Address[], leftOut: LeftOutStop[]) => {
       clearErpDraft();
       setErpResult(null);
       setPreview(addresses);
-      onAddressesLoaded(addresses);
+      onAddressesLoaded(addresses, leftOut);
     },
     [onAddressesLoaded]
   );
@@ -211,6 +218,7 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
 
   return (
     <div className="space-y-3">
+      {erpLoading && <LoadingOverlay message="Leyendo el Excel del ERP..." />}
       {/* Drop zone */}
       <div
         onClick={() => !disabled && inputRef.current?.click()}

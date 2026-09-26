@@ -319,3 +319,16 @@ export interface AppState {
   depot: { lat: number; lng: number; label: string } | null;
   error: string | null;
 }
+
+/** Por qué una parada no quedó en ninguna ruta. */
+export type LeftOutReason = 'excluida' | 'fuera_zona' | 'sin_ubicacion' | 'omitida';
+
+/** Parada (con sus facturas) que quedó fuera de las rutas generadas. */
+export interface LeftOutStop {
+  id: string;
+  clientName: string;
+  address: string;
+  invoices: { invoice: string; amount: number | null; pieces: number }[];
+  reason: LeftOutReason;
+  detail?: string;
+}

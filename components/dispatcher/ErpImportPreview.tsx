@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { Address } from '@/types';
+import type { Address, LeftOutStop } from '@/types';
 import { classifyStop, parseLatLng, type ErpImportResult, type ErpStop, type StopStatus } from '@/lib/erpImport';
 import AddressAutocomplete, { type PickedPlace } from './AddressAutocomplete';
 import { loadErpDraft, saveErpDraft } from '@/lib/erpDraft';
@@ -9,7 +9,7 @@ import { loadErpDraft, saveErpDraft } from '@/lib/erpDraft';
 interface Props {
   result: ErpImportResult;
   fileName: string;
-  onConfirm: (addresses: Address[]) => void;
+  onConfirm: (addresses: Address[], leftOut: LeftOutStop[]) => void;
   onCancel: () => void;
 }
 
@@ -147,6 +147,7 @@ export default function ErpImportPreview({ result, fileName, onConfirm, onCancel
           {result.stats.invoices} facturas de San Pablo agrupadas en {result.stats.stops} paradas
           {ignored.length > 0 && ` · se ignoraron ${ignored.map(([loc, n]) => `${n} partidas de ${loc}`).join(', ')}`}
           {result.stats.repairedTexts > 0 && ` · ${result.stats.repairedTexts} textos con acentos reparados`}
+          {result.stats.emptyRows > 0 && ` · ${result.stats.emptyRows} ${result.stats.emptyRows === 1 ? 'fila vacía ignorada' : 'filas vacías ignoradas'}`}
         </p>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(STATUS_UI) as StopStatus[]).map(st => (
@@ -247,7 +248,21 @@ export default function ErpImportPreview({ result, fileName, onConfirm, onCancel
           </p>
         )}
         <button
-          onClick={() => onConfirm(toSend.map(stopToAddress))}
+          onClick={() => {
+            const sentIds = new Set(toSend.map(s => s.id));
+            // Todo lo que no se envía queda registrado con su razón (apartado "Facturas fuera de ruta")
+            const leftOut: LeftOutStop[] = stops
+              .filter(s => !sentIds.has(s.id))
+              .map(s => ({
+                id: s.id,
+                clientName: s.clientName,
+                address: s.addressText,
+                invoices: s.invoices.map(i => ({ invoice: i.invoice, amount: i.amount, pieces: i.pieces })),
+                reason: excluded.has(s.id) ? 'excluida' : 'fuera_zona',
+                detail: s.reasons.join(' · ') || undefined,
+              }));
+            onConfirm(toSend.map(stopToAddress), leftOut);
+          }}
           disabled={blocking.length > 0 || toSend.length === 0}
           className="w-full px-3 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed"
         >

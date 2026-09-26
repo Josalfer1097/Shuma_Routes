@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type {
   Address, Vehicle, Route, AppState, AppStep, SharedRouteState,
 } from '@/types';
@@ -17,7 +17,8 @@ import ReportButton from '@/components/dispatcher/ReportButton';
 import WeatherBanner from '@/components/dispatcher/WeatherBanner';
 import SlideOver from '@/components/dispatcher/SlideOver';
 import { clusterDeliveries, clusterDeliveriesWithDiagnostics } from '@/lib/clustering';
-import type { Cluster, GlobalConfig, ClusteringConfig, Stop } from '@/types';
+import type { Cluster, GlobalConfig, ClusteringConfig, Stop, LeftOutStop } from '@/types';
+import LeftOutPanel from '@/components/dispatcher/LeftOutPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { Suspense } from 'react';
@@ -214,6 +215,9 @@ const buildWhatsAppLink = (phone: string | null | undefined): string | null => {
 };
 
 // Helper: calcular ETA de una ruta activa
+/** sessionStorage: paradas que la revisión del Excel dejó fuera. */
+const LEFT_OUT_KEY = 'shuma_left_out';
+
 const LUNCH_MINS_DEFAULT = 30; // debe coincidir con LUNCH_MINS en lib/pdfReport.ts
 
 const calcRouteETA = (
@@ -900,6 +904,7 @@ function DispatcherPageContent() {
 
   const handleLogout = () => {
     clearErpDraft();
+    sessionStorage.removeItem(LEFT_OUT_KEY);
     sessionStorage.removeItem('shuma_auth');
     sessionStorage.removeItem('shuma_role');
     sessionStorage.removeItem('shuma_user');
@@ -938,6 +943,59 @@ function DispatcherPageContent() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [blockingAction, setBlockingAction] = useState<string | null>(null);
+  const [erpReviewActive, setErpReviewActive] = useState(false);
+
+  // Paradas que la revisión del Excel dejó fuera; se guardan por pestaña para no perderlas al recargar
+  const [reviewLeftOut, setReviewLeftOutState] = useState<LeftOutStop[]>(() => {
+    try {
+      const raw = sessionStorage.getItem(LEFT_OUT_KEY);
+      return raw ? (JSON.parse(raw) as LeftOutStop[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  const setReviewLeftOut = useCallback((items: LeftOutStop[]) => {
+    setReviewLeftOutState(items);
+    try {
+      if (items.length > 0) sessionStorage.setItem(LEFT_OUT_KEY, JSON.stringify(items));
+      else sessionStorage.removeItem(LEFT_OUT_KEY);
+    } catch (err) {
+      console.warn('[dispatcher] No se pudo guardar la lista de facturas fuera de ruta:', err);
+    }
+  }, []);
+
+  const leftOutStops = useMemo<LeftOutStop[]>(() => {
+    const toLeftOut = (a: Address, reason: LeftOutStop['reason'], detail: string): LeftOutStop => ({
+      id: a.id,
+      clientName: a.clientName || a.name || 'Cliente sin nombre',
+      address: a.raw,
+      invoices: a.invoices && a.invoices.length > 0
+        ? a.invoices.map(i => ({ invoice: i.invoice, amount: i.amount, pieces: i.pieces }))
+        : [{ invoice: a.invoice || 'SIN-FACTURA', amount: a.merchandiseValue ?? null, pieces: 0 }],
+      reason,
+      detail,
+    });
+
+    const list: LeftOutStop[] = [...reviewLeftOut];
+
+    // Ya procesadas por Google pero sin coordenada: no pueden entrar a ninguna ruta
+    state.addresses
+      .filter(a => a.geocoded && (a.lat === null || a.lng === null))
+      .forEach(a => list.push(toLeftOut(a, 'sin_ubicacion', a.geocodeError || 'No se encontró en el mapa')));
+
+    // Con coordenada pero sin ruta: el optimizador no las asignó (o se quitaron a mano)
+    if (state.routes.length > 0) {
+      const routed = new Set(state.routes.flatMap(r => r.stops.map(st => st.address.id)));
+      state.addresses
+        .filter(a => a.lat !== null && a.lng !== null && !routed.has(a.id))
+        .forEach(a => list.push(toLeftOut(a, 'omitida', 'Ningún chofer la tiene asignada')));
+    }
+    return list;
+  }, [reviewLeftOut, state.addresses, state.routes]);
+  // Cualquier salida de una optimización (éxito, error o validación temprana) apaga la ventana
+  useEffect(() => {
+    if (!isOptimizing) setBlockingAction(null);
+  }, [isOptimizing]);
   const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -967,8 +1025,10 @@ function DispatcherPageContent() {
   }, [fetchActiveRoutes, state.globalConfig?.departureDepot]);
 
   // Carga de CSV → geocodificación automática
-  const handleAddressesLoaded = useCallback(async (addresses: Address[]) => {
+  const handleAddressesLoaded = useCallback(async (addresses: Address[], leftOut: LeftOutStop[] = []) => {
     dispatch({ type: 'SET_ADDRESSES', payload: addresses });
+    // Lo que la revisión del Excel dejó fuera (una carga nueva reemplaza lo anterior)
+    setReviewLeftOut(leftOut);
 
     // Depósito por defecto: centro de CDMX (ajustable)
     const depotResult = { lat: 19.4326, lng: -99.1332, label: 'Depósito CDMX' };
@@ -1102,7 +1162,7 @@ function DispatcherPageContent() {
         setActiveTabPersisted('zones');
       }, 2000);
     }
-  }, [state.vehicles, state.clusteringConfig, setActiveTabPersisted]);
+  }, [state.vehicles, state.clusteringConfig, setActiveTabPersisted, setReviewLeftOut]);
 
   // Helper para persistencia
   const saveRoutesData = useCallback((newRoutes: Route[]) => {
@@ -1143,6 +1203,25 @@ function DispatcherPageContent() {
       return;
     }
 
+    // Horario de salida: se valida antes de bloquear la pantalla, para que el aviso se vea
+    if (!testMode) {
+      const now = new Date();
+      const currentMins = now.getHours() * 60 + now.getMinutes();
+      const late = state.vehicles.find(v => {
+        const [h, m] = (v.departureTime || state.globalConfig?.departureTime || '08:00').split(':').map(Number);
+        return (h || 0) * 60 + (m || 0) < currentMins;
+      });
+      if (late) {
+        // La hora propia del chofer (editada en Rutas) tiene prioridad sobre la general
+        const where = late.departureTime
+          ? `Tiene una hora propia (${late.departureTime}) editada en Rutas; cámbiala ahí`
+          : 'Ajusta la hora de salida en Configuración';
+        const msg = `La hora de salida de ${late.driverName} ya pasó. ${where}, o activa Modo Prueba, y vuelve a optimizar.`;
+        dispatch({ type: 'SET_ERROR', payload: msg });
+        return;
+      }
+    }
+
     setBlockingAction('Optimizando rutas con Google Maps...');
     setIsOptimizing(true);
     dispatch({ type: 'SET_ERROR', payload: null });
@@ -1167,19 +1246,6 @@ function DispatcherPageContent() {
 
     try {
       const today = new Date();
-      const currentMins = today.getHours() * 60 + today.getMinutes();
-
-      // Check all vehicles for invalid times
-      for (const v of assignedVehicles) {
-        const timeStr = v.departureTime || state.globalConfig?.departureTime || '08:00';
-        const [h, m] = timeStr.split(':').map(Number);
-        const targetMins = (h || 0) * 60 + (m || 0);
-        if (!testMode && targetMins < currentMins) {
-          dispatch({ type: 'SET_ERROR', payload: `La hora de salida de ${v.driverName} ya pasó. Ajusta la hora antes de optimizar.` });
-          setIsOptimizing(false);
-          return;
-        }
-      }
 
       // Construir la fecha ISO combinando hoy con la hora configurada
       const timeParts = (state.globalConfig?.departureTime || '08:00').split(':');
@@ -1276,6 +1342,7 @@ function DispatcherPageContent() {
   // Re-optimizar después de edición manual
   const handleReoptimize = useCallback(async (manualRoutes: Route[]) => {
     setIsOptimizing(true);
+    setBlockingAction('Reoptimizando rutas...');
     dispatch({ type: 'SET_ERROR', payload: null });
     dispatch({ type: 'SET_STEP', payload: 'optimizing' });
 
@@ -1334,6 +1401,7 @@ function DispatcherPageContent() {
 
     // Luego redibujar polilíneas en background con Google Routes
     setIsOptimizing(true);
+    setBlockingAction('Guardando el orden de las paradas...');
     try {
       const routesWithPolylines = await Promise.all(
         manualRoutes.map(route => redrawPolylineForRoute(route))
@@ -1350,6 +1418,7 @@ function DispatcherPageContent() {
 
   const handleReoptimizeSingle = useCallback(async (vehicleId: string, manualStops: Stop[]) => {
     setIsOptimizing(true);
+    setBlockingAction('Reoptimizando ruta...');
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
@@ -1470,9 +1539,10 @@ function DispatcherPageContent() {
 
       {toast && (
         <div style={{
-          position: 'absolute', bottom: 80, left: '50%',
+          // Encima del panel lateral (capa 40): antes el aviso quedaba escondido detrás
+          position: 'fixed', bottom: 80, left: '50%',
           transform: 'translateX(-50%)',
-          zIndex: 20,
+          zIndex: 9997,
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '8px 18px', borderRadius: 20,
           background: toast.type === 'ok'    ? 'rgba(16,185,129,0.15)'
@@ -2799,17 +2869,28 @@ function DispatcherPageContent() {
 
         {/* ── Error banner on map ── */}
         {state.error && (
-          <div style={{
-            position: 'absolute',
-            bottom: 70,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 15,
-            maxWidth: 500,
-            width: '90%',
-          }}>
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 backdrop-blur">
-              <p className="text-xs text-red-400">{state.error}</p>
+          <div
+            role="alert"
+            style={{
+              // Encima del panel lateral (capa 40) y arriba, para no tapar sus botones
+              position: 'fixed',
+              top: 64,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9996,
+              maxWidth: 500,
+              width: '90%',
+            }}
+          >
+            <div className="p-3 rounded-lg bg-red-950/90 border border-red-500/40 backdrop-blur flex items-start gap-3">
+              <p className="text-xs text-red-300 flex-1">{state.error}</p>
+              <button
+                onClick={() => dispatch({ type: 'SET_ERROR', payload: null })}
+                className="text-red-300 hover:text-white text-sm leading-none"
+                aria-label="Cerrar aviso"
+              >
+                ×
+              </button>
             </div>
           </div>
         )}
@@ -2857,6 +2938,7 @@ function DispatcherPageContent() {
                 onClick={() => {
                   localStorage.removeItem('shuma_rutas_session');
                   clearErpDraft();
+                  setReviewLeftOut([]);
                   setSessionToRestore(null);
                 }}
                 style={{
@@ -3015,8 +3097,10 @@ function DispatcherPageContent() {
                 <button
                   className="so-btn-success ml-auto"
                   disabled={true}
+                  title={erpReviewActive ? 'Primero confirma la revisión del Excel' : 'Primero carga las direcciones'}
                 >
-                  Continuar a Zonas →
+                  {/* Con la revisión del Excel abierta, el paso siguiente es su propio botón */}
+                  {erpReviewActive ? 'Confirma las paradas arriba ↑' : 'Continuar a Zonas →'}
                 </button>
               )}
             </>
@@ -3028,9 +3112,10 @@ function DispatcherPageContent() {
               <button
                 className="so-btn-primary"
                 onClick={() => {
-                  dispatch({ type: 'SET_STEP', payload: 'optimizing' });
-                  handleOptimize();
-                  setIsSlideOverOpen(false);
+                  // handleOptimize valida primero; solo si todo está bien cierra el panel
+                  // y cambia a "optimizando". Antes se cerraba antes de validar y el error
+                  // (ej. hora de salida pasada) quedaba en un panel ya cerrado.
+                  void handleOptimize();
                 }}
               >
                 ⚡ Optimizar Rutas
@@ -3159,6 +3244,7 @@ function DispatcherPageContent() {
               if (confirm('¿Estás seguro de reiniciar toda la configuración y vaciar los datos actuales?')) {
                 localStorage.removeItem('shuma_rutas_session');
                 clearErpDraft();
+                setReviewLeftOut([]);
                 dispatch({ type: 'RESET_STATE' });
                 setConfigSaved(false);
               }
@@ -3170,6 +3256,7 @@ function DispatcherPageContent() {
           <div className="space-y-4">
             <CSVUploader
               onAddressesLoaded={handleAddressesLoaded}
+              onReviewChange={setErpReviewActive}
               disabled={!state.globalConfig}
               persistedAddresses={state.addresses}
               persistedFileName={state.addresses.length > 0 ? `${state.addresses.length} direcciones cargadas` : undefined}
@@ -3379,7 +3466,8 @@ function DispatcherPageContent() {
                         type="number"
                         min="1"
                         max="50"
-                        value={state.clusteringConfig.vehicleCapacities.find(c => c.vehicleId === assignedVehicle?.id)?.maxStops || (assignedVehicle?.type === 'Camioneta' ? 4 : 6)}
+                        value={state.clusteringConfig.vehicleCapacities.find(c => c.vehicleId === assignedVehicle?.id)?.maxStops || ''}
+                        placeholder="Sin límite"
                         onChange={(e) => {
                           if (!assignedVehicle) return;
                           const val = parseInt(e.target.value) || 0;
@@ -3442,6 +3530,7 @@ function DispatcherPageContent() {
 
         {activeTab === 'routes' && (
           <div className="space-y-3">
+            <LeftOutPanel items={leftOutStops} />
             <RoutePanel
               routes={state.routes}
               onShareRoute={handleShareRoute}

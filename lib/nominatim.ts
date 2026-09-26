@@ -34,21 +34,28 @@ function errorCode(err: unknown): string | undefined {
   return (err as { code?: string } | null)?.code;
 }
 
+/**
+ * Errores temporales según Google: UNKNOWN_ERROR ("puede funcionar si se reintenta")
+ * y OVER_QUERY_LIMIT (ritmo). Se reintenta con esperas escalonadas.
+ */
+const RETRYABLE = new Set(['UNKNOWN_ERROR', 'OVER_QUERY_LIMIT']);
+const RETRY_DELAYS_MS = [600, 1800];
+
 async function runGeocode(request: google.maps.GeocoderRequest): Promise<google.maps.GeocoderResult[]> {
   const geocoder = await getGeocoder();
-  try {
-    const { results } = await geocoder.geocode(request);
-    return results;
-  } catch (err) {
-    const code = errorCode(err);
-    if (code === 'ZERO_RESULTS') return [];
-    if (code === 'OVER_QUERY_LIMIT') {
-      // Límite de ritmo del SDK: una espera corta y un solo reintento
-      await new Promise(res => setTimeout(res, 1000));
+  for (let attempt = 0; ; attempt++) {
+    try {
       const { results } = await geocoder.geocode(request);
       return results;
+    } catch (err) {
+      const code = errorCode(err);
+      if (code === 'ZERO_RESULTS') return [];
+      if (code && RETRYABLE.has(code) && attempt < RETRY_DELAYS_MS.length) {
+        await new Promise(res => setTimeout(res, RETRY_DELAYS_MS[attempt]));
+        continue;
+      }
+      throw err;
     }
-    throw err;
   }
 }
 

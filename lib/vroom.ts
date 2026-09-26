@@ -206,9 +206,11 @@ export async function optimizeSingleVehicle(
   const vehicleStartDate = new Date(vehicleStartTime);
   const vehicleEndTime = new Date(vehicleStartDate.getTime() + 12 * 60 * 60 * 1000).toISOString();
 
-  let maxLoad = vehicle.capacity;
-  if (vehicle.type === 'Camión grande') maxLoad = 6;
-  if (vehicle.type === 'Camioneta') maxLoad = 4;
+  // Regla de negocio (sep-2026): por defecto NO hay tope de paradas; el sistema reparte
+  // todos los pedidos y el admin decide después qué sale. Antes se forzaba un tope fijo
+  // por tipo (grande 6, mediano 4, chico 2, camioneta 4) que ignoraba la configuración
+  // y dejaba fuera paradas sin aviso. El límite real será por carga (clases de carga).
+  const maxLoad = vehicle.capacity && vehicle.capacity > 0 ? vehicle.capacity : 9999;
 
 
 
@@ -373,9 +375,8 @@ export async function optimizeRoutes(
       const vehicleStartDate = new Date(vehicleStartTime);
       const vehicleEndTime = new Date(vehicleStartDate.getTime() + 12 * 60 * 60 * 1000).toISOString();
       
-      let maxLoad = v.capacity;
-      if (v.type === 'Camión grande') maxLoad = 6;
-      if (v.type === 'Camioneta') maxLoad = 4;
+      // Sin tope de paradas por tipo de vehículo (ver nota en optimizeSingleVehicle)
+      const maxLoad = v.capacity && v.capacity > 0 ? v.capacity : 9999;
 
       const DEFAULT_LAT = 19.3550675;
       const DEFAULT_LNG = -99.0939998;
@@ -555,11 +556,8 @@ export async function optimizeRoutesGoogle(
     const vehicleStartDate = new Date(vehicleStartTime);
     const vehicleEndTime = new Date(vehicleStartDate.getTime() + 12 * 60 * 60 * 1000).toISOString();
 
-    let maxLoad = v.capacity || 9999;
-    if (v.type === 'Camión grande')  maxLoad = 6;
-    if (v.type === 'Camión mediano') maxLoad = 4;
-    if (v.type === 'Camión chico')   maxLoad = 2;
-    if (v.type === 'Camioneta')      maxLoad = 4;
+    // Sin tope de paradas por tipo de vehículo (ver nota en optimizeSingleVehicle)
+    const maxLoad = v.capacity && v.capacity > 0 ? v.capacity : 9999;
 
     const sLat = typeof v.depot?.lat === 'number' && isFinite(v.depot.lat) ? v.depot.lat : DEFAULT_LAT;
     const sLng = typeof v.depot?.lng === 'number' && isFinite(v.depot.lng) ? v.depot.lng : DEFAULT_LNG;

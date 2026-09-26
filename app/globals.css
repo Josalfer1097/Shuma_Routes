@@ -235,3 +235,13 @@ html[data-font-preview="true"] {
 html[data-font-preview="true"] [class*="text-scale-"] {
   /* Si text-scale- se basan en rem, se ajustan solos al cambiar el font-size de html. */
 }
+
+/* Entrada de tarjetas (panel de viabilidad en Zonas).
+   Se usaba sin estar definida: las tarjetas arrancaban en opacidad 0 y nunca aparecían. */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="fadeInUp"] { animation: none !important; opacity: 1 !important; }
+}

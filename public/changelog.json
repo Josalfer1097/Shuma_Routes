@@ -1,6 +1,14 @@
 {
   "updated": "2026-09-24",
   "items": [
+    { "type": "new", "text": "Nuevo apartado de Facturas fuera de ruta en Rutas: muestra cada factura que no quedo asignada y por que, y se puede descargar en Excel" },
+    { "type": "fix", "text": "Ya no hay un limite fijo de paradas por tipo de camion: el sistema reparte todos los pedidos y el administrador decide despues que sale" },
+    { "type": "fix", "text": "El boton Optimizar Rutas en Zonas ahora avisa si algo impide optimizar, como una hora de salida que ya paso" },
+    { "type": "fix", "text": "Los avisos y errores ya no quedan ocultos detras del panel lateral" },
+    { "type": "fix", "text": "El panel de Viabilidad Estimada vuelve a mostrar la informacion de cada chofer" },
+    { "type": "improve", "text": "Si Google falla temporalmente al ubicar una direccion, el sistema reintenta solo" },
+    { "type": "improve", "text": "Ventanas de carga al leer el Excel, reoptimizar rutas y mover entregas en la Bandeja de Pendientes" },
+    { "type": "improve", "text": "Mientras se revisa el Excel, el boton inferior indica que primero hay que confirmar las paradas" },
     { "type": "fix", "text": "La ubicacion de direcciones en el mapa vuelve a funcionar con la llave de Google protegida para el sitio" },
     { "type": "fix", "text": "El indicador de estado de la portada ya no marca error en Google Maps cuando el servicio funciona" },
     { "type": "improve", "text": "En la revision del Excel ahora se puede excluir cualquier parada, no solo las que estan por revisar" },

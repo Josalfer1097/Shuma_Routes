@@ -87,6 +87,8 @@ export interface ErpImportResult {
     rowsInLocation: number;
     invoices: number;
     stops: number;
+    /** Filas sin documento (separadores de guiones, filas vacías al inicio o al final). */
+    emptyRows: number;
     ignoredLocations: Record<string, number>;
     repairedTexts: number;
   };
@@ -313,7 +315,7 @@ export function processErpRows(rows: unknown[][]): ErpImportResult {
   const errors: string[] = [];
   const empty: ErpImportResult = {
     stops: [],
-    stats: { totalRows: 0, rowsInLocation: 0, invoices: 0, stops: 0, ignoredLocations: {}, repairedTexts: 0 },
+    stats: { totalRows: 0, rowsInLocation: 0, invoices: 0, stops: 0, emptyRows: 0, ignoredLocations: {}, repairedTexts: 0 },
     errors,
   };
 
@@ -342,11 +344,15 @@ export function processErpRows(rows: unknown[][]): ErpImportResult {
   const ignoredLocations: Record<string, number> = {};
   let totalRows = 0;
   let rowsInLocation = 0;
+  let emptyRows = 0;
 
   for (const row of rows.slice(1)) {
     const invoiceId = cellText(get(row, 'invoice'));
-    // Fila separadora de guiones o fila vacía al final del reporte
-    if (!invoiceId) continue;
+    // Fila separadora de guiones o fila vacía (al inicio, en medio o al final del reporte)
+    if (!invoiceId) {
+      emptyRows += 1;
+      continue;
+    }
     totalRows += 1;
 
     const location = cellText(get(row, 'location'));
@@ -398,7 +404,7 @@ export function processErpRows(rows: unknown[][]): ErpImportResult {
 
   if (invoicesById.size === 0) {
     errors.push(`No hay documentos de ${ALLOWED_LOCATIONS.join(', ')} en el archivo.`);
-    return { ...empty, stats: { ...empty.stats, totalRows, ignoredLocations, repairedTexts } };
+    return { ...empty, stats: { ...empty.stats, totalRows, emptyRows, ignoredLocations, repairedTexts } };
   }
 
   // ── Agrupar facturas en paradas: mismo cliente + misma ubicación ──
@@ -473,6 +479,7 @@ export function processErpRows(rows: unknown[][]): ErpImportResult {
       rowsInLocation,
       invoices: invoicesById.size,
       stops: stops.length,
+      emptyRows,
       ignoredLocations,
       repairedTexts,
     },

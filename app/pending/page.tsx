@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
+import LoadingOverlay from '@/components/LoadingOverlay';
 import { Inbox, Navigation, RefreshCw, Truck, ClipboardList, Undo2, AlertTriangle, Package } from 'lucide-react';
 
 interface PendingItem {
@@ -280,6 +281,7 @@ export default function PendingPage() {
 
   return (
     <AuthGuard>
+      {saving && <LoadingOverlay message="Guardando el movimiento de la entrega..." />}
       <div className="min-h-screen bg-shuma-bg flex flex-col">
         <header className="bg-shuma-surface border-b border-shuma-border sticky top-0 z-20">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-3">
