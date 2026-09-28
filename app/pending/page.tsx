@@ -17,9 +17,12 @@ interface PendingItem {
   merchandise_value: number | null;
   attempt_count: number;
   pending_since: string | null;
+  /** Fallida o parcial en una ruta que aún no se cierra. */
+  provisional?: boolean;
+  updated_at?: string | null;
   awaiting_planning: boolean;
   pending_quantity: number | null;
-  origin: { route_code: string | null; route_alias: string | null; date: string | null; driver_name: string | null } | null;
+  origin: { route_code: string | null; route_alias: string | null; date: string | null; driver_name: string | null; closure_status?: string | null } | null;
 }
 
 interface TargetRoute {
@@ -95,8 +98,10 @@ export default function PendingPage() {
     load();
   }, [load]);
 
-  const inTray = useMemo(() => items.filter(i => !i.awaiting_planning), [items]);
-  const inPlanning = useMemo(() => items.filter(i => i.awaiting_planning), [items]);
+  const inTray = useMemo(() => items.filter(i => !i.provisional && !i.awaiting_planning), [items]);
+  const inPlanning = useMemo(() => items.filter(i => !i.provisional && i.awaiting_planning), [items]);
+  // Fallidas y parciales de rutas que siguen abiertas: se ven desde que ocurren
+  const inOpenRoutes = useMemo(() => items.filter(i => i.provisional), [items]);
 
   const openPanel = (item: PendingItem) => {
     setOpenId(item.id);
@@ -169,11 +174,16 @@ export default function PendingPage() {
             </div>
             <p className="text-sm text-slate-200 mt-1 truncate">{item.client_name || 'Cliente sin nombre'}</p>
             <p className="text-xs text-shuma-muted truncate">{item.address}</p>
+            {item.provisional && (
+              <p className="text-[11px] mt-1 inline-block px-2 py-0.5 rounded-full border bg-amber-500/10 text-amber-300 border-amber-500/30">
+                {'De momento en ' + routeLabel(item.origin) + (item.origin?.closure_status === 'requested' ? ' · cierre solicitado' : ' · ruta sin cerrar')}
+              </p>
+            )}
             <p className="text-xs text-shuma-muted mt-1">
-              De {routeLabel(item.origin)}
+              {(item.provisional ? 'Ruta ' : 'De ') + routeLabel(item.origin)}
               {item.origin?.driver_name ? ` · ${item.origin.driver_name}` : ''}
-              {item.pending_since ? ` · ${sinceText(item.pending_since)}` : ''}
-              {item.merchandise_value ? ` · $${Number(item.merchandise_value).toLocaleString('es-MX')}` : ''}
+              {(item.pending_since || item.updated_at) ? ' · ' + sinceText(item.pending_since || item.updated_at || null) : ''}
+              {item.merchandise_value ? ` · ${Number(item.merchandise_value).toLocaleString('es-MX')}` : ''}
             </p>
             {item.notes ? <p className="text-xs text-slate-400 mt-1 italic">“{item.notes}”</p> : null}
           </div>
@@ -299,7 +309,7 @@ export default function PendingPage() {
                   Bandeja de Pendientes
                 </h1>
                 <p className="text-xs text-shuma-muted mt-0.5">
-                  Entregas no completadas de rutas cerradas
+                  Entregas no completadas: de rutas cerradas y de rutas en curso
                 </p>
               </div>
             </div>
@@ -331,6 +341,16 @@ export default function PendingPage() {
               <Package className="w-10 h-10 mx-auto mb-3 opacity-50" />
               <p className="text-sm">No hay entregas pendientes. Todo salió a tiempo.</p>
             </div>
+          )}
+
+          {inOpenRoutes.length > 0 && (
+            <section className="grid gap-3">
+              <h2 className="text-sm font-semibold text-amber-300">{'En rutas sin cerrar (' + inOpenRoutes.length + ')'}</h2>
+              <p className="text-xs text-shuma-muted -mt-2">
+                Fallidas y parciales de rutas que siguen en curso. Puedes reasignarlas desde ya; si no, pasan a la bandeja al cerrarse la ruta.
+              </p>
+              {inOpenRoutes.map(renderCard)}
+            </section>
           )}
 
           {inTray.length > 0 && (

@@ -23,13 +23,24 @@ export async function GET(req: NextRequest) {
 
     if (pErr) throw new Error(`Error leyendo pendientes: ${pErr.message}`);
 
-    // 2. Ruta de origen (la ruta cerrada de la que salió) y su chofer
-    const originIds = Array.from(new Set((pending || []).map(d => d.route_id).filter(Boolean)));
-    const originMap = new Map<string, { route_code: string | null; route_alias: string | null; date: string | null; driver_name: string | null }>();
+    // 1b. Provisionales: fallidas y parciales de rutas que siguen abiertas.
+    // Se muestran desde que ocurren, sin esperar al cierre de la ruta.
+    const { data: failedNow, error: fErr } = await supabaseAdmin
+      .from('deliveries')
+      .select('id, route_id, invoice, client_name, address, lat, lng, status, notes, merchandise_value, attempt_count, pending_since, original_route_id, awaiting_planning, pending_quantity, updated_at')
+      .eq('is_pending', false)
+      .in('status', ['failed', 'partial'])
+      .order('updated_at', { ascending: true });
+
+    if (fErr) throw new Error('Error leyendo entregas fallidas en curso: ' + fErr.message);
+
+    // 2. Ruta de origen (cerrada, o la ruta en curso para las provisionales) y su chofer
+    const originIds = Array.from(new Set([...(pending || []), ...(failedNow || [])].map(d => d.route_id).filter(Boolean)));
+    const originMap = new Map<string, { route_code: string | null; route_alias: string | null; date: string | null; driver_name: string | null; closure_status: string | null; is_latest: boolean }>();
 
     if (originIds.length > 0) {
       const [{ data: originRoutes, error: orErr }, { data: originDrivers, error: odErr }] = await Promise.all([
-        supabaseAdmin.from('routes').select('id, route_code, route_alias, date').in('id', originIds),
+        supabaseAdmin.from('routes').select('id, route_code, route_alias, date, closure_status, is_latest').in('id', originIds),
         supabaseAdmin.from('route_drivers').select('route_id, drivers(name)').in('route_id', originIds),
       ]);
       if (orErr) throw new Error(`Error leyendo rutas de origen: ${orErr.message}`);
@@ -42,14 +53,31 @@ export async function GET(req: NextRequest) {
           route_alias: r.route_alias ?? null,
           date: r.date ?? null,
           driver_name: ((rd?.drivers as unknown) as { name?: string } | null)?.name ?? null,
+          closure_status: r.closure_status ?? null,
+          is_latest: Boolean(r.is_latest),
         });
       }
     }
 
-    const items = (pending || []).map(d => ({
+    const confirmed = (pending || []).map(d => ({
       ...d,
+      provisional: false,
       origin: originMap.get(d.route_id) ?? null,
     }));
+
+    // Solo las de rutas vigentes que aún no tienen cierre aprobado
+    const provisional = (failedNow || [])
+      .filter(d => {
+        const o = originMap.get(d.route_id);
+        return Boolean(o && o.is_latest && o.closure_status !== 'approved');
+      })
+      .map(d => ({
+        ...d,
+        provisional: true,
+        origin: originMap.get(d.route_id) ?? null,
+      }));
+
+    const items = [...confirmed, ...provisional];
 
     // 3. Rutas abiertas con chofer asignado (destinos válidos para reasignar).
     // Sin filtro por fecha: una ruta sigue activa hasta que se cierra formalmente

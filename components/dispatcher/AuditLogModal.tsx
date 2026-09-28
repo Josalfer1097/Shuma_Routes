@@ -447,12 +447,22 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
       timeStyle: 'medium',
     });
 
+  // Mismo código de color que el resto del sistema: fallida en rojo, parcial en ámbar, completada en verde
+  const deliveryTone = (action: string): 'failed' | 'partial' | 'ok' => {
+    const a = action.toLowerCase();
+    if (a.includes('fallida') || a.includes('no entregada')) return 'failed';
+    if (a.includes('parcial')) return 'partial';
+    return 'ok';
+  };
+  const DELIVERY_TONE_ICON = { failed: 'text-red-400', partial: 'text-amber-400', ok: 'text-emerald-400' } as const;
+  const DELIVERY_TONE_TEXT = { failed: 'text-red-300', partial: 'text-amber-300', ok: '' } as const;
+
   const getActionIcon = (action: string, module: string) => {
     const a = action.toLowerCase();
     const m = module.toLowerCase();
     if (a.includes('login') || a.includes('sesión'))   return <LogIn size={13} className="text-blue-400 shrink-0" />;
     if (a.includes('logout') || a.includes('salida'))  return <LogOut size={13} className="text-slate-400 shrink-0" />;
-    if (a.includes('entrega') || m === 'entregas')     return <Package size={13} className="text-emerald-400 shrink-0" />;
+    if (a.includes('entrega') || m === 'entregas')     return <Package size={13} className={DELIVERY_TONE_ICON[deliveryTone(action)] + ' shrink-0'} />;
     if (a.includes('ruta') || m === 'rutas')           return <Truck size={13} className="text-blue-400 shrink-0" />;
     if (a.includes('reapertura') || a.includes('corrección')) return <RotateCcw size={13} className="text-amber-400 shrink-0" />;
     if (a.includes('cierre') || a.includes('cerrar'))  return <Lock size={13} className="text-purple-400 shrink-0" />;
@@ -923,7 +933,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                           <td className="px-4 py-2 text-shuma-text" style={{ width: colWidths.accion, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <div className="flex items-center gap-1.5">
                               {getActionIcon(log.action, log.module)}
-                              {log.action}
+                              <span className={DELIVERY_TONE_TEXT[deliveryTone(log.action)]}>{log.action}</span>
                             </div>
                           </td>
                           <td className="px-4 py-2 text-shuma-muted" style={{ width: colWidths.ip, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.ip_address}</td>
@@ -996,7 +1006,21 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                                   if (isUUID && !KEY_LABELS[key]) return null;
 
                                   const displayKey = KEY_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                                  const displayValue = strVal;
+                                  // Estados en lenguaje de negocio (en la base se guardan en inglés)
+                                  const STATUS_ES: Record<string, string> = {
+                                    pending: 'Pendiente', in_route: 'En camino', delivered: 'Entregada',
+                                    partial: 'Parcial', failed: 'No entregada',
+                                  };
+                                  const isStatusKey = key === 'estado_nuevo' || key === 'estado_anterior';
+                                  const photoCount = (key === 'foto_evidencia' || key === 'fotos_evidencia') ? strVal.match(/^(\d+) fotos?$/) : null;
+                                  const displayValue = isStatusKey && STATUS_ES[strVal]
+                                    ? STATUS_ES[strVal]
+                                    : photoCount
+                                      ? photoCount[1] + (photoCount[1] === '1' ? ' foto' : ' fotos')
+                                      : strVal;
+                                  const valueTone = isStatusKey
+                                    ? (strVal === 'failed' ? ' text-red-300' : strVal === 'partial' ? ' text-amber-300' : strVal === 'delivered' ? ' text-emerald-300' : '')
+                                    : '';
 
                                   const isMonetary = key === 'valor_mercancia' && !isNaN(Number(value));
                                   const isDateStr = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(strVal);
@@ -1012,7 +1036,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                                   return (
                                     <div key={key}>
                                       <p className="text-[10px] text-shuma-muted font-bold uppercase tracking-wider">{displayKey}</p>
-                                      <p className="text-sm text-shuma-text mt-0.5 font-medium" title={isUUID ? strVal : undefined}>{formattedValue}</p>
+                                      <p className={'text-sm text-shuma-text mt-0.5 font-medium' + valueTone} title={isUUID ? strVal : undefined}>{formattedValue}</p>
                                     </div>
                                   );
                                 })}

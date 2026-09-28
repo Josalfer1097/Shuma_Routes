@@ -51,9 +51,26 @@ export async function POST(req: NextRequest) {
     if (dErr || !delivery) {
       return NextResponse.json({ ok: false, error: 'Entrega no encontrada' }, { status: 404 });
     }
-    if (!delivery.is_pending) {
-      return NextResponse.json({ ok: false, error: 'Esta entrega ya no está en la bandeja. Actualiza la pantalla.' }, { status: 409 });
+    // Provisional = fallida o parcial en una ruta que aún no se cierra (se ve en la bandeja desde que ocurre)
+    const isProvisional = !delivery.is_pending;
+    if (isProvisional) {
+      if (!['failed', 'partial'].includes(delivery.status)) {
+        return NextResponse.json({ ok: false, error: 'Esta entrega ya no está pendiente. Actualiza la pantalla.' }, { status: 409 });
+      }
+      if (mode === 'tray') {
+        return NextResponse.json({ ok: false, error: 'Esta entrega todavía está en su ruta; no está en espera de planeación.' }, { status: 400 });
+      }
+      const { data: originRoute, error: oErr } = await supabaseAdmin
+        .from('routes')
+        .select('closure_status, is_latest')
+        .eq('id', delivery.route_id)
+        .single();
+      if (oErr || !originRoute || !originRoute.is_latest || originRoute.closure_status === 'approved') {
+        return NextResponse.json({ ok: false, error: 'La ruta de esta entrega ya se cerró. Actualiza la pantalla.' }, { status: 409 });
+      }
     }
+    // Una provisional cuenta como nuevo intento al sacarla de su ruta (las de la bandeja ya lo contaron al cerrar)
+    const attemptAfter = isProvisional ? (delivery.attempt_count || 1) + 1 : delivery.attempt_count;
 
     // Los parciales requieren saber cuántas piezas faltan antes de salir a ruta
     const qtyToSave = pendingQuantity ?? delivery.pending_quantity ?? null;
@@ -116,7 +133,8 @@ export async function POST(req: NextRequest) {
       const nextStop = (lastStop?.stop_order ?? 0) + 1;
 
       const qtyText = qtyToSave ? ` Faltan ${qtyToSave} piezas.` : '';
-      const reassignNote = `Reasignada desde bandeja de pendientes (intento ${delivery.attempt_count}).${qtyText}${note ? ` ${note}` : ''}`;
+      const reassignNote = 'Reasignada desde bandeja de pendientes' + (isProvisional ? ' (su ruta aún no se cerraba)' : '') +
+        ' (intento ' + attemptAfter + ').' + qtyText + (note ? ' ' + note : '');
 
       // 4. Mover la entrega (mismo id). La condición is_pending=true evita doble reasignación simultánea.
       const { data: moved, error: mErr } = await supabaseAdmin
@@ -132,13 +150,16 @@ export async function POST(req: NextRequest) {
           pending_quantity: qtyToSave,
           original_route_id: delivery.original_route_id ?? delivery.route_id,
           stop_order: nextStop,
+          attempt_count: attemptAfter,
           distance_m: null,
           eta_seconds: null,
           notes: reassignNote,
           updated_at: nowIso,
         })
         .eq('id', deliveryId)
-        .eq('is_pending', true)
+        // Evita doble movimiento simultáneo: sigue en el mismo estado en que se leyó
+        .eq('is_pending', !isProvisional)
+        .eq('status', delivery.status)
         .select('id');
 
       if (mErr) throw new Error(`Error moviendo la entrega: ${mErr.message}`);
@@ -166,9 +187,12 @@ export async function POST(req: NextRequest) {
           awaiting_planning: toPlanning,
           pending_quantity: qtyToSave,
           updated_at: nowIso,
+          // Una provisional enviada a planeación entra formalmente a la bandeja
+          ...(isProvisional ? { is_pending: true, attempt_count: attemptAfter, pending_since: nowIso } : {}),
         })
         .eq('id', deliveryId)
-        .eq('is_pending', true)
+        .eq('is_pending', !isProvisional)
+        .eq('status', delivery.status)
         .select('id');
 
       if (uErr) throw new Error(`Error actualizando la entrega: ${uErr.message}`);
@@ -208,7 +232,8 @@ export async function POST(req: NextRequest) {
         ruta_destino_id: mode === 'route' ? targetRouteId : null,
         ruta_destino: targetInfo ? (targetInfo.route_alias || targetInfo.route_code) : null,
         piezas_pendientes: qtyToSave,
-        intento: delivery.attempt_count,
+        intento: attemptAfter,
+        provisional: isProvisional,
         nota: note || null,
       },
       created_at: nowIso,

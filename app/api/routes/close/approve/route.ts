@@ -21,7 +21,9 @@ export async function POST(req: NextRequest) {
       .from('deliveries')
       .select('id, status, attempt_count')
       .eq('route_id', routeId)
-      .neq('status', 'delivered');
+      .neq('status', 'delivered')
+      // Las que ya se enviaron a la bandeja con la ruta abierta (provisionales) no se repiten
+      .eq('is_pending', false);
 
     if (candErr) throw new Error(`Error leyendo entregas de la ruta: ${candErr.message}`);
 
