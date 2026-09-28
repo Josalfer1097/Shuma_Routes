@@ -1,5 +1,6 @@
 'use client';
 
+import DeliveryPhotos from '@/components/attachments/DeliveryPhotos';
 import { useEffect, useState, useCallback, Fragment, useRef } from 'react';
 import { X, Download, ChevronRight, ChevronDown, LogIn, LogOut, Package, Truck, RotateCcw, Lock, AlertCircle, List, Settings } from 'lucide-react';
 
@@ -1036,7 +1037,11 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                                   return (
                                     <div key={key}>
                                       <p className="text-[10px] text-shuma-muted font-bold uppercase tracking-wider">{displayKey}</p>
-                                      <p className={'text-sm text-shuma-text mt-0.5 font-medium' + valueTone} title={isUUID ? strVal : undefined}>{formattedValue}</p>
+                                      {/* Sin text-shuma-text cuando hay color: esa clase tenía prioridad y dejaba "No entregada" en blanco */}
+                                      <p className={(valueTone ? 'text-sm mt-0.5 font-medium' : 'text-sm text-shuma-text mt-0.5 font-medium') + valueTone} title={isUUID ? strVal : undefined}>{formattedValue}</p>
+                                      {photoCount && Number(photoCount[1]) > 0 && log.entity_id && (
+                                        <div className="mt-2"><DeliveryPhotos deliveryId={log.entity_id} /></div>
+                                      )}
                                     </div>
                                   );
                                 })}

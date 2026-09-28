@@ -1,6 +1,11 @@
 {
   "updated": "2026-09-28",
   "items": [
+    { "type": "new", "text": "Nuevo Expediente en el menu: consulta las fotos y documentos de rutas y facturas, con filtros por factura, ruta, chofer, tipo y fecha" },
+    { "type": "new", "text": "En la bitacora, cada entrega con fotos tiene la opcion Ver fotos para revisarlas y ampliarlas" },
+    { "type": "improve", "text": "Las fotos de evidencia ahora se guardan de forma privada: solo se pueden ver con sesion iniciada" },
+    { "type": "fix", "text": "En la Bandeja de Pendientes vuelve a aparecer el signo de pesos en el valor de cada entrega" },
+    { "type": "fix", "text": "En la bitacora, el estado No entregada se ve en rojo" },
     { "type": "new", "text": "La Bandeja de Pendientes muestra desde el momento en que ocurren las entregas fallidas y parciales de rutas que siguen en curso, y se pueden reasignar sin esperar el cierre" },
     { "type": "improve", "text": "En la bitacora, las entregas fallidas se ven en rojo, las parciales en ambar y las completadas en verde, y los estados aparecen en español" },
     { "type": "new", "text": "En las notificaciones, al dar clic en el codigo de ruta se abre una ventana con las facturas de esa ruta y su estado" },

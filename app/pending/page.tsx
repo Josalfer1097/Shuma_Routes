@@ -183,7 +183,7 @@ export default function PendingPage() {
               {(item.provisional ? 'Ruta ' : 'De ') + routeLabel(item.origin)}
               {item.origin?.driver_name ? ` · ${item.origin.driver_name}` : ''}
               {(item.pending_since || item.updated_at) ? ' · ' + sinceText(item.pending_since || item.updated_at || null) : ''}
-              {item.merchandise_value ? ` · ${Number(item.merchandise_value).toLocaleString('es-MX')}` : ''}
+              {item.merchandise_value ? ' · $' + Number(item.merchandise_value).toLocaleString('es-MX') : ''}
             </p>
             {item.notes ? <p className="text-xs text-slate-400 mt-1 italic">“{item.notes}”</p> : null}
           </div>

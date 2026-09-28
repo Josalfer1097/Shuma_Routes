@@ -22,7 +22,8 @@ import LeftOutPanel from '@/components/dispatcher/LeftOutPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { Suspense } from 'react';
-import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw, Search, Truck, Inbox } from 'lucide-react';
+import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw, Search, Truck, Inbox, FolderOpen } from 'lucide-react';
+import ExpedienteModal from '@/components/attachments/ExpedienteModal';
 import { useEasterEgg } from '@/hooks/useEasterEgg';
 import EasterEggOverlay from '@/components/EasterEggOverlay';
 import Image from 'next/image';
@@ -377,6 +378,7 @@ function DispatcherPageContent() {
   };
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [isExpedienteOpen, setIsExpedienteOpen] = useState(false);
   const [auditEntityId, setAuditEntityId] = useState<string | undefined>(undefined);
 
   // ── Map Search ──
@@ -1697,6 +1699,7 @@ function DispatcherPageContent() {
                           { icon: <History size={14} />, label: 'Histórico', href: '/history' },
                           { icon: <Inbox size={14} />, label: 'Pendientes', href: '/pending' },
                           { icon: <Search size={14} />, label: 'Bitácora', action: () => { setIsAuditModalOpen(true); setIsMoreMenuOpen(false); } },
+                          { icon: <FolderOpen size={14} />, label: 'Expediente', action: () => { setIsExpedienteOpen(true); setIsMoreMenuOpen(false); } },
                           { 
                             icon: (
                               <div className="relative">
@@ -4011,6 +4014,8 @@ function DispatcherPageContent() {
       )}
 
       <ShortcutsModal isOpen={isShortcutsModalOpen} onClose={() => setIsShortcutsModalOpen(false)} />
+
+      <ExpedienteModal isOpen={isExpedienteOpen} onClose={() => setIsExpedienteOpen(false)} />
 
       <AuditLogModal 
         isOpen={isAuditModalOpen}
