@@ -169,6 +169,8 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   const [filterUser, setFilterUser]     = useState('');
   const [dateFrom, setDateFrom]         = useState('');
   const [filterEntityId, setFilterEntityId] = useState(initialEntityId || '');
+  // searchInput = lo que se escribe; searchText = búsqueda aplicada (con pausa de 300 ms)
+  const [searchInput, setSearchInput] = useState('');
   const [searchText, setSearchText]   = useState('');
   const [dateTo, setDateTo]           = useState('');
   const [totalCount, setTotalCount]   = useState(0);
@@ -181,6 +183,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   const [timeTo, setTimeTo]       = useState('');
   const [newLogsCount, setNewLogsCount] = useState(0);
   const lastLogIdRef = useRef<string | null>(null);
+  const fetchAbortRef = useRef<AbortController | null>(null);
   const PAGE_SIZE = 50; // registros por página
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
@@ -295,6 +298,11 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   };
 
   const fetchLogs = useCallback(async () => {
+    // Cancela la consulta anterior: sin esto, al escribir y borrar rápido una respuesta
+    // vieja podía llegar al final y dejar pegado un filtro que ya no estaba en pantalla
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
     setLoading(true);
     setError(null);
     try {
@@ -312,18 +320,43 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
       params.set('limit', String(PAGE_SIZE));
       params.set('offset', String((currentPage - 1) * PAGE_SIZE));
 
-      const res  = await fetch(`/api/audit?${params.toString()}`, { credentials: 'include' });
+      const res  = await fetch('/api/audit?' + params.toString(), { credentials: 'include', signal: controller.signal });
       const json = await res.json();
       if (!json.ok) throw new Error('Error al cargar bitácora');
       setLogs(json.data || []);
       setTotalCount(json.total || 0);
       if (json.data?.[0]?.id) lastLogIdRef.current = json.data[0].id;
     } catch (err) {
+      if (controller.signal.aborted) return; // la reemplazó una consulta más nueva
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
-      setLoading(false);
+      if (fetchAbortRef.current === controller) setLoading(false);
     }
   }, [filterModule, filterUser, dateFrom, filterEntityId, searchText, dateTo, currentPage, actionType, timeFrom, timeTo]);
+
+  // Aplica lo escrito en el buscador tras una pausa de 300 ms (antes se consultaba en cada tecla)
+  useEffect(() => {
+    const t = setTimeout(() => setSearchText(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const hasActiveFilters = Boolean(
+    filterModule || filterUser || dateFrom || dateTo || filterEntityId || searchInput || actionType || timeFrom || timeTo
+  );
+
+  const clearAllFilters = () => {
+    setFilterModule('');
+    setFilterUser('');
+    setDateFrom('');
+    setFilterEntityId('');
+    setSearchInput('');
+    setSearchText('');
+    setDateTo('');
+    setActionType('');
+    setTimeFrom('');
+    setTimeTo('');
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     if (isOpen && userRole === 'admin') {
@@ -557,14 +590,26 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 
               {/* Fila 1: buscador full-text (ocupa todo el ancho) */}
-              <input
-                type="text"
-                placeholder="🔍 Buscar... o usar usuario:admin módulo:rutas"
-                value={searchText}
-                onChange={e => setSearchText(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && fetchLogs()}
-                className="w-full px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-accent/40 text-xs text-shuma-text placeholder:text-shuma-muted focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="🔍 Buscar... o usar usuario:admin módulo:rutas"
+                  value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') setSearchText(searchInput.trim()); }}
+                  className="w-full pl-3 pr-8 py-2 rounded-lg bg-shuma-bg border border-shuma-accent/40 text-xs text-shuma-text placeholder:text-shuma-muted focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                />
+                {searchInput && (
+                  <button
+                    onClick={() => { setSearchInput(''); setSearchText(''); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-shuma-muted hover:text-white text-sm leading-none"
+                    aria-label="Borrar búsqueda"
+                    title="Borrar búsqueda"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
 
               {/* Fila 2: Módulo · Desde · Hasta · Exportar · Limpiar */}
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -730,29 +775,30 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
 
                 {/* Limpiar */}
                 <button
-                  onClick={() => {
-                    setFilterModule('');
-                    setFilterUser('');
-                    setDateFrom('');
-                    setFilterEntityId('');
-                    setSearchText('');
-                    setDateTo('');
-                    setActionType('');
-                    setTimeFrom('');
-                    setTimeTo('');
-                  }}
+                  onClick={clearAllFilters}
                   className="px-3 py-2 rounded-lg bg-blue-600/20 border border-blue-500/30 text-xs text-blue-400 hover:bg-blue-600/30 transition-colors"
                 >
-                  Limpiar
+                  Limpiar filtros
                 </button>
               </div>
             </div>
           </div>
 
-          {totalCount > 0 && (
+          {/* También con 0 resultados si hay filtros: es cuando más se necesita "Quitar filtros" */}
+          {(totalCount > 0 || hasActiveFilters) && (
             <div className="px-4 py-1.5 bg-shuma-surface/50 border-b border-shuma-border/30 text-[11px] text-shuma-muted font-medium">
-              {totalCount} registro{totalCount !== 1 ? 's' : ''} encontrado{totalCount !== 1 ? 's' : ''}
+              {totalCount > 0
+                ? totalCount + ' registro' + (totalCount !== 1 ? 's' : '') + ' encontrado' + (totalCount !== 1 ? 's' : '')
+                : 'Sin resultados con estos filtros'}
               {searchText && <span className="text-blue-400 ml-1">· búsqueda: &quot;{searchText}&quot;</span>}
+              {hasActiveFilters && (
+                <button
+                  onClick={clearAllFilters}
+                  className="ml-2 text-amber-300 hover:text-white underline underline-offset-2"
+                >
+                  × Quitar filtros
+                </button>
+              )}
             </div>
           )}
 
@@ -847,6 +893,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                             style={{ width: colWidths.usuario, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
                             title={`Filtrar por ${log.user_name}`}
                             onClick={() => {
+                              setSearchInput(log.user_name);
                               setSearchText(log.user_name);
                               setCurrentPage(1);
                             }}

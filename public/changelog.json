@@ -1,6 +1,9 @@
 {
   "updated": "2026-09-28",
   "items": [
+    { "type": "new", "text": "En las notificaciones, al dar clic en el codigo de ruta se abre una ventana con las facturas de esa ruta y su estado" },
+    { "type": "fix", "text": "En la bitacora, al borrar una busqueda los resultados ya no se quedan con el filtro anterior" },
+    { "type": "improve", "text": "La bitacora tiene un boton para borrar la busqueda y la opcion Quitar filtros junto al numero de resultados" },
     { "type": "improve", "text": "Un solo boton Continuar para confirmar las paradas del Excel" },
     { "type": "fix", "text": "El panel de configuracion se queda abierto al terminar de ubicar las direcciones" },
     { "type": "fix", "text": "Si agregas choferes despues de cargar las direcciones, las zonas se recalculan para incluirlos" },

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Bell, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import RouteInvoicesPopover from './RouteInvoicesPopover';
 
 interface Notification {
   id: string;
@@ -29,6 +30,8 @@ export default function NotificationBell({
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Ruta cuyas facturas se muestran en la ventana flotante (desde el código de ruta)
+  const [popoverRouteCode, setPopoverRouteCode] = useState<string | null>(null);
   const [isReminderPulse, setIsReminderPulse] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
 
@@ -302,7 +305,17 @@ export default function NotificationBell({
                             value ? (
                               <div key={key} className="flex justify-between gap-2">
                                 <span className="text-shuma-muted capitalize">{key.replace(/_/g, ' ')}:</span>
-                                <span className="text-white text-right">{String(value)}</span>
+                                {key === 'ruta_code' && targetRole === 'admin' ? (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setPopoverRouteCode(String(value)); }}
+                                    className="text-blue-400 hover:text-blue-300 underline underline-offset-2 text-right"
+                                    title="Ver las facturas de esta ruta"
+                                  >
+                                    {String(value)}
+                                  </button>
+                                ) : (
+                                  <span className="text-white text-right">{String(value)}</span>
+                                )}
                               </div>
                             ) : null
                           ))}
@@ -360,6 +373,9 @@ export default function NotificationBell({
             )}
           </div>
         </div>
+      )}
+      {popoverRouteCode && (
+        <RouteInvoicesPopover routeCode={popoverRouteCode} onClose={() => setPopoverRouteCode(null)} />
       )}
     </div>
   );
