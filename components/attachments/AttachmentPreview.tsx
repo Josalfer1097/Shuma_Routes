@@ -1,17 +1,43 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ExternalLink, FileText, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, FileText, X } from 'lucide-react';
 import { CATEGORY_LABEL, formatBytes, formatDateMx, isImage, type AttachmentItem } from './types';
 
-/** Vista ampliada de un adjunto. Se cierra con Esc, con clic afuera o con la ×. */
-export default function AttachmentPreview({ item, onClose }: { item: AttachmentItem; onClose: () => void }) {
+/**
+ * Vista ampliada de uno o varios adjuntos (por ejemplo, todas las fotos de una factura).
+ * Se recorre con las flechas de pantalla o del teclado; se cierra con Esc, clic afuera o ×.
+ */
+export default function AttachmentPreview({
+  items,
+  startIndex = 0,
+  onClose,
+}: {
+  items: AttachmentItem[];
+  startIndex?: number;
+  onClose: () => void;
+}) {
+  const [index, setIndex] = useState(Math.min(Math.max(startIndex, 0), items.length - 1));
+  const item = items[index];
+  const many = items.length > 1;
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight' && many) setIndex(i => (i + 1) % items.length);
+      if (e.key === 'ArrowLeft' && many) setIndex(i => (i - 1 + items.length) % items.length);
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, many, items.length]);
+
+  if (!item) return null;
+
+  const go = (delta: number) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIndex(i => (i + delta + items.length) % items.length);
+  };
 
   return createPortal(
     <div
@@ -24,7 +50,9 @@ export default function AttachmentPreview({ item, onClose }: { item: AttachmentI
       <div className="max-w-4xl w-full max-h-full flex flex-col gap-3" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 text-slate-200">
           <div className="min-w-0">
-            <p className="text-sm font-semibold truncate">{item.invoice ? 'Factura ' + item.invoice : item.file_name}</p>
+            <p className="text-sm font-semibold truncate">
+              {(item.invoice ? 'Factura ' + item.invoice : item.file_name) + (many ? ' · ' + (index + 1) + ' de ' + items.length : '')}
+            </p>
             <p className="text-[11px] text-slate-400">
               {CATEGORY_LABEL[item.category] + ' · ' + formatDateMx(item.created_at) + ' · ' + item.uploaded_by_name +
                 (item.route_code ? ' · ' + item.route_code : '') + ' · ' + formatBytes(item.size_bytes)}
@@ -42,12 +70,22 @@ export default function AttachmentPreview({ item, onClose }: { item: AttachmentI
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 flex items-center justify-center">
+        <div className="relative flex-1 min-h-0 flex items-center justify-center">
+          {many && (
+            <button
+              onClick={go(-1)}
+              className="absolute left-0 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black/80"
+              aria-label="Anterior"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+
           {!item.url ? (
             <p className="text-sm text-red-300">No se pudo generar la liga de este archivo. Cierra y vuelve a abrir.</p>
           ) : isImage(item) ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={item.url} alt={item.file_name} className="max-h-[75vh] max-w-full object-contain rounded-lg" />
+            <img key={item.id} src={item.url} alt={item.file_name} className="max-h-[75vh] max-w-full object-contain rounded-lg" />
           ) : (
             <a
               href={item.url}
@@ -60,7 +98,30 @@ export default function AttachmentPreview({ item, onClose }: { item: AttachmentI
               <span className="text-xs text-blue-300">Abrir el PDF</span>
             </a>
           )}
+
+          {many && (
+            <button
+              onClick={go(1)}
+              className="absolute right-0 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black/80"
+              aria-label="Siguiente"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
         </div>
+
+        {many && (
+          <div className="flex justify-center gap-1.5">
+            {items.map((it, i) => (
+              <button
+                key={it.id}
+                onClick={e => { e.stopPropagation(); setIndex(i); }}
+                className={'h-1.5 rounded-full transition-all ' + (i === index ? 'w-5 bg-blue-400' : 'w-1.5 bg-slate-500 hover:bg-slate-300')}
+                aria-label={'Ver archivo ' + (i + 1)}
+              />
+            ))}
+          </div>
+        )}
         <p className="text-[10px] text-slate-500 text-center">La liga de este archivo caduca en unos minutos por seguridad.</p>
       </div>
     </div>,

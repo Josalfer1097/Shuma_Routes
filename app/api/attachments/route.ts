@@ -5,7 +5,7 @@ import { signPaths } from '@/lib/attachments';
 
 /**
  * GET /api/attachments — consulta del Expediente.
- * Filtros: deliveryId, routeId, q (factura o código de ruta), driverId, category,
+ * Filtros: deliveryId, routeId, q (factura o código de ruta), driverId, category, format (image | pdf),
  * from / to (AAAA-MM-DD), includeArchived=1, limit (máx. 100), offset.
  * Cada archivo trae una liga temporal (caduca en minutos), nunca una pública.
  */
@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     const q = (sp.get('q') || '').replace(/[,()%]/g, '').trim();
     const driverId = sp.get('driverId');
     const category = sp.get('category');
+    const format = sp.get('format');
     const from = sp.get('from');
     const to = sp.get('to');
     const includeArchived = sp.get('includeArchived') === '1';
@@ -39,6 +40,8 @@ export async function GET(req: NextRequest) {
     if (deliveryId) query = query.eq('delivery_id', deliveryId);
     if (routeId) query = query.eq('route_id', routeId);
     if (category) query = query.eq('category', category);
+    if (format === 'image') query = query.like('mime_type', 'image/%');
+    if (format === 'pdf') query = query.eq('mime_type', 'application/pdf');
     if (from) query = query.gte('created_at', from + 'T00:00:00-06:00');
     if (to) query = query.lte('created_at', to + 'T23:59:59-06:00');
 

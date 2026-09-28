@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FolderOpen, X } from 'lucide-react';
 import AttachmentThumb from './AttachmentThumb';
@@ -8,6 +8,14 @@ import AttachmentPreview from './AttachmentPreview';
 import { CATEGORY_LABEL, formatDateMx, type AttachmentItem } from './types';
 
 interface DriverOption { id: string; name: string }
+
+/** Archivos de una misma entrega (o factura) se muestran como un tarjetero. */
+function groupKey(it: AttachmentItem): string {
+  if (it.delivery_id) return 'delivery:' + it.delivery_id;
+  if (it.invoice) return 'invoice:' + it.invoice;
+  if (it.route_id) return 'route:' + it.route_id;
+  return 'file:' + it.id;
+}
 
 const PAGE_SIZE = 48;
 
@@ -20,6 +28,7 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
   const [q, setQ] = useState('');
   const [driverId, setDriverId] = useState('');
   const [category, setCategory] = useState('');
+  const [format, setFormat] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
@@ -28,7 +37,7 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
-  const [preview, setPreview] = useState<AttachmentItem | null>(null);
+  const [preview, setPreview] = useState<{ items: AttachmentItem[]; index: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // Búsqueda con pausa de 300 ms
@@ -48,6 +57,7 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
       if (q) params.set('q', q);
       if (driverId) params.set('driverId', driverId);
       if (category) params.set('category', category);
+      if (format) params.set('format', format);
       if (from) params.set('from', from);
       if (to) params.set('to', to);
       const res = await fetch('/api/attachments?' + params.toString(), { credentials: 'include', signal: controller.signal });
@@ -61,7 +71,7 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
     } finally {
       if (abortRef.current === controller) setLoading(false);
     }
-  }, [q, driverId, category, from, to]);
+  }, [q, driverId, category, format, from, to]);
 
   useEffect(() => {
     if (isOpen) void load(0);
@@ -82,10 +92,20 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
     return () => document.removeEventListener('keydown', onKey);
   }, [isOpen, onClose, preview]);
 
+  // Agrupa conservando el orden (lo más reciente primero)
+  const groups = useMemo(() => {
+    const map = new Map<string, AttachmentItem[]>();
+    items.forEach(it => {
+      const k = groupKey(it);
+      map.set(k, [...(map.get(k) || []), it]);
+    });
+    return Array.from(map.values());
+  }, [items]);
+
   if (!isOpen) return null;
 
-  const hasFilters = Boolean(qInput || driverId || category || from || to);
-  const clearFilters = () => { setQInput(''); setQ(''); setDriverId(''); setCategory(''); setFrom(''); setTo(''); };
+  const hasFilters = Boolean(qInput || driverId || category || format || from || to);
+  const clearFilters = () => { setQInput(''); setQ(''); setDriverId(''); setCategory(''); setFormat(''); setFrom(''); setTo(''); };
   const inputCls = 'px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text focus:outline-none focus:border-blue-400';
 
   return createPortal(
@@ -108,12 +128,12 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
           </button>
         </div>
 
-        <div className="px-5 py-3 border-b border-shuma-border grid gap-2 sm:grid-cols-5">
+        <div className="px-5 py-3 border-b border-shuma-border grid gap-2 grid-cols-2 lg:grid-cols-7">
           <input
             value={qInput}
             onChange={e => setQInput(e.target.value)}
             placeholder="Factura o código de ruta"
-            className={inputCls + ' sm:col-span-2'}
+            className={inputCls + ' col-span-2'}
           />
           <select value={driverId} onChange={e => setDriverId(e.target.value)} className={inputCls}>
             <option value="">Todos los choferes</option>
@@ -125,14 +145,21 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
               <option key={k} value={k}>{CATEGORY_LABEL[k]}</option>
             ))}
           </select>
-          <div className="flex gap-2">
+          <select value={format} onChange={e => setFormat(e.target.value)} className={inputCls}>
+            <option value="">Todos los formatos</option>
+            <option value="image">Fotos</option>
+            <option value="pdf">PDF</option>
+          </select>
+          <div className="flex gap-2 col-span-2">
             <input type="date" value={from} onChange={e => setFrom(e.target.value)} className={inputCls + ' min-w-0 flex-1'} aria-label="Desde" />
             <input type="date" value={to} onChange={e => setTo(e.target.value)} className={inputCls + ' min-w-0 flex-1'} aria-label="Hasta" />
           </div>
         </div>
 
         <div className="px-5 py-1.5 text-[11px] text-shuma-muted border-b border-shuma-border/50">
-          {loading && items.length === 0 ? 'Cargando…' : total + (total === 1 ? ' archivo' : ' archivos')}
+          {loading && items.length === 0
+            ? 'Cargando…'
+            : total + (total === 1 ? ' archivo' : ' archivos') + (groups.length > 0 && groups.length < items.length ? ' · ' + groups.length + ' grupos' : '')}
           {hasFilters && (
             <button onClick={clearFilters} className="ml-2 text-amber-300 hover:text-white underline underline-offset-2">
               × Quitar filtros
@@ -148,16 +175,38 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
             </p>
           )}
           <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
-            {items.map(it => (
-              <div key={it.id} className="rounded-xl border border-shuma-border bg-shuma-surface p-2 flex flex-col gap-2">
-                <AttachmentThumb item={it} size={134} onOpen={() => setPreview(it)} />
-                <div className="min-w-0">
-                  <p className="text-[11px] text-white truncate">{it.invoice ? 'Factura ' + it.invoice : it.file_name}</p>
-                  <p className="text-[10px] text-shuma-muted truncate">{(it.route_code || 'Sin ruta') + (it.driver_name ? ' · ' + it.driver_name : '')}</p>
-                  <p className="text-[10px] text-shuma-muted truncate">{CATEGORY_LABEL[it.category] + ' · ' + formatDateMx(it.created_at)}</p>
+            {groups.map(group => {
+              const first = group[0];
+              const many = group.length > 1;
+              return (
+                <div key={groupKey(first)} className="rounded-xl border border-shuma-border bg-shuma-surface p-2 flex flex-col gap-2">
+                  {/* Tarjetero: capas detrás de la miniatura cuando la factura tiene varios archivos */}
+                  <div className={'relative ' + (many ? 'mr-2 mt-2' : '')}>
+                    {many && (
+                      <>
+                        <div className="absolute inset-0 translate-x-2 -translate-y-2 rotate-3 rounded-lg border border-shuma-border bg-slate-700/70" />
+                        <div className="absolute inset-0 translate-x-1 -translate-y-1 rotate-1 rounded-lg border border-shuma-border bg-slate-800" />
+                      </>
+                    )}
+                    <div className="relative">
+                      <AttachmentThumb item={first} size={many ? 126 : 134} onOpen={() => setPreview({ items: group, index: 0 })} />
+                      {many && (
+                        <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-semibold shadow">
+                          {group.length}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-white truncate">{first.invoice ? 'Factura ' + first.invoice : first.file_name}</p>
+                    <p className="text-[10px] text-shuma-muted truncate">{(first.route_code || 'Sin ruta') + (first.driver_name ? ' · ' + first.driver_name : '')}</p>
+                    <p className="text-[10px] text-shuma-muted truncate">
+                      {(many ? group.length + ' archivos · ' : CATEGORY_LABEL[first.category] + ' · ') + formatDateMx(first.created_at)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           {items.length < total && (
             <div className="flex justify-center pt-4">
@@ -172,7 +221,7 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
           )}
         </div>
       </div>
-      {preview && <AttachmentPreview item={preview} onClose={() => setPreview(null)} />}
+      {preview && <AttachmentPreview items={preview.items} startIndex={preview.index} onClose={() => setPreview(null)} />}
     </div>,
     document.body
   );

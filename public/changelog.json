@@ -1,6 +1,9 @@
 {
   "updated": "2026-09-28",
   "items": [
+    { "type": "improve", "text": "En el Expediente, los archivos de una misma factura se agrupan como tarjetas apiladas con su contador" },
+    { "type": "improve", "text": "Al abrir una factura con varios archivos se recorren con flechas, en pantalla o con el teclado" },
+    { "type": "new", "text": "Nuevo filtro por formato en el Expediente: fotos o PDF" },
     { "type": "new", "text": "Nuevo Expediente en el menu: consulta las fotos y documentos de rutas y facturas, con filtros por factura, ruta, chofer, tipo y fecha" },
     { "type": "new", "text": "En la bitacora, cada entrega con fotos tiene la opcion Ver fotos para revisarlas y ampliarlas" },
     { "type": "improve", "text": "Las fotos de evidencia ahora se guardan de forma privada: solo se pueden ver con sesion iniciada" },

@@ -13,7 +13,7 @@ export default function DeliveryPhotos({ deliveryId }: { deliveryId: string }) {
   const [items, setItems] = useState<AttachmentItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<AttachmentItem | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -52,11 +52,13 @@ export default function DeliveryPhotos({ deliveryId }: { deliveryId: string }) {
   return (
     <div onClick={e => e.stopPropagation()}>
       <div className="flex flex-wrap gap-2">
-        {items.map(it => (
-          <AttachmentThumb key={it.id} item={it} onOpen={() => setPreview(it)} />
+        {items.map((it, i) => (
+          <AttachmentThumb key={it.id} item={it} onOpen={() => setPreviewIndex(i)} />
         ))}
       </div>
-      {preview && <AttachmentPreview item={preview} onClose={() => setPreview(null)} />}
+      {previewIndex !== null && (
+        <AttachmentPreview items={items} startIndex={previewIndex} onClose={() => setPreviewIndex(null)} />
+      )}
     </div>
   );
 }
