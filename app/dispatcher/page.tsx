@@ -17,7 +17,7 @@ import ReportButton from '@/components/dispatcher/ReportButton';
 import WeatherBanner from '@/components/dispatcher/WeatherBanner';
 import SlideOver from '@/components/dispatcher/SlideOver';
 import { clusterDeliveries, clusterDeliveriesWithDiagnostics } from '@/lib/clustering';
-import type { Cluster, GlobalConfig, ClusteringConfig, Stop, LeftOutStop } from '@/types';
+import type { Cluster, GlobalConfig, ClusteringConfig, Stop, LeftOutStop, ErpReviewControls } from '@/types';
 import LeftOutPanel from '@/components/dispatcher/LeftOutPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
@@ -930,6 +930,21 @@ function DispatcherPageContent() {
     window.location.href = '/';
   };
   const [numClusters, setNumClusters] = useState<number>(1);
+
+  // Si cambia el número de choferes después de ubicar las direcciones, las zonas se recalculan.
+  // Antes el número de zonas se fijaba al terminar de ubicar: un chofer agregado después
+  // no recibía zona y se quedaba sin ruta.
+  const prevVehicleCountRef = useRef(state.vehicles.length);
+  useEffect(() => {
+    const count = state.vehicles.length;
+    if (count === prevVehicleCountRef.current) return;
+    prevVehicleCountRef.current = count;
+    if (count === 0 || state.routes.length > 0) return;
+    if (!state.addresses.some(a => a.lat !== null && a.lng !== null)) return;
+    setNumClusters(count);
+    const result = clusterDeliveriesWithDiagnostics(state.addresses, state.vehicles, state.clusteringConfig);
+    dispatch({ type: 'SET_CLUSTERS', payload: result.clusters });
+  }, [state.vehicles, state.addresses, state.routes.length, state.clusteringConfig]);
   const [showInlineVehicleForm, setShowInlineVehicleForm] = useState(false);
   const [hiddenRouteIds, setHiddenRouteIds] = useState<string[]>([]);
 
@@ -950,7 +965,8 @@ function DispatcherPageContent() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [blockingAction, setBlockingAction] = useState<string | null>(null);
-  const [erpReviewActive, setErpReviewActive] = useState(false);
+  // Control de la revisión del Excel: el botón CONTINUAR del pie confirma las paradas
+  const [erpReview, setErpReview] = useState<ErpReviewControls | null>(null);
 
   // Paradas que la revisión del Excel dejó fuera; se guardan por pestaña para no perderlas al recargar
   const [reviewLeftOut, setReviewLeftOutState] = useState<LeftOutStop[]>(() => {
@@ -1152,20 +1168,20 @@ function DispatcherPageContent() {
     
     dispatch({ type: 'SET_STEP', payload: 'zones' });
     setActiveTabPersisted('zones');
-    setIsSlideOverOpen(false);
+    // El panel se queda abierto en Zonas: cerrarlo obligaba a abrirlo de nuevo para seguir
+    setIsSlideOverOpen(true);
 
     // Si todas las direcciones fallaron, mostramos un error global
     const successCount = updatedAddresses.filter(a => a.lat !== null).length;
     if (successCount === 0 && updatedAddresses.length > 0) {
       dispatch({ 
         type: 'SET_ERROR', 
-        payload: 'No se pudo geocodificar ninguna dirección. Verifica tu API Key de Google (Geocoding API habilitada y sin restricciones de referrer).' 
+        payload: 'No se pudo ubicar ninguna dirección. Verifica que la llave de Google tenga habilitadas Geocoding API y Maps JavaScript API, y que el sitio esté permitido en sus restricciones.' 
       });
     } else if (successCount > 0) {
       setGeocodingDone(true);
       setTimeout(() => {
         setGeocodingDone(false);
-        setIsSlideOverOpen(false);
         setActiveTabPersisted('zones');
       }, 2000);
     }
@@ -3100,15 +3116,26 @@ function DispatcherPageContent() {
                     </button>
                   )}
                 </div>
-              ) : (
-                <button
-                  className="so-btn-success ml-auto"
-                  disabled={true}
-                  title={erpReviewActive ? 'Primero confirma la revisión del Excel' : 'Primero carga las direcciones'}
-                >
-                  {/* Con la revisión del Excel abierta, el paso siguiente es su propio botón */}
-                  {erpReviewActive ? 'Confirma las paradas arriba ↑' : 'Continuar a Zonas →'}
-                </button>
+              ) : erpReview ? (
+                  // Un solo botón para seguir: confirma la revisión del Excel (antes había dos)
+                  <button
+                    className="so-btn-success ml-auto"
+                    disabled={!erpReview.canConfirm}
+                    onClick={() => erpReview.confirm()}
+                    title={erpReview.canConfirm
+                      ? 'Se enviarán ' + erpReview.summary
+                      : erpReview.blocking + ' parada(s) necesitan dirección: corrígelas o exclúyelas'}
+                  >
+                    Continuar
+                  </button>
+                ) : (
+                  <button
+                    className="so-btn-success ml-auto"
+                    disabled={true}
+                    title="Primero carga las direcciones"
+                  >
+                    Continuar a Zonas →
+                  </button>
               )}
             </>
           ) : activeTab === 'zones' ? (
@@ -3263,7 +3290,7 @@ function DispatcherPageContent() {
           <div className="space-y-4">
             <CSVUploader
               onAddressesLoaded={handleAddressesLoaded}
-              onReviewChange={setErpReviewActive}
+              onReviewChange={setErpReview}
               disabled={!state.globalConfig}
               persistedAddresses={state.addresses}
               persistedFileName={state.addresses.length > 0 ? `${state.addresses.length} direcciones cargadas` : undefined}

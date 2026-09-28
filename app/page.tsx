@@ -19,7 +19,7 @@ export default function HomePage() {
   const [sysServices, setSysServices] = useState<Record<string, ServiceStatus> | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
-  const [sessionExpired, setSessionExpired] = useState(false);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const [changelog, setChangelog] = useState<{
     updated: string;
     items: Array<{ type: string; text: string }>;
@@ -96,10 +96,16 @@ export default function HomePage() {
   useEffect(() => {
     // Aviso cuando se llega aquí porque la sesión del servidor terminó
     const params = new URLSearchParams(window.location.search);
-    if (params.get('sesion') === 'expirada') {
-      setSessionExpired(true);
-      window.history.replaceState(null, '', window.location.pathname);
+    const reason = params.get('sesion');
+    if (reason === 'expirada') {
+      setSessionNotice('Tu sesión terminó. Vuelve a iniciar sesión para continuar.');
+    } else if (reason === 'otra-cuenta') {
+      setSessionNotice(
+        'Se inició sesión con otra cuenta en otra pestaña de este navegador. Solo puede haber una sesión por navegador: ' +
+        'para usar administrador y chofer a la vez, abre uno de los dos en una ventana de incógnito o en otro navegador.'
+      );
     }
+    if (reason) window.history.replaceState(null, '', window.location.pathname);
 
     // Verificar sesión ANTES de mostrar el selector, para evitar el parpadeo
     const auth = sessionStorage.getItem('shuma_auth');
@@ -120,14 +126,14 @@ export default function HomePage() {
       className="min-h-screen flex items-center justify-center bg-shuma-bg px-4 py-8"
       style={leaving ? { animation: 'pageFadeOut 0.3s ease forwards' } : undefined}
     >
-      {sessionExpired && (
+      {sessionNotice && (
         <div
           role="status"
           className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[calc(100%-2rem)] px-4 py-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 text-sm text-center backdrop-blur"
         >
-          Tu sesión terminó. Vuelve a iniciar sesión para continuar.
+          {sessionNotice}
           <button
-            onClick={() => setSessionExpired(false)}
+            onClick={() => setSessionNotice(null)}
             className="ml-2 text-amber-300 hover:text-white"
             aria-label="Cerrar aviso"
           >
@@ -529,7 +535,7 @@ export default function HomePage() {
             e.currentTarget.style.borderColor = changelog ? 'rgba(33,150,243,0.2)' : 'transparent';
           }}
         >
-          v7.45.2{changelog ? ' · Ver novedades  ' : ''}
+          v7.45.3{changelog ? ' · Ver novedades  ' : ''}
         </button>
         <style>{`
           @keyframes rgbRoll {
@@ -592,7 +598,7 @@ export default function HomePage() {
                   fontSize: 16, fontWeight: 700, color: '#E8EFF8',
                   fontFamily: "'Exo 2', sans-serif", margin: 0,
                 }}>
-                  🌟 Novedades v7.45.2
+                  🌟 Novedades v7.45.3
                 </h2>
                 <p style={{
                   fontSize: 11, color: '#5B7BA0', margin: '4px 0 0',

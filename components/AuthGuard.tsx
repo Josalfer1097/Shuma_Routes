@@ -22,7 +22,7 @@ function installSessionExpiryHandler(): void {
 
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const res = await originalFetch(input, init);
-    if (res.status !== 401 || redirecting) return res;
+    if ((res.status !== 401 && res.status !== 403) || redirecting) return res;
 
     const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     let url: URL;
@@ -36,13 +36,52 @@ function installSessionExpiryHandler(): void {
     const isAuthEndpoint = url.pathname.startsWith('/api/auth/');
     const hadLocalSession = sessionStorage.getItem('shuma_auth') === '1';
 
-    if (isOwnApi && !isAuthEndpoint && hadLocalSession) {
+    if (!isOwnApi || isAuthEndpoint || !hadLocalSession) return res;
+
+    if (res.status === 401) {
       redirecting = true;
       LOCAL_SESSION_KEYS.forEach(k => sessionStorage.removeItem(k));
       window.location.replace('/?sesion=expirada');
+      return res;
+    }
+
+    // 403 con otro rol activo en el navegador: se inició sesión con otra cuenta en otra pestaña.
+    // Un 403 normal (acción no permitida para este rol) se deja pasar.
+    if (hasSessionConflict()) {
+      redirecting = true;
+      LOCAL_SESSION_KEYS.forEach(k => sessionStorage.removeItem(k));
+      window.location.replace('/?sesion=otra-cuenta');
     }
     return res;
   };
+}
+
+/** Rol dueño de la cookie de sesión; lo escribe LoginScreen solo al iniciar sesión. */
+const SESSION_ROLE_KEY = 'shuma_session_role';
+
+/** El navegador tiene una sola cookie de sesión: el último inicio de sesión gana en todas las pestañas. */
+function hasSessionConflict(): boolean {
+  const thisTabRole = sessionStorage.getItem('shuma_role');
+  const browserRole = localStorage.getItem(SESSION_ROLE_KEY);
+  return Boolean(thisTabRole && browserRole && thisTabRole !== browserRole);
+}
+
+/**
+ * Avisa en cuanto otra pestaña inicia sesión con otro rol (por ejemplo, chofer mientras
+ * esta pestaña es de administrador). Antes la pestaña seguía abierta y todo fallaba con 403.
+ */
+function installSessionConflictWatcher(): void {
+  const w = window as Window & { __shumaConflictWatcher?: boolean };
+  if (w.__shumaConflictWatcher) return;
+  w.__shumaConflictWatcher = true;
+
+  window.addEventListener('storage', e => {
+    if (e.key !== SESSION_ROLE_KEY || !e.newValue) return;
+    if (sessionStorage.getItem('shuma_auth') !== '1') return;
+    if (!hasSessionConflict()) return;
+    LOCAL_SESSION_KEYS.forEach(k => sessionStorage.removeItem(k));
+    window.location.replace('/?sesion=otra-cuenta');
+  });
 }
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -52,6 +91,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     installSessionExpiryHandler();
+    installSessionConflictWatcher();
   }, []);
 
   useEffect(() => {

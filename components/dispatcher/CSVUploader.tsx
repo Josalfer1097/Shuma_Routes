@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState, useEffect } from 'react';
 import Papa from 'papaparse';
-import type { Address, LeftOutStop } from '@/types';
+import type { Address, ErpReviewControls, LeftOutStop } from '@/types';
 import { nanoid } from 'nanoid';
 import ErpImportPreview from './ErpImportPreview';
 import LoadingOverlay from '@/components/LoadingOverlay';
@@ -14,8 +14,8 @@ interface Props {
   disabled?: boolean;
   persistedAddresses?: Address[];
   persistedFileName?: string;
-  /** Avisa si hay una revisión del Excel abierta (para el botón del pie). */
-  onReviewChange?: (active: boolean) => void;
+  /** Entrega al pie del despachador el control de la revisión del Excel (botón único Continuar). */
+  onReviewChange?: (controls: ErpReviewControls | null) => void;
 }
 
 interface CSVRow {
@@ -41,10 +41,6 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
   // Si había una revisión del Excel en curso (se cambió de pestaña), se retoma
   const [erpResult, setErpResult] = useState<ErpImportResult | null>(() => loadErpDraft()?.result ?? null);
   const [erpLoading, setErpLoading] = useState(false);
-
-  useEffect(() => {
-    onReviewChange?.(erpResult !== null);
-  }, [erpResult, onReviewChange]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const downloadTemplate = () => {
@@ -311,6 +307,7 @@ export default function CSVUploader({ onAddressesLoaded, disabled, persistedAddr
           result={erpResult}
           fileName={fileName || 'Excel del ERP'}
           onConfirm={confirmErp}
+          onControlsChange={onReviewChange}
           onCancel={() => { clearErpDraft(); setErpResult(null); setFileName(null); }}
         />
       )}

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import type { Address, LeftOutStop } from '@/types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { Address, ErpReviewControls, LeftOutStop } from '@/types';
 import { classifyStop, parseLatLng, type ErpImportResult, type ErpStop, type StopStatus } from '@/lib/erpImport';
 import AddressAutocomplete, { type PickedPlace } from './AddressAutocomplete';
 import { loadErpDraft, saveErpDraft } from '@/lib/erpDraft';
@@ -11,6 +11,8 @@ interface Props {
   fileName: string;
   onConfirm: (addresses: Address[], leftOut: LeftOutStop[]) => void;
   onCancel: () => void;
+  /** El botón Continuar vive en el pie del despachador; aquí se le entrega el control. */
+  onControlsChange?: (controls: ErpReviewControls | null) => void;
 }
 
 const STATUS_UI: Record<StopStatus, { label: string; cls: string }> = {
@@ -47,7 +49,7 @@ function stopToAddress(stop: ErpStop): Address {
   };
 }
 
-export default function ErpImportPreview({ result, fileName, onConfirm, onCancel }: Props) {
+export default function ErpImportPreview({ result, fileName, onConfirm, onCancel, onControlsChange }: Props) {
   // Si hay un borrador de esta misma carga (se cambió de pestaña o se recargó), se retoma
   const [initialDraft] = useState(() => {
     const d = loadErpDraft();
@@ -92,6 +94,32 @@ export default function ErpImportPreview({ result, fileName, onConfirm, onCancel
   const piecesToSend = toSend.reduce((n, s) => n + s.pieces, 0);
   const amountToSend = toSend.reduce((n, s) => n + s.amount, 0);
   const ignored = Object.entries(result.stats.ignoredLocations);
+
+  const confirm = useCallback(() => {
+    const sentIds = new Set(toSend.map(s => s.id));
+    // Todo lo que no se envía queda registrado con su razón (apartado "Facturas fuera de ruta")
+    const leftOut: LeftOutStop[] = stops
+      .filter(s => !sentIds.has(s.id))
+      .map(s => ({
+        id: s.id,
+        clientName: s.clientName,
+        address: s.addressText,
+        invoices: s.invoices.map(i => ({ invoice: i.invoice, amount: i.amount, pieces: i.pieces })),
+        reason: excluded.has(s.id) ? 'excluida' : 'fuera_zona',
+        detail: s.reasons.join(' · ') || undefined,
+      }));
+    onConfirm(toSend.map(stopToAddress), leftOut);
+  }, [toSend, stops, excluded, onConfirm]);
+
+  const canConfirm = blocking.length === 0 && toSend.length > 0;
+  const summary = `${toSend.length} paradas · ${invoicesToSend} facturas · ${piecesToSend.toLocaleString('es-MX')} piezas · ${money(amountToSend)}`;
+
+  useEffect(() => {
+    onControlsChange?.({ confirm, canConfirm, summary, blocking: blocking.length });
+  }, [onControlsChange, confirm, canConfirm, summary, blocking.length]);
+
+  // Al cerrar la revisión (confirmar, cancelar o cambiar de pestaña), el pie vuelve a la normalidad
+  useEffect(() => () => onControlsChange?.(null), [onControlsChange]);
 
   const startEdit = (stop: ErpStop) => {
     setEditingId(stop.id);
@@ -247,27 +275,9 @@ export default function ErpImportPreview({ result, fileName, onConfirm, onCancel
             {blocking.length} {blocking.length === 1 ? 'parada necesita' : 'paradas necesitan'} dirección. Corrígelas o exclúyelas para continuar.
           </p>
         )}
-        <button
-          onClick={() => {
-            const sentIds = new Set(toSend.map(s => s.id));
-            // Todo lo que no se envía queda registrado con su razón (apartado "Facturas fuera de ruta")
-            const leftOut: LeftOutStop[] = stops
-              .filter(s => !sentIds.has(s.id))
-              .map(s => ({
-                id: s.id,
-                clientName: s.clientName,
-                address: s.addressText,
-                invoices: s.invoices.map(i => ({ invoice: i.invoice, amount: i.amount, pieces: i.pieces })),
-                reason: excluded.has(s.id) ? 'excluida' : 'fuera_zona',
-                detail: s.reasons.join(' · ') || undefined,
-              }));
-            onConfirm(toSend.map(stopToAddress), leftOut);
-          }}
-          disabled={blocking.length > 0 || toSend.length === 0}
-          className="w-full px-3 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Continuar con {toSend.length} paradas · {invoicesToSend} facturas · {piecesToSend.toLocaleString('es-MX')} piezas · {money(amountToSend)}
-        </button>
+        <p className="text-[11px] text-slate-300">
+          Se enviarán {summary}. Usa <span className="font-semibold text-white">CONTINUAR</span> abajo.
+        </p>
       </div>
     </div>
   );

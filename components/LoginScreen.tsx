@@ -97,6 +97,9 @@ export default function LoginScreen({ role, authEndpoint, redirectPath, accentCo
         sessionStorage.setItem('shuma_role', data.role);
         sessionStorage.setItem('shuma_user', data.username);
         sessionStorage.setItem('shuma_name', data.full_name);
+        // Dueño actual de la cookie de sesión (una por navegador). Solo se escribe aquí,
+        // en el login: así las otras pestañas saben que la sesión cambió de cuenta.
+        try { localStorage.setItem('shuma_session_role', data.role); } catch { /* sin almacenamiento */ }
         if (role === 'driver' && data.driver_id) {
           sessionStorage.setItem('shuma_driver_id', data.driver_id);
         }

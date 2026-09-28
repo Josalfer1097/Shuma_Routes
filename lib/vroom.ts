@@ -549,6 +549,13 @@ export async function optimizeRoutesGoogle(
   const globalStartDate = new Date(departureTime);
   const globalEndTime = new Date(globalStartDate.getTime() + 12 * 60 * 60 * 1000).toISOString();
 
+  // Reparto justo: cada chofer tiene una "parte" de paradas. Puede pasarse (nunca se deja
+  // una parada fuera por esto), pero cada parada extra cuesta. Antes no había ningún costo
+  // por vehículo y al optimizador le daba igual usar 3 o 4 choferes.
+  const fairShare = Math.max(1, Math.ceil(valid.length / Math.max(1, vehicles.length)));
+  const COST_PER_STOP_ABOVE_FAIR_SHARE = 30; // equivale a ~30 km extra de manejo
+  const COST_PER_KM = 1;
+
   // Construir vehículos sin restricción de zona
   const googleVehicles = vehicles.map((v) => {
     const endDep = v.endDepot ?? v.depot;
@@ -568,7 +575,16 @@ export async function optimizeRoutesGoogle(
       startLocation: { latitude: sLat, longitude: sLng },
       endLocation:   { latitude: eLat, longitude: eLng },
       label: v.driverName,
-      loadLimits: { parcels: { maxLoad: maxLoad.toString() } },
+      costPerKilometer: COST_PER_KM,
+      loadLimits: {
+        parcels: maxLoad > fairShare
+          ? {
+              maxLoad: maxLoad.toString(),
+              softMaxLoad: fairShare.toString(),
+              costPerUnitAboveSoftMax: COST_PER_STOP_ABOVE_FAIR_SHARE,
+            }
+          : { maxLoad: maxLoad.toString() },
+      },
       startTimeWindows: [{ startTime: vehicleStartTime, endTime: vehicleEndTime }],
     };
   });

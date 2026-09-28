@@ -5,6 +5,7 @@ import type { Route, Stop, Vehicle } from '@/types';
 import { formatDuration, formatDistance } from '@/lib/osrm';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, KeyboardSensor, PointerSensor, closestCorners, rectIntersection, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import DroppableRouteList from './DroppableRouteList';
 import SortableStop from './SortableStop';
 import ConfirmationModal from './ConfirmationModal';
 import { useFontSize } from '@/lib/fontScaleContext';
@@ -636,12 +637,17 @@ export default function RoutePanel({
                   </div>
 
                   {/* LISTA DE entregas SORTABLE — SortableContext SIEMPRE en DOM */}
-                  <SortableContext items={[route.vehicleId, ...stopIds]} strategy={verticalListSortingStrategy}>
+                  {/* Solo las paradas son ordenables; la lista completa es el destino al arrastrar desde otra ruta */}
+                  <SortableContext items={stopIds} strategy={verticalListSortingStrategy}>
                     <div
                       className="border-t border-shuma-border"
                       style={{ display: isExpanded ? 'block' : 'none' }}
                     >
-                      <ul className={`divide-y divide-slate-700/50 min-h-[40px] ${activeDragId && isEditing ? 'outline-dashed outline-2 outline-shuma-border outline-offset-[-2px] bg-shuma-surface/10' : ''}`}>
+                      <DroppableRouteList
+                        id={route.vehicleId}
+                        disabled={!isEditing}
+                        className={`divide-y divide-slate-700/50 min-h-[40px] ${activeDragId && isEditing ? 'outline-dashed outline-2 outline-shuma-border outline-offset-[-2px] bg-shuma-surface/10' : ''}`}
+                      >
                           {route.stops.map((stop, idx) => (
                             <SortableStop
                               key={stop.address.id}
@@ -669,7 +675,7 @@ export default function RoutePanel({
                               }}
                             />
                           ))}
-                        </ul>
+                      </DroppableRouteList>
 
                       {/* BOTONES DE REOPTIMIZACIÓN INDIVIDUAL (MODO EDICIÓN) */}
                       {isEditing && (

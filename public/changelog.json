@@ -1,6 +1,12 @@
 {
   "updated": "2026-09-28",
   "items": [
+    { "type": "improve", "text": "Un solo boton Continuar para confirmar las paradas del Excel" },
+    { "type": "fix", "text": "El panel de configuracion se queda abierto al terminar de ubicar las direcciones" },
+    { "type": "fix", "text": "Si agregas choferes despues de cargar las direcciones, las zonas se recalculan para incluirlos" },
+    { "type": "improve", "text": "La optimizacion reparte las paradas de forma mas pareja entre todos los choferes" },
+    { "type": "fix", "text": "En modo edicion ya se pueden arrastrar entregas a la lista de otro chofer" },
+    { "type": "improve", "text": "Si inicias sesion con otra cuenta en otra pestaña, el sistema te lo avisa en lugar de mostrar errores" },
     { "type": "fix", "text": "Las notificaciones al celular vuelven a registrarse solas en los equipos que ya habian dado permiso" },
     { "type": "fix", "text": "La Bandeja de Pendientes vuelve a ofrecer las rutas abiertas como destino para reasignar entregas" },
     { "type": "fix", "text": "Si no se pueden cargar las rutas activas, ahora aparece un aviso en lugar de una lista vacia" },

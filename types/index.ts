@@ -320,6 +320,14 @@ export interface AppState {
   error: string | null;
 }
 
+/** Control de la revisión del Excel expuesto al pie del despachador (botón único Continuar). */
+export interface ErpReviewControls {
+  confirm: () => void;
+  canConfirm: boolean;
+  summary: string;
+  blocking: number;
+}
+
 /** Por qué una parada no quedó en ninguna ruta. */
 export type LeftOutReason = 'excluida' | 'fuera_zona' | 'sin_ubicacion' | 'omitida';
 
