@@ -58,7 +58,8 @@ export async function GET(req: NextRequest) {
       .from('routes')
       .select('id, route_code, route_alias, date, departure_time')
       .eq('is_latest', true)
-      .or('closure_status.is.null,closure_status.eq.rejected')
+      // Abierta = sin cierre ('none' en la base, o NULL en filas antiguas) o con cierre rechazado
+      .or('closure_status.is.null,closure_status.in.(none,rejected)')
       .order('created_at', { ascending: false });
 
     if (rErr) throw new Error(`Error leyendo rutas abiertas: ${rErr.message}`);

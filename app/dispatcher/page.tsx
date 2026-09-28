@@ -546,9 +546,16 @@ function DispatcherPageContent() {
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
       const res   = await fetch(`/api/routes/active?date=${today}`, { credentials: 'include' });
       const json  = await res.json();
-      if (json.ok) setActiveRoutesData(json.routes || []);
+      if (json.ok) {
+        setActiveRoutesData(json.routes || []);
+      } else {
+        // Antes se ignoraba y la lista se quedaba vacía sin explicación
+        console.error('[active-routes] La API respondió con error:', res.status, json.error);
+        showToast('No se pudieron cargar las rutas activas. Intenta con Actualizar.', 'error');
+      }
     } catch (e) {
       console.error('Error fetching active routes:', e);
+      showToast('No se pudieron cargar las rutas activas. Revisa tu conexión.', 'error');
     } finally {
       setLoadingActiveRoutes(false);
     }

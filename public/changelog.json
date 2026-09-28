@@ -1,6 +1,8 @@
 {
-  "updated": "2026-09-24",
+  "updated": "2026-09-26",
   "items": [
+    { "type": "fix", "text": "La Bandeja de Pendientes vuelve a ofrecer las rutas abiertas como destino para reasignar entregas" },
+    { "type": "fix", "text": "Si no se pueden cargar las rutas activas, ahora aparece un aviso en lugar de una lista vacia" },
     { "type": "new", "text": "Nuevo apartado de Facturas fuera de ruta en Rutas: muestra cada factura que no quedo asignada y por que, y se puede descargar en Excel" },
     { "type": "fix", "text": "Ya no hay un limite fijo de paradas por tipo de camion: el sistema reparte todos los pedidos y el administrador decide despues que sale" },
     { "type": "fix", "text": "El boton Optimizar Rutas en Zonas ahora avisa si algo impide optimizar, como una hora de salida que ya paso" },

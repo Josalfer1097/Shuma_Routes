@@ -86,7 +86,9 @@ export async function POST(req: NextRequest) {
       if (tErr || !target) {
         return NextResponse.json({ ok: false, error: 'Ruta destino no encontrada' }, { status: 404 });
       }
-      if (!target.is_latest || (target.closure_status && target.closure_status !== 'rejected')) {
+      // Abierta = sin cierre ('none' o NULL) o con cierre rechazado
+      const openClosure = !target.closure_status || target.closure_status === 'none' || target.closure_status === 'rejected';
+      if (!target.is_latest || !openClosure) {
         return NextResponse.json({ ok: false, error: 'La ruta destino ya está cerrada o en proceso de cierre' }, { status: 409 });
       }
 
