@@ -41,6 +41,8 @@ export interface AddressInvoiceItem {
 }
 
 export interface AddressInvoice {
+  /** Si viene de la Bandeja (en espera de planeación): id de la entrega existente, que se mueve en vez de duplicarse */
+  deliveryId?: string;
   invoice: string;
   date: string | null;
   amount: number | null;

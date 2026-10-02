@@ -34,6 +34,7 @@ export default function AcceptRouteModal({
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [pendingWarnings, setPendingWarnings] = useState<string[]>([]);
 
   if (!isOpen) return null;
 
@@ -64,7 +65,10 @@ export default function AcceptRouteModal({
       localStorage.removeItem('shuma_rutas_session');
       sessionStorage.removeItem('shuma_editing_route_id');
       sessionStorage.removeItem('shuma_editing_driver_name');
-      setTimeout(() => { onSuccess?.(Array.isArray(json.accepted) ? json.accepted : []); onClose(); }, 1500);
+      const warnings: string[] = Array.isArray(json.pendingWarnings) ? json.pendingWarnings : [];
+      setPendingWarnings(warnings);
+      // Con avisos, el modal se queda más tiempo para que se alcancen a leer
+      setTimeout(() => { onSuccess?.(Array.isArray(json.accepted) ? json.accepted : []); onClose(); }, warnings.length > 0 ? 8000 : 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
@@ -104,6 +108,11 @@ export default function AcceptRouteModal({
                 <CheckCircle className="w-12 h-12 text-green-500 mx-auto animate-bounce" />
                 <p className="text-shuma-text font-semibold">¡Ruta guardada exitosamente!</p>
                 <p className="text-xs text-shuma-muted">{routes.length} ruta(s) guardada(s) en Supabase</p>
+                {pendingWarnings.length > 0 && (
+                  <p className="text-xs text-amber-300 text-left p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                    {'No se incluyeron ' + pendingWarnings.length + ' factura(s) en espera porque alguien las movió mientras planeabas: ' + pendingWarnings.join(', ') + '. Revisa la Bandeja de Pendientes.'}
+                  </p>
+                )}
               </div>
             ) : error ? (
               <div className="space-y-3">

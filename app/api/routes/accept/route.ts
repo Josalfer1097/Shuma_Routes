@@ -40,6 +40,8 @@ export async function POST(req: NextRequest) {
 
     // Código asignado a cada ruta (lo usa el Excel de asignaciones)
     const accepted: { vehicleId: string; routeId: string; routeCode: string | null }[] = [];
+    // Facturas en espera que alguien movió mientras se planeaba (no se incluyeron)
+    const pendingWarnings: string[] = [];
 
     for (const route of routes) {
       // 1. Insertar ruta principal
@@ -229,6 +231,7 @@ export async function POST(req: NextRequest) {
             ...base,
             invoice: inv.invoice || 'SIN-FACTURA',
             merchandise_value: typeof inv.amount === 'number' ? inv.amount : null,
+            pendingId: inv.deliveryId,
           }));
         }
 
@@ -236,14 +239,70 @@ export async function POST(req: NextRequest) {
           ...base,
           invoice: stop.address.invoice || 'SIN-FACTURA',
           merchandise_value: stop.address.merchandiseValue || null,
+          pendingId: undefined as string | undefined,
         }];
       });
 
-      const { error: deliveriesErr } = await supabaseAdmin
-        .from('deliveries')
-        .insert(deliveries);
+      // Facturas nuevas: se insertan. Las que vienen de la Bandeja (en espera de planeación)
+      // se MUEVEN: misma entrega, mismo historial, intentos y piezas pendientes.
+      const toInsert = deliveries.filter(d => !d.pendingId).map(({ pendingId: _p, ...row }) => row);
+      const toMove = deliveries.filter(d => d.pendingId);
 
-      if (deliveriesErr) throw new Error(`Error guardando entregas: ${deliveriesErr.message}`);
+      if (toInsert.length > 0) {
+        const { error: deliveriesErr } = await supabaseAdmin
+          .from('deliveries')
+          .insert(toInsert);
+        if (deliveriesErr) throw new Error(`Error guardando entregas: ${deliveriesErr.message}`);
+      }
+
+      if (toMove.length > 0) {
+        const ids = toMove.map(d => d.pendingId as string);
+        const { data: current, error: curErr } = await supabaseAdmin
+          .from('deliveries')
+          .select('id, route_id, original_route_id')
+          .in('id', ids);
+        if (curErr) throw new Error('Error leyendo entregas en espera: ' + curErr.message);
+        const currentById = new Map((current || []).map(c => [c.id, c]));
+
+        for (const d of toMove) {
+          const prev = currentById.get(d.pendingId as string);
+          const { data: moved, error: mErr } = await supabaseAdmin
+            .from('deliveries')
+            .update({
+              route_id: d.route_id,
+              route_driver_id: d.route_driver_id,
+              driver_id: d.driver_id,
+              stop_order: d.stop_order,
+              status: 'pending',
+              is_pending: false,
+              awaiting_planning: false,
+              pending_since: null,
+              original_route_id: prev?.original_route_id ?? prev?.route_id ?? null,
+              lat: d.lat,
+              lng: d.lng,
+              distance_m: d.distance_m,
+              eta_seconds: d.eta_seconds,
+              updated_at: now.toISOString(),
+            })
+            .eq('id', d.pendingId as string)
+            // Solo si sigue en espera: si alguien la movió mientras tanto, no se pisa
+            .eq('is_pending', true)
+            .eq('awaiting_planning', true)
+            .select('id');
+          if (mErr) throw new Error('Error moviendo entrega en espera: ' + mErr.message);
+          if (!moved || moved.length === 0) {
+            pendingWarnings.push(d.invoice);
+            continue;
+          }
+          const { error: evErr } = await supabaseAdmin.from('delivery_events').insert({
+            delivery_id: d.pendingId,
+            event_type: 'reassigned',
+            notes: 'Incluida en la planeación de la ruta ' + (routeData.route_code || routeData.id) + ' por ' + userName + '.',
+            created_at: now.toISOString(),
+          });
+          if (evErr) console.error('[accept] Entrega en espera movida, pero falló su evento:', evErr);
+        }
+      }
 
       // 5. Audit
       await supabaseAdmin.from('audit_log').insert({
@@ -283,7 +342,7 @@ export async function POST(req: NextRequest) {
       }, 'accept');
     }
 
-    return NextResponse.json({ ok: true, saved: routes.length, accepted });
+    return NextResponse.json({ ok: true, saved: routes.length, accepted, pendingWarnings });
   } catch (err) {
     console.error('Accept route error:', err);
     return NextResponse.json(

@@ -1,6 +1,8 @@
 {
   "updated": "2026-10-02",
   "items": [
+    { "type": "new", "text": "Las entregas que se mandan a planeacion desde la Bandeja aparecen en la revision del Excel del dia, marcadas como En espera, para incluirlas en la siguiente ruta" },
+    { "type": "improve", "text": "Al aceptar la ruta, esas entregas se mueven conservando su historial, intentos y piezas pendientes, sin duplicarse" },
     { "type": "new", "text": "Las asignaciones se descargan en un Excel con diseño: codigo de ruta, chofer, cliente, direccion, facturas, montos y piezas, agrupado por ruta y por parada, con una hoja de resumen" },
     { "type": "improve", "text": "Cuando un cliente tiene varias facturas en la misma direccion, en el Excel aparecen juntas en la misma parada" },
     { "type": "fix", "text": "Las rutas guardan la hora de salida de Configuracion cuando el chofer no tiene una propia; antes se guardaba siempre 08:00" },

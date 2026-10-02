@@ -48,6 +48,8 @@ export interface ErpItem {
 }
 
 export interface ErpInvoice {
+  /** Entrega existente en la Bandeja (en espera de planeación): se mueve al aceptar, no se duplica */
+  deliveryId?: string;
   invoice: string;
   date: string | null;
   amount: number | null;
@@ -78,6 +80,8 @@ export interface ErpStop {
   invoices: ErpInvoice[];
   pieces: number;
   amount: number;
+  /** Parada que viene de la Bandeja de Pendientes (en espera de planeación) */
+  fromPending?: boolean;
 }
 
 export interface ErpImportResult {

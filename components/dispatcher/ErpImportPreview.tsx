@@ -41,6 +41,7 @@ function stopToAddress(stop: ErpStop): Address {
     geocoded: hasCoords,
     locationSource: stop.source,
     invoices: stop.invoices.map(i => ({
+      deliveryId: i.deliveryId,
       invoice: i.invoice,
       date: i.date,
       amount: i.amount,
@@ -64,6 +65,63 @@ export default function ErpImportPreview({ result, fileName, onConfirm, onCancel
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Entregas que se mandaron a planeación desde la Bandeja: se suman a la carga del día.
+  // Antes quedaban atoradas: nada las volvía a traer a una ruta.
+  const [pendingCount, setPendingCount] = useState(0);
+  useEffect(() => {
+    let active = true;
+    fetch('/api/pending', { credentials: 'include' })
+      .then(r => r.json())
+      .then(json => {
+        if (!active || !json.ok) return;
+        type PendingRow = {
+          id: string; invoice: string; client_name: string | null; address: string;
+          lat: number | null; lng: number | null; merchandise_value: number | null;
+          attempt_count: number; pending_quantity: number | null;
+          awaiting_planning: boolean; provisional?: boolean;
+        };
+        const waiting = (json.items as PendingRow[]).filter(d => d.awaiting_planning && !d.provisional);
+        setPendingCount(waiting.length);
+        const extra: ErpStop[] = waiting.map(d => {
+          const c = classifyStop(d.address || '', d.lat, d.lng, 'manual');
+          return {
+            id: 'espera-' + d.id,
+            clientNumber: '',
+            clientName: d.client_name || 'Cliente sin nombre',
+            addressText: d.address || '',
+            lat: d.lat,
+            lng: d.lng,
+            source: 'manual',
+            status: c.status,
+            reasons: ['En espera de planeación (intento ' + d.attempt_count + ')' +
+              (d.pending_quantity ? ' · faltan ' + d.pending_quantity + ' piezas' : ''), ...c.reasons],
+            invoices: [{
+              deliveryId: d.id,
+              invoice: d.invoice,
+              date: null,
+              amount: d.merchandise_value,
+              amountMismatch: false,
+              clientNumber: '',
+              clientName: d.client_name || 'Cliente sin nombre',
+              location: '',
+              addressText: d.address || '',
+              lat: d.lat,
+              lng: d.lng,
+              items: [],
+              pieces: d.pending_quantity || 0,
+            }],
+            pieces: d.pending_quantity || 0,
+            amount: d.merchandise_value || 0,
+            fromPending: true,
+          };
+        });
+        // Sin duplicar si ya venían en el borrador guardado
+        setStops(prev => [...extra.filter(e => !prev.some(p => p.id === e.id)), ...prev]);
+      })
+      .catch(err => console.error('[erp-review] No se pudieron cargar las entregas en espera:', err));
+    return () => { active = false; };
+  }, []);
 
   // Guardar cada cambio para no perder la revisión al cambiar de pestaña
   useEffect(() => {
@@ -177,6 +235,7 @@ export default function ErpImportPreview({ result, fileName, onConfirm, onCancel
           {ignored.length > 0 && ` · se ignoraron ${ignored.map(([loc, n]) => `${n} partidas de ${loc}`).join(', ')}`}
           {result.stats.repairedTexts > 0 && ` · ${result.stats.repairedTexts} textos con acentos reparados`}
           {result.stats.emptyRows > 0 && ` · ${result.stats.emptyRows} ${result.stats.emptyRows === 1 ? 'fila vacía ignorada' : 'filas vacías ignoradas'}`}
+          {pendingCount > 0 && ' · se sumaron ' + pendingCount + ' en espera de planeación (Bandeja)'}
         </p>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(STATUS_UI) as StopStatus[]).map(st => (
@@ -207,6 +266,9 @@ export default function ErpImportPreview({ result, fileName, onConfirm, onCancel
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={`text-[10px] px-1.5 py-0.5 rounded border ${ui.cls}`}>{ui.label}</span>
+                    {stop.fromPending && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded border bg-purple-500/15 text-purple-300 border-purple-500/30">En espera · Bandeja</span>
+                    )}
                     <span className="text-xs font-medium text-shuma-text truncate">{stop.clientName}</span>
                   </div>
                   <p className="text-[11px] text-shuma-muted truncate mt-0.5" title={stop.addressText}>
