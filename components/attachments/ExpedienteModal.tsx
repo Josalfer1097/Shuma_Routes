@@ -6,6 +6,7 @@ import { FolderOpen, X } from 'lucide-react';
 import AttachmentThumb from './AttachmentThumb';
 import AttachmentPreview from './AttachmentPreview';
 import { CATEGORY_LABEL, formatDateMx, type AttachmentItem } from './types';
+import { archiveAttachment } from '@/lib/uploadAttachment';
 
 interface DriverOption { id: string; name: string }
 
@@ -39,6 +40,18 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [preview, setPreview] = useState<{ items: AttachmentItem[]; index: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Solo administración y logística archivan (el servidor también lo valida)
+  const [canEdit, setCanEdit] = useState(false);
+  useEffect(() => {
+    const role = sessionStorage.getItem('shuma_role') || '';
+    setCanEdit(role === 'admin' || role === 'logistics');
+  }, []);
+
+  const onArchive = async (item: AttachmentItem, reason: string) => {
+    await archiveAttachment(item.id, reason);
+    setItems(prev => prev.filter(i => i.id !== item.id));
+    setTotal(t => Math.max(0, t - 1));
+  };
 
   // Búsqueda con pausa de 300 ms
   useEffect(() => {
@@ -221,7 +234,14 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
           )}
         </div>
       </div>
-      {preview && <AttachmentPreview items={preview.items} startIndex={preview.index} onClose={() => setPreview(null)} />}
+      {preview && (
+        <AttachmentPreview
+          items={preview.items}
+          startIndex={preview.index}
+          onClose={() => setPreview(null)}
+          onArchive={canEdit ? onArchive : undefined}
+        />
+      )}
     </div>,
     document.body
   );

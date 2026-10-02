@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import LoadingOverlay from '@/components/LoadingOverlay';
-import { Inbox, Navigation, RefreshCw, Truck, ClipboardList, Undo2, AlertTriangle, Package } from 'lucide-react';
+import DocumentsWindow from '@/components/attachments/DocumentsWindow';
+import { Inbox, Navigation, RefreshCw, Truck, ClipboardList, Undo2, AlertTriangle, Package, Paperclip } from 'lucide-react';
 
 interface PendingItem {
   id: string;
@@ -63,6 +64,8 @@ export default function PendingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(false);
+  // Entrega cuyos documentos se muestran en la ventana flotante
+  const [docsItem, setDocsItem] = useState<PendingItem | null>(null);
 
   // Panel de acción abierto sobre una entrega
   const [openId, setOpenId] = useState<string | null>(null);
@@ -188,9 +191,16 @@ export default function PendingPage() {
             {item.notes ? <p className="text-xs text-slate-400 mt-1 italic">“{item.notes}”</p> : null}
           </div>
 
-          {canEdit && !isOpen && (
+          {!isOpen && (
             <div className="flex gap-2 flex-wrap">
-              {item.awaiting_planning ? (
+              <button
+                onClick={() => setDocsItem(item)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-slate-800 text-slate-200 hover:bg-slate-700"
+                title="Ver y subir documentos de esta entrega"
+              >
+                <Paperclip className="w-3.5 h-3.5" /> Documentos
+              </button>
+              {canEdit && item.awaiting_planning ? (
                 <button
                   onClick={() => submit(item, 'tray')}
                   disabled={saving}
@@ -199,12 +209,14 @@ export default function PendingPage() {
                   <Undo2 className="w-3.5 h-3.5" /> Regresar a bandeja
                 </button>
               ) : null}
-              <button
-                onClick={() => openPanel(item)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-blue-600 text-white hover:bg-blue-500"
-              >
-                <Truck className="w-3.5 h-3.5" /> Reasignar
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => openPanel(item)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-blue-600 text-white hover:bg-blue-500"
+                >
+                  <Truck className="w-3.5 h-3.5" /> Reasignar
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -292,6 +304,15 @@ export default function PendingPage() {
   return (
     <AuthGuard>
       {saving && <LoadingOverlay message="Guardando el movimiento de la entrega..." />}
+      {docsItem && (
+        <DocumentsWindow
+          target={{ deliveryId: docsItem.id }}
+          title={'Factura ' + docsItem.invoice}
+          subtitle={(docsItem.client_name || 'Cliente sin nombre') + ' · ' + routeLabel(docsItem.origin)}
+          canEdit={canEdit}
+          onClose={() => setDocsItem(null)}
+        />
+      )}
       <div className="min-h-screen bg-shuma-bg flex flex-col">
         <header className="bg-shuma-surface border-b border-shuma-border sticky top-0 z-20">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-3">

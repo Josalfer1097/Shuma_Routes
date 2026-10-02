@@ -24,6 +24,7 @@ import { useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw, Search, Truck, Inbox, FolderOpen } from 'lucide-react';
 import ExpedienteModal from '@/components/attachments/ExpedienteModal';
+import DocumentsWindow from '@/components/attachments/DocumentsWindow';
 import { useEasterEgg } from '@/hooks/useEasterEgg';
 import EasterEggOverlay from '@/components/EasterEggOverlay';
 import Image from 'next/image';
@@ -386,6 +387,8 @@ function DispatcherPageContent() {
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isExpedienteOpen, setIsExpedienteOpen] = useState(false);
+  // Documentos de una ruta o de una entrega (ventana flotante)
+  const [docsTarget, setDocsTarget] = useState<{ routeId?: string; deliveryId?: string; title: string; subtitle?: string } | null>(null);
   const [auditEntityId, setAuditEntityId] = useState<string | undefined>(undefined);
 
   // ── Map Search ──
@@ -3883,6 +3886,23 @@ function DispatcherPageContent() {
                                 ✏️ Editar
                               </button>
                               <button
+                                onClick={() => setDocsTarget({
+                                  routeId: route.id,
+                                  title: route.route_code || 'Ruta',
+                                  subtitle: (route.driver_name || 'Sin chofer') + ' · documentos de la ruta y de sus entregas',
+                                })}
+                                title="Ver y subir documentos de esta ruta"
+                                style={{
+                                  fontSize: 10, padding: '3px 8px', borderRadius: 6,
+                                  background: 'rgba(59,130,246,0.1)',
+                                  border: '1px solid rgba(59,130,246,0.3)',
+                                  color: '#93c5fd', cursor: 'pointer',
+                                  fontFamily: "'Exo 2', sans-serif", fontWeight: 600,
+                                }}
+                              >
+                                📎 Docs
+                              </button>
+                              <button
                                 onClick={() => handleViewOnMap(route, true)}
                                 className="w-7 h-7 flex items-center justify-center rounded bg-shuma-surface hover:bg-blue-500/10 text-shuma-muted hover:text-blue-400 transition-colors border border-shuma-border hover:border-blue-500/30"
                                 title="Ver solo esta ruta en el mapa"
@@ -3973,10 +3993,22 @@ function DispatcherPageContent() {
                                       <span className={`shrink-0 ${color}`}>
                                         {s === 'delivered' ? '✓' : s === 'failed' ? '✗' : s === 'partial' ? '◑' : '○'}
                                       </span>
-                                      <div className="min-w-0 flex-1 truncate text-shuma-text">
-                                        {del.description || 'Sin descripción'}
-                                        {del.eta && <span className="ml-1 opacity-50">· {del.eta}</span>}
+                                      {/* Antes mostraba "Sin descripción": el servidor no manda ese campo */}
+                                      <div className="min-w-0 flex-1 truncate text-shuma-text" title={del.address || ''}>
+                                        {(del.invoice || 'Sin factura') + ' · ' + (del.client_name || 'Cliente sin nombre')}
                                       </div>
+                                      <button
+                                        onClick={() => setDocsTarget({
+                                          deliveryId: del.id,
+                                          title: 'Factura ' + (del.invoice || ''),
+                                          subtitle: (del.client_name || '') + (route.route_code ? ' · ' + route.route_code : ''),
+                                        })}
+                                        className="shrink-0 text-shuma-muted hover:text-blue-300"
+                                        title="Documentos de esta entrega"
+                                        aria-label={'Documentos de la factura ' + (del.invoice || '')}
+                                      >
+                                        📎
+                                      </button>
                                     </div>
                                   );
                                 })}
@@ -4024,6 +4056,16 @@ function DispatcherPageContent() {
       <ShortcutsModal isOpen={isShortcutsModalOpen} onClose={() => setIsShortcutsModalOpen(false)} />
 
       <ExpedienteModal isOpen={isExpedienteOpen} onClose={() => setIsExpedienteOpen(false)} />
+
+      {docsTarget && (
+        <DocumentsWindow
+          target={{ routeId: docsTarget.routeId, deliveryId: docsTarget.deliveryId }}
+          title={docsTarget.title}
+          subtitle={docsTarget.subtitle}
+          canEdit={userRole === 'admin' || userRole === 'logistics'}
+          onClose={() => setDocsTarget(null)}
+        />
+      )}
 
       <AuditLogModal 
         isOpen={isAuditModalOpen}

@@ -1,6 +1,9 @@
 {
   "updated": "2026-10-02",
   "items": [
+    { "type": "new", "text": "Boton Documentos en cada ruta y entrega de Rutas Activas y en la Bandeja de Pendientes: consulta y sube fotos o PDF de hasta 10 MB" },
+    { "type": "new", "text": "Los archivos se pueden archivar con un motivo: dejan de mostrarse pero se conservan y quedan registrados en la bitacora" },
+    { "type": "fix", "text": "En Rutas Activas, cada entrega muestra su factura y cliente en lugar de Sin descripcion" },
     { "type": "new", "text": "Las entregas que se mandan a planeacion desde la Bandeja aparecen en la revision del Excel del dia, marcadas como En espera, para incluirlas en la siguiente ruta" },
     { "type": "improve", "text": "Al aceptar la ruta, esas entregas se mueven conservando su historial, intentos y piezas pendientes, sin duplicarse" },
     { "type": "new", "text": "Las asignaciones se descargan en un Excel con diseño: codigo de ruta, chofer, cliente, direccion, facturas, montos y piezas, agrupado por ruta y por parada, con una hoja de resumen" },

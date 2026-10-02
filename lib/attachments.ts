@@ -1,3 +1,4 @@
+import { SignJWT, jwtVerify } from 'jose';
 import { supabaseAdmin } from '@/lib/supabase';
 
 /**
@@ -45,4 +46,56 @@ export async function signPaths(paths: string[]): Promise<Record<string, string 
     if (item.path) result[item.path] = item.error ? null : item.signedUrl;
   });
   return result;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Subida directa a Supabase (sin pasar por Vercel, que limita cada petición a 4.5 MB)
+// 1) el servidor valida y entrega una liga firmada + un "permiso de registro" firmado
+// 2) el navegador sube el archivo directo a Supabase con esa liga
+// 3) el servidor verifica el permiso y que el archivo exista, y lo registra
+// ─────────────────────────────────────────────────────────────
+
+export interface UploadIntent {
+  path: string;
+  routeId: string | null;
+  deliveryId: string | null;
+  invoice: string | null;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  category: AttachmentCategory;
+  description: string | null;
+  uid: string;
+}
+
+function intentSecret(): Uint8Array {
+  const raw = process.env.SESSION_JWT_SECRET;
+  if (!raw || raw.length < 16) throw new Error('[attachments] SESSION_JWT_SECRET no está configurada.');
+  // Derivado del secreto de sesión, con propósito distinto: un permiso de subida no sirve como sesión
+  return new TextEncoder().encode(raw + ':attachment-upload');
+}
+
+export async function signUploadIntent(intent: UploadIntent): Promise<string> {
+  return new SignJWT({ ...intent } as unknown as Record<string, unknown>)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('15m')
+    .sign(intentSecret());
+}
+
+export async function verifyUploadIntent(token: string): Promise<UploadIntent | null> {
+  try {
+    const { payload } = await jwtVerify(token, intentSecret());
+    return payload as unknown as UploadIntent;
+  } catch {
+    return null;
+  }
+}
+
+/** Valida tipo y tamaño declarados (antes de subir). */
+export function validateDeclared(mimeType: string, size: number): string | null {
+  if (!ALLOWED_MIME[mimeType]) return 'Tipo de archivo no permitido. Solo fotos (JPG, PNG, WEBP) y PDF.';
+  if (!Number.isFinite(size) || size <= 0) return 'El archivo está vacío.';
+  if (size > MAX_ATTACHMENT_BYTES) return 'El archivo pesa más de 10 MB.';
+  return null;
 }

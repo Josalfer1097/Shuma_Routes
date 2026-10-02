@@ -1,8 +1,7 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, ExternalLink, FileText, X } from 'lucide-react';
+import { Archive, ChevronLeft, ChevronRight, ExternalLink, FileText, X } from 'lucide-react';
 import { CATEGORY_LABEL, formatBytes, formatDateMx, isImage, type AttachmentItem } from './types';
 
 /**
@@ -13,14 +12,38 @@ export default function AttachmentPreview({
   items,
   startIndex = 0,
   onClose,
+  onArchive,
 }: {
   items: AttachmentItem[];
   startIndex?: number;
   onClose: () => void;
+  /** Si se pasa, aparece "Archivar" (pide motivo). El archivo se conserva; solo deja de mostrarse. */
+  onArchive?: (item: AttachmentItem, reason: string) => Promise<void>;
 }) {
   const [index, setIndex] = useState(Math.min(Math.max(startIndex, 0), items.length - 1));
   const item = items[index];
   const many = items.length > 1;
+  const [archiving, setArchiving] = useState(false);
+  const [reason, setReason] = useState('');
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const confirmArchive = async () => {
+    if (!onArchive || reason.trim().length < 5) {
+      setArchiveError('Escribe el motivo (al menos 5 caracteres).');
+      return;
+    }
+    setSaving(true);
+    setArchiveError(null);
+    try {
+      await onArchive(item, reason.trim());
+      onClose();
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'No se pudo archivar');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -64,11 +87,42 @@ export default function AttachmentPreview({
                 <ExternalLink className="w-3.5 h-3.5" /> Abrir en otra pestaña
               </a>
             )}
+            {onArchive && !archiving && (
+              <button onClick={() => setArchiving(true)} className="flex items-center gap-1 text-xs text-amber-300 hover:text-white">
+                <Archive className="w-3.5 h-3.5" /> Archivar
+              </button>
+            )}
             <button onClick={onClose} className="text-slate-300 hover:text-white" aria-label="Cerrar">
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
+
+        {archiving && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 grid gap-2">
+            <p className="text-xs text-amber-200">
+              El archivo deja de mostrarse, pero se conserva y queda registrado en la bitácora. ¿Por qué lo archivas?
+            </p>
+            <input
+              autoFocus
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') void confirmArchive(); }}
+              placeholder="Motivo, por ejemplo: foto borrosa, se subió a la factura equivocada"
+              maxLength={300}
+              className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-amber-400"
+            />
+            {archiveError && <p className="text-xs text-red-300">{archiveError}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => void confirmArchive()} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-50">
+                {saving ? 'Archivando…' : 'Archivar'}
+              </button>
+              <button onClick={() => { setArchiving(false); setArchiveError(null); }} className="px-3 py-1.5 rounded-lg text-xs text-slate-300 hover:text-white">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="relative flex-1 min-h-0 flex items-center justify-center">
           {many && (
