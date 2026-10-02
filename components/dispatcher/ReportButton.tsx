@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import AcceptRouteModal from './AcceptRouteModal';
+import type { AcceptedRouteCode } from '@/lib/assignmentsExcel';
 import type { Route, GlobalConfig } from '@/types';
 import { formatDuration, formatDistance } from '@/lib/osrm';
 import type { WeatherData } from '@/lib/weather';
@@ -21,6 +22,9 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
   const [isChecking, setIsChecking] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [isAccepted, setIsAccepted] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  // Código de cada ruta recién aceptada (RT-...), para el Excel de asignaciones
+  const [acceptedCodes, setAcceptedCodes] = useState<AcceptedRouteCode[]>([]);
 
   const handleOpenAcceptModal = async () => {
     setIsChecking(true);
@@ -57,27 +61,18 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
     await generatePDFReport(routes, globalConfig, weather);
   };
 
-  const handleExportCSV = () => {
-    const header = ['ID Chofer', 'ID Route', 'Address', 'Status'];
-    const rows: string[] = [];
-    routes.forEach(route => {
-      route.stops.forEach(stop => {
-        rows.push([
-          route.vehicleId || '',
-          (route as any).id || route.vehicleId || '',
-          `"${(stop.address.raw || '').replace(/"/g, '""')}"`,
-          '1'
-        ].join(','));
-      });
-    });
-    const csvContent = [header.join(','), ...rows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `asignaciones_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // Excel con diseño (antes: CSV con el ID interno del vehículo repetido y estatus "1")
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const { downloadAssignmentsExcel } = await import('@/lib/assignmentsExcel');
+      await downloadAssignmentsExcel(routes, acceptedCodes, userName || 'admin');
+    } catch (err) {
+      console.error('[asignaciones] No se pudo generar el Excel:', err);
+      alert('No se pudo generar el Excel de asignaciones. Intenta de nuevo.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -117,7 +112,8 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
           </div>
 
           <button
-            onClick={handleExportCSV}
+            onClick={handleExportExcel}
+            disabled={isExporting}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
                        bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 hover:border-indigo-400
                        text-sm font-semibold text-white transition-all duration-200
@@ -126,7 +122,7 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
-            Exportar Asignaciones
+            {isExporting ? 'Generando Excel…' : 'Descargar asignaciones (Excel)'}
           </button>
 
           <button
@@ -151,7 +147,7 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
         routes={routes}
         userName={userName || 'admin'}
         userRole={userRole || 'admin'}
-        onSuccess={() => { setIsAccepted(true); onRouteAccepted?.(); }}
+        onSuccess={(accepted) => { setAcceptedCodes(accepted); setIsAccepted(true); onRouteAccepted?.(); }}
         duplicateWarning={duplicateWarning}
         onSetBlockingAction={onSetBlockingAction}
         globalDepartureTime={globalConfig?.departureTime ?? null}

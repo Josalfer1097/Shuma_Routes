@@ -32,6 +32,7 @@ function stopToAddress(stop: ErpStop): Address {
     raw: stop.addressText,
     name: stop.clientName,
     clientName: stop.clientName,
+    clientCode: stop.clientNumber || undefined,
     invoice: stop.invoices.map(i => i.invoice).join(', '),
     merchandiseValue: stop.amount || undefined,
     lat: hasCoords ? stop.lat : null,

@@ -38,6 +38,9 @@ export async function POST(req: NextRequest) {
       req.headers.get('x-real-ip') ||
       'unknown';
 
+    // Código asignado a cada ruta (lo usa el Excel de asignaciones)
+    const accepted: { vehicleId: string; routeId: string; routeCode: string | null }[] = [];
+
     for (const route of routes) {
       // 1. Insertar ruta principal
       // ── Resolver depot_id con fallback por nombre ──
@@ -117,6 +120,7 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (routeErr) throw new Error(`Error guardando ruta: ${routeErr.message}`);
+      accepted.push({ vehicleId: route.vehicleId, routeId: routeData.id, routeCode: routeData.route_code ?? null });
 
       // 2. Buscar driver_id desde user_profiles (más confiable — tiene driver_id directo)
       let driverId: string | null = null;
@@ -279,7 +283,7 @@ export async function POST(req: NextRequest) {
       }, 'accept');
     }
 
-    return NextResponse.json({ ok: true, saved: routes.length });
+    return NextResponse.json({ ok: true, saved: routes.length, accepted });
   } catch (err) {
     console.error('Accept route error:', err);
     return NextResponse.json(

@@ -29,6 +29,8 @@ export interface Address {
   invoices?: AddressInvoice[];
   /** Origen de la ubicación: coordenada del ERP, texto geocodificado o captura manual. */
   locationSource?: 'erp' | 'texto' | 'manual';
+  /** Número de cliente del ERP (columna "#"). */
+  clientCode?: string;
 }
 
 export interface AddressInvoiceItem {

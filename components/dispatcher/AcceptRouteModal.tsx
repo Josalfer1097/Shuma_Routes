@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import { X, CheckCircle, AlertCircle } from 'lucide-react';
 import type { Route } from '@/types';
+import type { AcceptedRouteCode } from '@/lib/assignmentsExcel';
 
 interface Props {
   isOpen: boolean;
@@ -11,7 +12,8 @@ interface Props {
   routes: Route[];
   userName: string;
   userRole: string;
-  onSuccess?: () => void;
+  /** Recibe el código asignado a cada ruta (para el Excel de asignaciones) */
+  onSuccess?: (accepted: AcceptedRouteCode[]) => void;
   duplicateWarning?: string | null;
   onSetBlockingAction?: (action: string | null) => void;
   /** Hora general de Configuración: se usa cuando el chofer no tiene hora propia */
@@ -62,7 +64,7 @@ export default function AcceptRouteModal({
       localStorage.removeItem('shuma_rutas_session');
       sessionStorage.removeItem('shuma_editing_route_id');
       sessionStorage.removeItem('shuma_editing_driver_name');
-      setTimeout(() => { onSuccess?.(); onClose(); }, 1500);
+      setTimeout(() => { onSuccess?.(Array.isArray(json.accepted) ? json.accepted : []); onClose(); }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
