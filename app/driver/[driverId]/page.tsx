@@ -159,16 +159,16 @@ export default function DriverPage() {
               </svg>
             </div>
             <div>
-              <p className="text-xs text-slate-500">Shuma Rutas</p>
+              <p className="text-xs text-slate-400">Shuma Rutas</p>
               <p className="text-sm font-semibold text-white">{route.driverName}</p>
             </div>
           </div>
 
           <div className="text-right">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-400">
               {stops.filter((s) => s.status === 'completed').length}/{stops.length}
             </p>
-            <p className="text-xs text-slate-600">entregas</p>
+            <p className="text-xs text-slate-400">entregas</p>
           </div>
         </div>
       </header>

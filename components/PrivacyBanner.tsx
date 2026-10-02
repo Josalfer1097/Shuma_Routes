@@ -125,7 +125,7 @@ export default function PrivacyBanner() {
             padding: '7px 14px', borderRadius: 9,
             background: 'transparent',
             border: '1px solid rgba(91,123,160,0.35)',
-            color: '#5B7BA0', cursor: 'pointer',
+            color: 'var(--shuma-muted)', cursor: 'pointer',
             fontFamily: "'DM Sans', sans-serif",
             fontSize: 12, fontWeight: 500,
           }}

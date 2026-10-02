@@ -58,6 +58,11 @@ export async function GET(req: NextRequest) {
       const failed    = dels.filter(d => d.status === 'failed').length;
       const pending   = dels.filter(d => d.status === 'pending' || d.status === 'in_route').length;
       const total     = dels.length;
+      // Paradas = puntos de visita. Varias facturas del mismo cliente comparten parada (mismo orden).
+      // Antes el tiempo estimado contaba facturas como si fueran paradas y todo salía "en riesgo".
+      const stopKey = (d: { stop_order: number | null; id: string }) => (d.stop_order ?? d.id);
+      const stopsTotal   = new Set(dels.map(stopKey)).size;
+      const stopsPending = new Set(dels.filter(d => d.status === 'pending' || d.status === 'in_route').map(stopKey)).size;
 
       return {
         id:           route.id,
@@ -73,7 +78,7 @@ export async function GET(req: NextRequest) {
         color:        rd?.color || '#2196F3',
         total_km:     rd?.total_km || 0,
         total_minutes: rd?.total_time_min || 0,
-        stats: { total, delivered, partial, failed, pending },
+        stats: { total, delivered, partial, failed, pending, stopsTotal, stopsPending },
         depot: DEPOTS.san_pablo,
         endDepot: DEPOTS.san_pablo,
         polyline: route.polyline_encoded ? decodeGooglePolyline(route.polyline_encoded) : [],

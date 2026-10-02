@@ -129,7 +129,7 @@ export default function SlideOver({
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.08)',
               borderRadius: 7,
-              color: '#5B7BA0',
+              color: 'var(--shuma-muted)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -143,7 +143,7 @@ export default function SlideOver({
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-              e.currentTarget.style.color = '#5B7BA0';
+              e.currentTarget.style.color = 'var(--shuma-muted)';
               e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
             }}
           >
@@ -274,7 +274,7 @@ export default function SlideOver({
         }
         .so-select optgroup {
           background: #0A1628;
-          color: #5B7BA0;
+          color: var(--shuma-muted);
           font-size: 11px;
           font-weight: 600;
           text-transform: uppercase;

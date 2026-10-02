@@ -275,7 +275,7 @@ export default function HistoryPage() {
                         const d = new Date(prev.year, prev.month - 1, 1);
                         return { year: d.getFullYear(), month: d.getMonth() };
                       })}
-                      style={{ background: 'none', border: 'none', color: '#5B7BA0', cursor: 'pointer', fontSize: 20, padding: '0 8px' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--shuma-muted)', cursor: 'pointer', fontSize: 20, padding: '0 8px' }}
                     >‹</button>
                     <span style={{ fontSize: 15, fontWeight: 700, color: '#E8EFF8', fontFamily: "'Exo 2', sans-serif" }}>
                       {MONTHS[month]} {year}
@@ -285,7 +285,7 @@ export default function HistoryPage() {
                         const d = new Date(prev.year, prev.month + 1, 1);
                         return { year: d.getFullYear(), month: d.getMonth() };
                       })}
-                      style={{ background: 'none', border: 'none', color: '#5B7BA0', cursor: 'pointer', fontSize: 20, padding: '0 8px' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--shuma-muted)', cursor: 'pointer', fontSize: 20, padding: '0 8px' }}
                     >›</button>
                   </div>
 
@@ -347,7 +347,7 @@ export default function HistoryPage() {
                                 }} />
                               ))}
                               {dayRoutes.length > 4 && (
-                                <span style={{ fontSize: 8, color: '#5B7BA0' }}>+{dayRoutes.length - 4}</span>
+                                <span style={{ fontSize: 8, color: 'var(--shuma-muted)' }}>+{dayRoutes.length - 4}</span>
                               )}
                             </div>
                           )}
@@ -379,7 +379,7 @@ export default function HistoryPage() {
             </div>
           ) : routes.length === 0 ? (
             <div className="bg-shuma-surface border border-shuma-border rounded-2xl p-12 text-center flex flex-col items-center">
-              <Search className="w-12 h-12 text-slate-600 mb-4" />
+              <Search className="w-12 h-12 text-slate-400 mb-4" />
               <h3 className="text-lg font-bold text-white mb-2">Sin resultados</h3>
               <p className="text-shuma-muted text-sm">
                 No se encontraron rutas para la fecha seleccionada.
@@ -771,7 +771,7 @@ export default function HistoryPage() {
             display: 'flex', alignItems: 'center', gap: 12,
             animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1) forwards',
           }}>
-            <span style={{ fontSize: 12, color: '#5B7BA0', fontFamily: "'DM Sans', sans-serif" }}>
+            <span style={{ fontSize: 12, color: 'var(--shuma-muted)', fontFamily: "'DM Sans', sans-serif" }}>
               {selectedForCompare.length === 1
                 ? '1 ruta seleccionada — elige otra para comparar'
                 : '2 rutas listas para comparar'}
@@ -793,7 +793,7 @@ export default function HistoryPage() {
             <button
               onClick={() => setSelectedForCompare([])}
               style={{
-                background: 'none', border: 'none', color: '#5B7BA0',
+                background: 'none', border: 'none', color: 'var(--shuma-muted)',
                 cursor: 'pointer', fontSize: 16, lineHeight: 1,
               }}
             >
@@ -830,7 +830,7 @@ export default function HistoryPage() {
             label: string; va: string; vb: string; better?: 'a' | 'b' | 'equal'
           }) => (
             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-              <td style={{ padding: '8px 12px', fontSize: 11, color: '#5B7BA0',
+              <td style={{ padding: '8px 12px', fontSize: 11, color: 'var(--shuma-muted)',
                 fontFamily: "'DM Sans', sans-serif", textAlign: 'center' }}>
                 {label}
               </td>
@@ -882,7 +882,7 @@ export default function HistoryPage() {
                   </span>
                   <button
                     onClick={() => setShowCompareModal(false)}
-                    style={{ background: 'none', border: 'none', color: '#5B7BA0',
+                    style={{ background: 'none', border: 'none', color: 'var(--shuma-muted)',
                       cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
                   >
                     ✕
@@ -902,7 +902,7 @@ export default function HistoryPage() {
                           <span style={{ fontSize: 12, fontWeight: 700, color: '#E8EFF8',
                             fontFamily: "'Exo 2', sans-serif" }}>{a.name}</span>
                         </div>
-                        <div style={{ fontSize: 10, color: '#5B7BA0', marginTop: 2 }}>
+                        <div style={{ fontSize: 10, color: 'var(--shuma-muted)', marginTop: 2 }}>
                           {a.driver} · {a.date}
                         </div>
                       </th>
@@ -914,7 +914,7 @@ export default function HistoryPage() {
                           <span style={{ fontSize: 12, fontWeight: 700, color: '#E8EFF8',
                             fontFamily: "'Exo 2', sans-serif" }}>{b.name}</span>
                         </div>
-                        <div style={{ fontSize: 10, color: '#5B7BA0', marginTop: 2 }}>
+                        <div style={{ fontSize: 10, color: 'var(--shuma-muted)', marginTop: 2 }}>
                           {b.driver} · {b.date}
                         </div>
                       </th>
@@ -953,7 +953,7 @@ export default function HistoryPage() {
                       padding: '8px 20px', borderRadius: 10,
                       background: 'rgba(33,150,243,0.1)',
                       border: '1px solid rgba(33,150,243,0.2)',
-                      color: '#5B7BA0', cursor: 'pointer',
+                      color: 'var(--shuma-muted)', cursor: 'pointer',
                       fontFamily: "'DM Sans', sans-serif", fontSize: 12,
                     }}
                   >

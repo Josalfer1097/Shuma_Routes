@@ -18,7 +18,7 @@ export default function AttachmentThumb({ item, onOpen, size = 72 }: { item: Att
       ) : (
         <span className="w-full h-full flex flex-col items-center justify-center gap-1 text-slate-300">
           <FileText className="w-6 h-6 text-red-300" />
-          <span className="text-[9px] uppercase">{isImage(item) ? 'foto' : 'pdf'}</span>
+          <span className="text-[10px] uppercase">{isImage(item) ? 'foto' : 'pdf'}</span>
         </span>
       )}
     </button>

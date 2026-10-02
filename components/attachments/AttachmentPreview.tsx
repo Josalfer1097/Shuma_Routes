@@ -122,7 +122,7 @@ export default function AttachmentPreview({
             ))}
           </div>
         )}
-        <p className="text-[10px] text-slate-500 text-center">La liga de este archivo caduca en unos minutos por seguridad.</p>
+        <p className="text-[10px] text-slate-400 text-center">La liga de este archivo caduca en unos minutos por seguridad.</p>
       </div>
     </div>,
     document.body

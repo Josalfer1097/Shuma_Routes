@@ -581,7 +581,7 @@ export default function RoutePanel({
                             const [h, m] = (route.departureTime || globalDepartureTime || '08:00').split(':').map(Number);
                             const targetMins = (h || 0) * 60 + (m || 0);
                             return targetMins < currentMins ? (
-                              <span className="text-[9px] text-red-500 ml-4 font-medium">⚠️ Esta hora ya pasó</span>
+                              <span className="text-[10px] text-red-500 ml-4 font-medium">⚠️ Esta hora ya pasó</span>
                             ) : null;
                           })()}
                         </div>
@@ -632,7 +632,7 @@ export default function RoutePanel({
                       >
                         📊
                       </button>
-                      <span style={{ color:'#5B7BA0', fontSize:fs(12), flexShrink:0, transition:'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+                      <span style={{ color:'var(--shuma-muted)', fontSize:fs(12), flexShrink:0, transition:'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
                     </div>
                   </div>
 
@@ -833,7 +833,7 @@ export default function RoutePanel({
                               {stop.address.clientName || stop.address.name}
                             </p>
                             {stop.address.invoice && (
-                              <p style={{ fontSize: fs(10), color: '#5B7BA0', margin: '1px 0 0' }}>
+                              <p style={{ fontSize: fs(10), color: 'var(--shuma-muted)', margin: '1px 0 0' }}>
                                 Factura: {stop.address.invoice}
                               </p>
                             )}

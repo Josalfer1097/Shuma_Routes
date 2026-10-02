@@ -39,7 +39,7 @@ const NAV_BTN = {
   background: 'transparent',
   border: '1px solid #112040',
   borderRadius: 6,
-  color: '#5B7BA0',
+  color: 'var(--shuma-muted)',
   fontSize: 11,
   fontFamily: "'Exo 2', sans-serif",
   cursor: 'pointer',
@@ -156,7 +156,7 @@ export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
           ...NAV_BTN,
           background: open ? 'rgba(33,150,243,0.10)' : 'transparent',
           borderColor: open ? '#2196F3' : '#112040',
-          color: open ? '#2196F3' : '#5B7BA0',
+          color: open ? '#2196F3' : 'var(--shuma-muted)',
           position: 'relative',
         }}
         onMouseEnter={e => {
@@ -166,7 +166,7 @@ export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
         }}
         onMouseLeave={e => {
           e.currentTarget.style.borderColor = open ? '#2196F3' : '#112040';
-          e.currentTarget.style.color = open ? '#2196F3' : '#5B7BA0';
+          e.currentTarget.style.color = open ? '#2196F3' : 'var(--shuma-muted)';
           e.currentTarget.style.background = open ? 'rgba(33,150,243,0.10)' : 'transparent';
         }}
       >
@@ -270,7 +270,7 @@ export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
               }}
             >
               <div>
-                <p style={{ fontSize: 9, color: '#5B7BA0', letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: "'Exo 2',sans-serif", margin: 0 }}>
+                <p style={{ fontSize: 9, color: 'var(--shuma-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: "'Exo 2',sans-serif", margin: 0 }}>
                   INTELIGENCIA CLIMÁTICA · CDMX
                 </p>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
@@ -279,7 +279,7 @@ export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
                 </div>
                 <p style={{ fontSize: 12, color: '#cbd5e1', margin: '2px 0 0', textTransform: 'capitalize' }}>{weather.description}</p>
               </div>
-              <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#5B7BA0', padding: 4 }}>
+              <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--shuma-muted)', padding: 4 }}>
                 <X size={14} />
               </button>
             </div>
@@ -308,7 +308,7 @@ export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
                 padding: '10px 12px',
               }}>
                 <p style={{
-                  fontSize: 9, color: '#5B7BA0', letterSpacing: '0.1em',
+                  fontSize: 9, color: 'var(--shuma-muted)', letterSpacing: '0.1em',
                   textTransform: 'uppercase', fontFamily: "'Exo 2', sans-serif",
                   margin: '0 0 8px',
                 }}>
@@ -336,7 +336,7 @@ export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
                           : 'rgba(255,255,255,0.04)'}`,
                         minWidth: 46,
                       }}>
-                        <p style={{ fontSize: 9, color: '#5B7BA0', margin: 0 }}>{hour}</p>
+                        <p style={{ fontSize: 9, color: 'var(--shuma-muted)', margin: 0 }}>{hour}</p>
                         <img
                           src={`https://openweathermap.org/img/wn/${f.icon}.png`}
                           alt={f.description}
@@ -401,9 +401,9 @@ export default function WeatherIntelPanel({ weather, forecast = [] }: Props) {
                     transition: 'background 0.15s',
                   }}
                 >
-                  <span style={{ color: '#5B7BA0', flexShrink: 0 }}>{icon}</span>
+                  <span style={{ color: 'var(--shuma-muted)', flexShrink: 0 }}>{icon}</span>
                   <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: 9, color: '#5B7BA0', margin: 0, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</p>
+                    <p style={{ fontSize: 9, color: 'var(--shuma-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</p>
                     <p style={{ fontSize: 11, color: '#e2e8f0', margin: 0, fontWeight: 600 }}>{value}</p>
                   </div>
                   {/* Tooltip */}

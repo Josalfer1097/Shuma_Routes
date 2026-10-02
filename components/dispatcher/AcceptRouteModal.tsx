@@ -14,6 +14,8 @@ interface Props {
   onSuccess?: () => void;
   duplicateWarning?: string | null;
   onSetBlockingAction?: (action: string | null) => void;
+  /** Hora general de Configuración: se usa cuando el chofer no tiene hora propia */
+  globalDepartureTime?: string | null;
 }
 
 export default function AcceptRouteModal({
@@ -25,6 +27,7 @@ export default function AcceptRouteModal({
   onSuccess,
   duplicateWarning,
   onSetBlockingAction,
+  globalDepartureTime,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -46,7 +49,11 @@ export default function AcceptRouteModal({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ routes }),
+        // Cada ruta lleva su hora: la propia del chofer o, si no tiene, la general.
+        // Antes sin hora propia se guardaba 08:00 aunque la configuración dijera otra.
+        body: JSON.stringify({
+          routes: routes.map(r => ({ ...r, departureTime: r.departureTime || globalDepartureTime || undefined })),
+        }),
       });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || 'Error al guardar rutas');

@@ -26,7 +26,7 @@ function FunnyMessage() {
       <div className="px-5 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm font-semibold">
         {msg.text}
       </div>
-      <p className="text-xs text-slate-600 italic">{msg.sub}</p>
+      <p className="text-xs text-slate-400 italic">{msg.sub}</p>
     </div>
   );
 }
@@ -141,7 +141,7 @@ export default function ConstructionPage({ title, description, emoji }: Props) {
 
           {/* Mensaje gracioso */}
           <div className="pt-8 border-t border-slate-700/50 space-y-4">
-            <p className="text-sm text-slate-500 font-mono">
+            <p className="text-sm text-slate-400 font-mono">
               $ npm run deploy --{title.toLowerCase().replace(/\s+/g, '-')}
             </p>
             {/* Mensajes rotativos graciosos */}
@@ -150,7 +150,7 @@ export default function ConstructionPage({ title, description, emoji }: Props) {
 
           {/* Footer graciosa */}
           <div className="pt-4">
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-slate-400">
               Mientras tanto, optimiza tus rutas con <span className="text-blue-400 font-semibold">Shuma Rutas</span> 🚀
             </p>
           </div>

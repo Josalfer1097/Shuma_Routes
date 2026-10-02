@@ -171,7 +171,7 @@ export default function AddressAutocomplete({ value, onChange, onPick, onSubmitT
               </button>
             </li>
           ))}
-          <li className="px-2.5 py-1 text-right text-[9px] text-slate-500 border-t border-shuma-border">
+          <li className="px-2.5 py-1 text-right text-[10px] text-slate-400 border-t border-shuma-border">
             Resultados de Google
           </li>
         </ul>

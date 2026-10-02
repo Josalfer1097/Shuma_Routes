@@ -154,6 +154,7 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
         onSuccess={() => { setIsAccepted(true); onRouteAccepted?.(); }}
         duplicateWarning={duplicateWarning}
         onSetBlockingAction={onSetBlockingAction}
+        globalDepartureTime={globalConfig?.departureTime ?? null}
       />
     </div>
   );

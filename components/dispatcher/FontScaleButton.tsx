@@ -63,7 +63,7 @@ export default function FontScaleButton() {
     background: open || isActive ? 'rgba(33,150,243,0.10)' : 'transparent',
     border: `1px solid ${open || isActive ? BLUE : '#112040'}`,
     borderRadius: 6,
-    color: open || isActive ? BLUE : '#5B7BA0',
+    color: open || isActive ? BLUE : 'var(--shuma-muted)',
     fontSize: 11,
     fontFamily: "'Exo 2', sans-serif",
     cursor: 'pointer',
@@ -87,7 +87,7 @@ export default function FontScaleButton() {
         onMouseLeave={e => {
           if (!open && !isActive) {
             e.currentTarget.style.borderColor = '#112040';
-            e.currentTarget.style.color = '#5B7BA0';
+            e.currentTarget.style.color = 'var(--shuma-muted)';
             e.currentTarget.style.background = 'transparent';
           }
         }}
@@ -127,7 +127,7 @@ export default function FontScaleButton() {
             }
           `}</style>
 
-          <p style={{ fontSize: 11, color: '#5B7BA0', marginBottom: 10,
+          <p style={{ fontSize: 11, color: 'var(--shuma-muted)', marginBottom: 10,
             fontFamily: "'Exo 2', sans-serif", display: 'flex', alignItems: 'center', gap: 5 }}>
             🔠 Tamaño de texto
           </p>
@@ -144,7 +144,7 @@ export default function FontScaleButton() {
                     height: 38, borderRadius: 8,
                     background: active ? 'rgba(33,150,243,0.15)' : 'rgba(255,255,255,0.03)',
                     border: `1px solid ${active ? BLUE : '#112040'}`,
-                    color: active ? '#E8EFF8' : '#5B7BA0',
+                    color: active ? '#E8EFF8' : 'var(--shuma-muted)',
                     cursor: 'pointer',
                     display: 'flex', alignItems: 'center',
                     justifyContent: 'space-between',
@@ -166,7 +166,7 @@ export default function FontScaleButton() {
                     setPreviewScale(null);
                     if (!active) {
                       e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                      e.currentTarget.style.color = '#5B7BA0';
+                      e.currentTarget.style.color = 'var(--shuma-muted)';
                       e.currentTarget.style.borderColor = '#112040';
                     }
                   }}
@@ -179,7 +179,7 @@ export default function FontScaleButton() {
                       lineHeight: 1,
                       minWidth: 20,
                       textAlign: 'center',
-                      color: active ? BLUE : '#5B7BA0',
+                      color: active ? BLUE : 'var(--shuma-muted)',
                     }}>
                       A
                     </span>
@@ -214,7 +214,7 @@ export default function FontScaleButton() {
                 color: '#3B5270', fontSize: 9, marginTop: 8, padding: 0,
                 fontFamily: "'Exo 2', sans-serif", transition: 'color 0.15s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#5B7BA0'; }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--shuma-muted)'; }}
               onMouseLeave={e => { e.currentTarget.style.color = '#3B5270'; }}
             >
               Restablecer
@@ -248,7 +248,7 @@ export default function FontScaleButton() {
             `}</style>
             <div style={{ width: 40, height: 4, borderRadius: 99, background: '#1E3A5F',
               margin: '0 auto 16px' }} />
-            <p style={{ fontSize: 11, color: '#5B7BA0', marginBottom: 12, textAlign: 'center',
+            <p style={{ fontSize: 11, color: 'var(--shuma-muted)', marginBottom: 12, textAlign: 'center',
               fontFamily: "'Exo 2', sans-serif" }}>
               🔠 Tamaño de texto
             </p>
@@ -263,7 +263,7 @@ export default function FontScaleButton() {
                       height: 48, borderRadius: 10, width: '100%',
                       background: active ? 'rgba(33,150,243,0.15)' : 'rgba(255,255,255,0.03)',
                       border: `1px solid ${active ? BLUE : '#112040'}`,
-                      color: active ? '#E8EFF8' : '#5B7BA0',
+                      color: active ? '#E8EFF8' : 'var(--shuma-muted)',
                       cursor: 'pointer',
                       display: 'flex', alignItems: 'center',
                       justifyContent: 'space-between',
@@ -280,7 +280,7 @@ export default function FontScaleButton() {
                         lineHeight: 1,
                         minWidth: 28,
                         textAlign: 'center',
-                        color: active ? BLUE : '#5B7BA0',
+                        color: active ? BLUE : 'var(--shuma-muted)',
                       }}>
                         A
                       </span>

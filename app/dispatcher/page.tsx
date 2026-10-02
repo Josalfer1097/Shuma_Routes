@@ -215,12 +215,12 @@ const buildWhatsAppLink = (phone: string | null | undefined): string | null => {
   return null;
 };
 
-// Helper: calcular ETA de una ruta activa
 /** sessionStorage: paradas que la revisión del Excel dejó fuera. */
 const LEFT_OUT_KEY = 'shuma_left_out';
 
 const LUNCH_MINS_DEFAULT = 30; // debe coincidir con LUNCH_MINS en lib/pdfReport.ts
 
+// Helper: calcular ETA de una ruta activa (por PARADAS, no por facturas)
 const calcRouteETA = (
   departureTime: string,        // 'HH:MM'
   totalMinutes: number,         // tiempo total estimado de la ruta
@@ -242,17 +242,24 @@ const calcRouteETA = (
     const [nowH, nowM] = nowCDMX.split(':').map(Number);
     const nowTotalMin = nowH * 60 + nowM;
 
+    // Si la ruta aún no sale, el reloj empieza en su hora de salida, no en este momento
+    const [depH, depM] = (departureTime || '').split(':').map(Number);
+    const depTotalMin = Number.isFinite(depH) ? depH * 60 + (Number.isFinite(depM) ? depM : 0) : nowTotalMin;
+    const startMin = Math.max(nowTotalMin, depTotalMin);
+
     // Sumar tiempo de comida si aún no ha ocurrido (asumimos comida a medio día,
     // entre 13:00-15:00; si la hora actual ya pasó las 15:00, asumimos que ya comió)
     const lunchPending = lunchAlreadyElapsed === false
       ? LUNCH_MINS_DEFAULT
-      : (nowTotalMin < 15 * 60 ? LUNCH_MINS_DEFAULT : 0);
+      : (startMin < 15 * 60 ? LUNCH_MINS_DEFAULT : 0);
 
-    // ETA = ahora + tiempo restante de paradas + comida pendiente
-    const etaTotalMin = nowTotalMin + remainingMin + lunchPending;
+    // ETA = inicio (ahora o la hora de salida) + tiempo restante de paradas + comida pendiente
+    const etaTotalMin = startMin + remainingMin + lunchPending;
     const etaH = Math.floor(etaTotalMin / 60) % 24;
     const etaM = etaTotalMin % 60;
-    const etaStr = `${String(etaH).padStart(2, '0')}:${String(etaM).padStart(2, '0')}`;
+    const hhmm = String(etaH).padStart(2, '0') + ':' + String(etaM).padStart(2, '0');
+    // Después de medianoche ya no "da la vuelta" (antes marcaba 01:00 como si fuera temprano)
+    const etaStr = etaTotalMin >= 24 * 60 ? 'mañana ' + hhmm : hhmm;
 
     // ¿Supera el deadline?
     const [dlH, dlM] = (deadlineTime || '17:45').split(':').map(Number);
@@ -621,8 +628,8 @@ function DispatcherPageContent() {
       const { isAtRisk } = calcRouteETA(
         route.departure_time,
         route.total_minutes,
-        pending,
-        total,
+        route.stats?.stopsPending ?? pending,
+        route.stats?.stopsTotal ?? total,
         deadline
       );
 
@@ -1661,7 +1668,7 @@ function DispatcherPageContent() {
                       display: 'flex', alignItems: 'center', gap: 5,
                       padding: '5px 10px', background: isMoreMenuOpen ? 'rgba(33,150,243,0.10)' : 'transparent',
                       border: `1px solid ${isMoreMenuOpen ? '#2196F3' : '#112040'}`,
-                      borderRadius: 6, color: isMoreMenuOpen ? '#2196F3' : '#5B7BA0',
+                      borderRadius: 6, color: isMoreMenuOpen ? '#2196F3' : 'var(--shuma-muted)',
                       fontSize: fs(11), fontFamily: "'Exo 2', sans-serif",
                       cursor: 'pointer', transition: 'all 0.2s',
                     }}
@@ -1669,7 +1676,7 @@ function DispatcherPageContent() {
                     onMouseLeave={e => {
                       if (!isMoreMenuOpen) {
                         e.currentTarget.style.borderColor = '#112040';
-                        e.currentTarget.style.color = '#5B7BA0';
+                        e.currentTarget.style.color = 'var(--shuma-muted)';
                       }
                     }}
                   >
@@ -1939,7 +1946,7 @@ function DispatcherPageContent() {
                 background: 'transparent',
                 border: '1px solid #112040',
                 borderRadius: 6,
-                color: '#5B7BA0',
+                color: 'var(--shuma-muted)',
                 fontSize: fs(11),
                 cursor: 'pointer',
                 transition: 'all 0.2s',
@@ -1950,7 +1957,7 @@ function DispatcherPageContent() {
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = '#112040';
-                e.currentTarget.style.color = '#5B7BA0';
+                e.currentTarget.style.color = 'var(--shuma-muted)';
               }}
             >
               <LogOut size={14} />
@@ -2300,7 +2307,7 @@ function DispatcherPageContent() {
                             fontFamily: "'Exo 2', sans-serif" }}>
                             {success}
                           </div>
-                          <div style={{ fontSize: 9, color: '#5B7BA0', textTransform: 'uppercase',
+                          <div style={{ fontSize: 9, color: 'var(--shuma-muted)', textTransform: 'uppercase',
                             letterSpacing: '0.08em' }}>geocodificadas</div>
                         </div>
                         {errors > 0 && (
@@ -2311,7 +2318,7 @@ function DispatcherPageContent() {
                                 fontFamily: "'Exo 2', sans-serif" }}>
                                 {errors}
                               </div>
-                              <div style={{ fontSize: 9, color: '#5B7BA0', textTransform: 'uppercase',
+                              <div style={{ fontSize: 9, color: 'var(--shuma-muted)', textTransform: 'uppercase',
                                 letterSpacing: '0.08em' }}>con errores</div>
                             </div>
                           </>
@@ -2322,7 +2329,7 @@ function DispatcherPageContent() {
                             fontFamily: "'Exo 2', sans-serif" }}>
                             {total}
                           </div>
-                          <div style={{ fontSize: 9, color: '#5B7BA0', textTransform: 'uppercase',
+                          <div style={{ fontSize: 9, color: 'var(--shuma-muted)', textTransform: 'uppercase',
                             letterSpacing: '0.08em' }}>total</div>
                         </div>
                       </div>
@@ -2336,12 +2343,12 @@ function DispatcherPageContent() {
                     // Título durante geocoding
                     <>
                       <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase',
-                        color: '#5B7BA0', fontFamily: "'Exo 2', sans-serif", marginBottom: 4 }}>
+                        color: 'var(--shuma-muted)', fontFamily: "'Exo 2', sans-serif", marginBottom: 4 }}>
                         Geocodificando direcciones
                       </div>
                       <div style={{ fontSize: 28, fontWeight: 700, color: '#E8EFF8',
                         fontFamily: "'Exo 2', sans-serif", fontVariantNumeric: 'tabular-nums' }}>
-                        {pct}<span style={{ fontSize: 14, color: isComplete ? '#22c55e' : '#5B7BA0' }}>%</span>
+                        {pct}<span style={{ fontSize: 14, color: isComplete ? '#22c55e' : 'var(--shuma-muted)' }}>%</span>
                       </div>
                     </>
                   )}
@@ -2483,7 +2490,7 @@ function DispatcherPageContent() {
                 {/* Dirección actual con typewriter */}
                 {!isComplete && (
                   <div style={{
-                    fontSize: 10, color: '#5B7BA0', marginBottom: 8,
+                    fontSize: 10, color: 'var(--shuma-muted)', marginBottom: 8,
                     fontFamily: "'DM Sans', sans-serif",
                     textAlign: 'center', minHeight: 16,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -2503,7 +2510,7 @@ function DispatcherPageContent() {
 
                 {/* Contador + ETA */}
                 <div style={{ display: 'flex', justifyContent: 'space-between',
-                  fontSize: 11, color: '#5B7BA0', marginBottom: 6,
+                  fontSize: 11, color: 'var(--shuma-muted)', marginBottom: 6,
                   fontFamily: "'DM Sans', sans-serif" }}>
                   <span>{done} de {total} direcciones</span>
                   <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -2585,7 +2592,7 @@ function DispatcherPageContent() {
                                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   ❌ {addr.raw}
                                 </p>
-                                <p style={{ fontSize: 8, color: '#5B7BA0', margin: 0 }}>
+                                <p style={{ fontSize: 8, color: 'var(--shuma-muted)', margin: 0 }}>
                                   {addr.geocodeError}
                                 </p>
                               </div>
@@ -2711,7 +2718,7 @@ function DispatcherPageContent() {
                 background: 'rgba(10,22,40,0.9)',
                 border: '1px solid #112040',
                 borderRadius: 6,
-                color: '#5B7BA0',
+                color: 'var(--shuma-muted)',
                 fontSize: 10,
                 fontFamily: "'Exo 2', sans-serif",
                 letterSpacing: '0.08em',
@@ -2772,7 +2779,7 @@ function DispatcherPageContent() {
             background: '#0A1628',
             border: '1px solid #112040',
             borderRadius: 6,
-            color: '#5B7BA0',
+            color: 'var(--shuma-muted)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -2785,7 +2792,7 @@ function DispatcherPageContent() {
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.borderColor = '#112040';
-            e.currentTarget.style.color = '#5B7BA0';
+            e.currentTarget.style.color = 'var(--shuma-muted)';
           }}
         >
           {isMapFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
@@ -2948,12 +2955,12 @@ function DispatcherPageContent() {
             }}>
               <div style={{ flex: 1, textAlign: 'center' }}>
                 <p style={{ fontSize: 20, fontWeight: 800, color: '#60a5fa' }}>{sessionToRestore.vehicleCount}</p>
-                <p style={{ fontSize: 10, color: '#5B7BA0', textTransform: 'uppercase' }}>Vehículos</p>
+                <p style={{ fontSize: 10, color: 'var(--shuma-muted)', textTransform: 'uppercase' }}>Vehículos</p>
               </div>
               <div style={{ width: 1, background: 'rgba(255,255,255,0.06)' }} />
               <div style={{ flex: 1, textAlign: 'center' }}>
                 <p style={{ fontSize: 20, fontWeight: 800, color: '#60a5fa' }}>{sessionToRestore.addressCount}</p>
-                <p style={{ fontSize: 10, color: '#5B7BA0', textTransform: 'uppercase' }}>Direcciones</p>
+                <p style={{ fontSize: 10, color: 'var(--shuma-muted)', textTransform: 'uppercase' }}>Direcciones</p>
               </div>
             </div>
             <p style={{ fontSize: 11, color: '#64748b', textAlign: 'center', marginBottom: 16 }}>
@@ -2970,7 +2977,7 @@ function DispatcherPageContent() {
                 style={{
                   flex: 1, padding: '10px', borderRadius: 10, cursor: 'pointer',
                   background: 'transparent', border: '1px solid #1E3A5F',
-                  color: '#5B7BA0', fontSize: 12, fontWeight: 600,
+                  color: 'var(--shuma-muted)', fontSize: 12, fontWeight: 600,
                 }}
               >
                 Empezar nuevo
@@ -3212,7 +3219,7 @@ function DispatcherPageContent() {
                   background: isActive ? 'rgba(33,150,243,0.12)' : '#050C1A',
                   border: isActive ? '1px solid rgba(33,150,243,0.3)' : '1px solid transparent',
                   borderRadius: 8,
-                  color: isActive ? '#2196F3' : isDone ? '#10B981' : '#5B7BA0',
+                  color: isActive ? '#2196F3' : isDone ? '#10B981' : 'var(--shuma-muted)',
                   fontSize: fs(12),
                   cursor: 'pointer',
                   fontFamily: "'Exo 2', sans-serif",
@@ -3406,7 +3413,7 @@ function DispatcherPageContent() {
                       Arrastra para reagrupar
                     </span>
                     <span style={{
-                      fontSize: 10, color: '#5B7BA0',
+                      fontSize: 10, color: 'var(--shuma-muted)',
                       background: 'rgba(255,255,255,0.04)',
                       border: '1px solid rgba(255,255,255,0.06)',
                       borderRadius: 99, padding: '1px 7px',
@@ -3554,7 +3561,7 @@ function DispatcherPageContent() {
                         <span>Entregas: {viab.stops}</span>
                         <span className={`font-bold ${viab.status === 'critical' ? 'text-red-400' : viab.status === 'warning' ? 'text-amber-400' : 'text-emerald-400'}`}>Regreso est: {viab.estimatedReturn}</span>
                       </div>
-                      <div className="text-[9px] text-shuma-muted">
+                      <div className="text-[10px] text-shuma-muted">
                         Tránsito: ~{Math.floor(viab.transitMinutes/60)}h {viab.transitMinutes%60}m + Descarga: ~{Math.floor(viab.unloadMinutes/60)}h {viab.unloadMinutes%60}m = Total: ~{Math.floor(viab.totalMinutes/60)}h {viab.totalMinutes%60}m
                       </div>
                     </div>
@@ -3674,7 +3681,7 @@ function DispatcherPageContent() {
                     style={{
                       fontSize: 10, padding: '3px 6px',
                       background: '#060F1D', border: '1px solid #0d1f3a',
-                      borderRadius: 6, color: '#5B7BA0',
+                      borderRadius: 6, color: 'var(--shuma-muted)',
                       fontFamily: "'Exo 2', sans-serif", cursor: 'pointer',
                       outline: 'none',
                     }}
@@ -3745,10 +3752,10 @@ function DispatcherPageContent() {
                       const pctB = b.stats?.total > 0
                         ? (b.stats.delivered + b.stats.partial + b.stats.failed) / b.stats.total : 0;
                       const { isAtRisk: riskA } = !( a.stats?.pending === 0 && a.stats?.total > 0)
-                        ? calcRouteETA(a.departure_time, a.total_minutes, a.stats?.pending, a.stats?.total, state.globalConfig?.deadlineTime || '17:45')
+                        ? calcRouteETA(a.departure_time, a.total_minutes, a.stats?.stopsPending ?? a.stats?.pending, a.stats?.stopsTotal ?? a.stats?.total, state.globalConfig?.deadlineTime || '17:45')
                         : { isAtRisk: false };
                       const { isAtRisk: riskB } = !(b.stats?.pending === 0 && b.stats?.total > 0)
-                        ? calcRouteETA(b.departure_time, b.total_minutes, b.stats?.pending, b.stats?.total, state.globalConfig?.deadlineTime || '17:45')
+                        ? calcRouteETA(b.departure_time, b.total_minutes, b.stats?.stopsPending ?? b.stats?.pending, b.stats?.stopsTotal ?? b.stats?.total, state.globalConfig?.deadlineTime || '17:45')
                         : { isAtRisk: false };
 
                       if (activeRoutesSort === 'risk') {
@@ -3772,7 +3779,7 @@ function DispatcherPageContent() {
                     // Fuerza re-cálculo de ETA cada minuto
                     void etaTick;
                     const { etaStr, isAtRisk } = !isDone
-                      ? calcRouteETA(route.departure_time, route.total_minutes, pending, route.stats.total, deadline)
+                      ? calcRouteETA(route.departure_time, route.total_minutes, route.stats.stopsPending ?? pending, route.stats.stopsTotal ?? route.stats.total, deadline)
                       : { etaStr: '', isAtRisk: false };
 
                     return (
@@ -3949,7 +3956,7 @@ function DispatcherPageContent() {
                               onClick={() => setExpandedActiveRoute(expandedActiveRoute === route.id ? null : route.id)}
                               className="w-full text-xs text-shuma-muted hover:text-shuma-text flex items-center justify-between py-1 px-1 rounded hover:bg-white/5 transition-colors"
                             >
-                              <span>Entregas ({route.deliveries.length})</span>
+                              <span>{(route.stats?.stopsTotal ?? route.deliveries.length) + ' paradas · ' + route.deliveries.length + ' facturas'}</span>
                               <span>{expandedActiveRoute === route.id ? '▲' : '▼'}</span>
                             </button>
                             
@@ -3992,7 +3999,8 @@ function DispatcherPageContent() {
                     backgroundSize: '400% 100%',
                     animation: 'rgbRoll 5s linear infinite',
                   }} />
-                <span>{activeRoutesData.length} ruta(s) activas</span>
+                {/* Mismo criterio que el menú: "en curso" = con entregas pendientes */}
+                <span>{activeRoutesData.length + (activeRoutesData.length === 1 ? ' ruta' : ' rutas') + ' · ' + chofresEnRuta + ' en curso'}</span>
                 <button
                   onClick={() => {
                     const text = activeRoutesData.map((r: any) => {
@@ -4145,7 +4153,7 @@ function ConfigPanel({
             marginTop: 8,
           }}>
             <div>
-              <p style={{ fontSize: 11, fontWeight: 600, color: testMode ? '#fbbf24' : '#5B7BA0',
+              <p style={{ fontSize: 11, fontWeight: 600, color: testMode ? '#fbbf24' : 'var(--shuma-muted)',
                 fontFamily: "'Exo 2', sans-serif", margin: 0 }}>
                 🧪 Modo Prueba
               </p>

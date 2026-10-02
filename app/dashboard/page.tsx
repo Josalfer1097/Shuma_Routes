@@ -612,7 +612,7 @@ export default function DashboardPage() {
                   {avgMinPerStop > 0 ? `${avgMinPerStop}` : '—'}
                   {avgMinPerStop > 0 && <span className="text-lg text-shuma-muted font-normal"> min</span>}
                 </p>
-                <span style={{ fontSize: 10, color: '#5B7BA0', fontFamily: "'Exo 2', sans-serif" }}>
+                <span style={{ fontSize: 10, color: 'var(--shuma-muted)', fontFamily: "'Exo 2', sans-serif" }}>
                   promedio por entrega
                 </span>
               </div>
@@ -934,7 +934,7 @@ export default function DashboardPage() {
                 <td style={{ padding: '10px 16px', fontSize: 12, color: aWins ? '#34d399' : '#f87171', fontWeight: 700, textAlign: 'right' }}>
                   {va.toFixed(va % 1 === 0 ? 0 : 1)}{suffix}
                 </td>
-                <td style={{ padding: '10px 16px', fontSize: 11, color: '#5B7BA0', textAlign: 'center', fontFamily: "'Exo 2', sans-serif", letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                <td style={{ padding: '10px 16px', fontSize: 11, color: 'var(--shuma-muted)', textAlign: 'center', fontFamily: "'Exo 2', sans-serif", letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                   {label}
                 </td>
                 <td style={{ padding: '10px 16px', fontSize: 12, color: !aWins ? '#34d399' : '#f87171', fontWeight: 700 }}>

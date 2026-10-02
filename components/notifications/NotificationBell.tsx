@@ -182,7 +182,7 @@ export default function NotificationBell({
       >
         <Bell size={20} className={isReminderPulse ? 'animate-bounce' : ''} />
         {pendingActionCount > 0 ? (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[9px] font-bold text-white bg-red-500 rounded-full border border-shuma-surface animate-pulse">
+          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold text-white bg-red-500 rounded-full border border-shuma-surface animate-pulse">
             {pendingActionCount}
           </span>
         ) : unreadCount > 0 && (

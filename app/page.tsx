@@ -376,7 +376,7 @@ export default function HomePage() {
         </div>
         {/* Selector de rol */}
         <div className="space-y-3">
-          <p className="text-center text-xs font-medium text-slate-500 uppercase tracking-widest mb-5">
+          <p className="text-center text-xs font-medium text-slate-400 uppercase tracking-widest mb-5">
             Selecciona tu rol
           </p>
           <button
@@ -417,7 +417,7 @@ export default function HomePage() {
                 Gestión de rutas, choferes y operaciones
               </p>
             </div>
-            <svg className="w-5 h-5 text-slate-600 group-hover:text-blue-400 group-hover:translate-x-1
+            <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-400 group-hover:translate-x-1
                             transition-all duration-300"
               fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -429,7 +429,7 @@ export default function HomePage() {
             }}
               className="group-hover:opacity-60 group-hover:scale-110 group-hover:translate-x-2"
             >🗺️</div>
-            <span className="absolute top-2 right-2 text-[9px] font-mono bg-white/10 text-white/40 px-1.5 py-0.5 rounded border border-white/10">
+            <span className="absolute top-2 right-2 text-[10px] font-mono bg-white/10 text-white/40 px-1.5 py-0.5 rounded border border-white/10">
               A
             </span>
           </button>
@@ -471,7 +471,7 @@ export default function HomePage() {
                 Ver mi ruta y marcar entregas completadas
               </p>
             </div>
-            <svg className="w-5 h-5 text-slate-600 group-hover:text-amber-400 group-hover:translate-x-1
+            <svg className="w-5 h-5 text-slate-400 group-hover:text-amber-400 group-hover:translate-x-1
                             transition-all duration-300"
               fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -483,7 +483,7 @@ export default function HomePage() {
             }}
               className="group-hover:opacity-60 group-hover:scale-110 group-hover:translate-x-2"
             >🚛</div>
-            <span className="absolute top-2 right-2 text-[9px] font-mono bg-white/10 text-white/40 px-1.5 py-0.5 rounded border border-white/10">
+            <span className="absolute top-2 right-2 text-[10px] font-mono bg-white/10 text-white/40 px-1.5 py-0.5 rounded border border-white/10">
               C
             </span>
           </button>
@@ -535,7 +535,7 @@ export default function HomePage() {
             e.currentTarget.style.borderColor = changelog ? 'rgba(33,150,243,0.2)' : 'transparent';
           }}
         >
-          v7.46.1{changelog ? ' · Ver novedades  ' : ''}
+          v7.46.2{changelog ? ' · Ver novedades  ' : ''}
         </button>
         <style>{`
           @keyframes rgbRoll {
@@ -598,10 +598,10 @@ export default function HomePage() {
                   fontSize: 16, fontWeight: 700, color: '#E8EFF8',
                   fontFamily: "'Exo 2', sans-serif", margin: 0,
                 }}>
-                  🌟 Novedades v7.46.1
+                  🌟 Novedades v7.46.2
                 </h2>
                 <p style={{
-                  fontSize: 11, color: '#5B7BA0', margin: '4px 0 0',
+                  fontSize: 11, color: 'var(--shuma-muted)', margin: '4px 0 0',
                   fontFamily: "'DM Sans', sans-serif",
                 }}>
                   Actualizado:{' '}
@@ -618,7 +618,7 @@ export default function HomePage() {
               <button
                 onClick={() => setShowChangelog(false)}
                 style={{
-                  background: 'none', border: 'none', color: '#5B7BA0',
+                  background: 'none', border: 'none', color: 'var(--shuma-muted)',
                   cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4,
                 }}
               >✕</button>
@@ -640,7 +640,7 @@ export default function HomePage() {
                              border: 'rgba(239,68,68,0.2)',   icon: '🐛', label: 'Bug' },
                 };
                 const c = cfgMap[item.type] || {
-                  color: '#5B7BA0', bg: 'transparent',
+                  color: 'var(--shuma-muted)', bg: 'transparent',
                   border: 'rgba(255,255,255,0.06)', icon: '•', label: '',
                 };
                 return (

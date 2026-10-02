@@ -31,9 +31,9 @@ export default function StopList({ route, stops, onComplete }: Props) {
               style={{ color: route.color }}
             >
               {completedCount}
-              <span className="text-lg text-slate-500">/{totalCount}</span>
+              <span className="text-lg text-slate-400">/{totalCount}</span>
             </p>
-            <p className="text-xs text-slate-500">entregas</p>
+            <p className="text-xs text-slate-400">entregas</p>
           </div>
         </div>
 
@@ -49,7 +49,7 @@ export default function StopList({ route, stops, onComplete }: Props) {
         <div className="grid grid-cols-2 gap-3">
           {route.totalDistance && (
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               </svg>
@@ -58,7 +58,7 @@ export default function StopList({ route, stops, onComplete }: Props) {
           )}
           {route.totalDuration && (
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -93,7 +93,7 @@ export default function StopList({ route, stops, onComplete }: Props) {
 
       {/* Footer */}
       <div className="py-4 text-center">
-        <p className="text-xs text-slate-600">Shuma Rutas · Optimizado con Google Maps</p>
+        <p className="text-xs text-slate-400">Shuma Rutas · Optimizado con Google Maps</p>
       </div>
     </div>
   );

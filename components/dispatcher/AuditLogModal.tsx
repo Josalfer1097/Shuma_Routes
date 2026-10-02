@@ -86,7 +86,7 @@ function DatePickerPopup({ month, selected, onSelect, onMonthChange, onClose, la
             fontSize: 10, padding: '3px 8px', borderRadius: 99, cursor: 'pointer',
             background: selected === q.iso ? 'rgba(33,150,243,0.2)' : 'rgba(255,255,255,0.04)',
             border: `1px solid ${selected === q.iso ? 'rgba(33,150,243,0.5)' : 'rgba(255,255,255,0.08)'}`,
-            color: selected === q.iso ? '#60a5fa' : '#5B7BA0',
+            color: selected === q.iso ? '#60a5fa' : 'var(--shuma-muted)',
             transition: 'all 0.15s',
           }}>
             {q.label}
@@ -97,13 +97,13 @@ function DatePickerPopup({ month, selected, onSelect, onMonthChange, onClose, la
       {/* Navegación de mes */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <button onClick={() => onMonthChange(new Date(year, m - 1, 1))} style={{
-          background: 'none', border: 'none', color: '#5B7BA0', cursor: 'pointer', fontSize: 16, padding: '2px 6px',
+          background: 'none', border: 'none', color: 'var(--shuma-muted)', cursor: 'pointer', fontSize: 16, padding: '2px 6px',
         }}>‹</button>
         <span style={{ fontSize: 12, fontWeight: 600, color: '#A8BFE0' }}>
           {MONTHS[m]} {year}
         </span>
         <button onClick={() => onMonthChange(new Date(year, m + 1, 1))} style={{
-          background: 'none', border: 'none', color: '#5B7BA0', cursor: 'pointer', fontSize: 16, padding: '2px 6px',
+          background: 'none', border: 'none', color: 'var(--shuma-muted)', cursor: 'pointer', fontSize: 16, padding: '2px 6px',
         }}>›</button>
       </div>
 
@@ -1023,6 +1023,10 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                                     ? (strVal === 'failed' ? ' text-red-300' : strVal === 'partial' ? ' text-amber-300' : strVal === 'delivered' ? ' text-emerald-300' : '')
                                     : '';
 
+                                  // Listas de facturas: etiquetas ordenadas en vez de un bloque separado por comas
+                                  const invoiceList = key === 'facturas'
+                                    ? strVal.split(',').map(x => x.trim()).filter(Boolean)
+                                    : null;
                                   const isMonetary = key === 'valor_mercancia' && !isNaN(Number(value));
                                   const isDateStr = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(strVal);
                                   
@@ -1035,10 +1039,22 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                                     : displayValue;
 
                                   return (
-                                    <div key={key}>
-                                      <p className="text-[10px] text-shuma-muted font-bold uppercase tracking-wider">{displayKey}</p>
-                                      {/* Sin text-shuma-text cuando hay color: esa clase tenía prioridad y dejaba "No entregada" en blanco */}
-                                      <p className={(valueTone ? 'text-sm mt-0.5 font-medium' : 'text-sm text-shuma-text mt-0.5 font-medium') + valueTone} title={isUUID ? strVal : undefined}>{formattedValue}</p>
+                                    <div key={key} className={invoiceList && invoiceList.length > 1 ? 'col-span-full' : undefined}>
+                                      <p className="text-[10px] text-shuma-muted font-bold uppercase tracking-wider">
+                                        {displayKey}{invoiceList && invoiceList.length > 1 ? ' (' + invoiceList.length + ')' : ''}
+                                      </p>
+                                      {invoiceList && invoiceList.length > 1 ? (
+                                        <div className="mt-1 flex flex-wrap gap-1.5">
+                                          {invoiceList.map(inv => (
+                                            <span key={inv} className="px-2 py-0.5 rounded-md border border-shuma-border bg-shuma-bg text-xs text-shuma-text font-mono">
+                                              {inv}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        /* Sin text-shuma-text cuando hay color: esa clase tenía prioridad y dejaba "No entregada" en blanco */
+                                        <p className={(valueTone ? 'text-sm mt-0.5 font-medium' : 'text-sm text-shuma-text mt-0.5 font-medium') + valueTone} title={isUUID ? strVal : undefined}>{formattedValue}</p>
+                                      )}
                                       {photoCount && Number(photoCount[1]) > 0 && log.entity_id && (
                                         <div className="mt-2"><DeliveryPhotos deliveryId={log.entity_id} /></div>
                                       )}

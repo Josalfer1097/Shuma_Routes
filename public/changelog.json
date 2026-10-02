@@ -1,6 +1,11 @@
 {
-  "updated": "2026-09-28",
+  "updated": "2026-10-02",
   "items": [
+    { "type": "fix", "text": "Las rutas guardan la hora de salida de Configuracion cuando el chofer no tiene una propia; antes se guardaba siempre 08:00" },
+    { "type": "fix", "text": "Las rutas aceptadas despues de las 6 de la tarde ya no quedan con fecha del dia siguiente" },
+    { "type": "improve", "text": "Textos secundarios con mejor contraste en todo el sistema para leerse con facilidad" },
+    { "type": "improve", "text": "En la bitacora, las facturas de una ruta se muestran como etiquetas ordenadas" },
+    { "type": "improve", "text": "Rutas Activas calcula la hora estimada por paradas y desde la hora de salida, muestra paradas y facturas por separado, y el conteo coincide con el del menu" },
     { "type": "improve", "text": "En el Expediente, los archivos de una misma factura se agrupan como tarjetas apiladas con su contador" },
     { "type": "improve", "text": "Al abrir una factura con varios archivos se recorren con flechas, en pantalla o con el teclado" },
     { "type": "new", "text": "Nuevo filtro por formato en el Expediente: fotos o PDF" },

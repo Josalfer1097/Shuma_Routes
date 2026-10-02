@@ -145,7 +145,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
         .vf-select:focus { border-color: #2196F3; box-shadow: 0 0 0 2px rgba(33,150,243,0.12); }
         .vf-select option { background: #0D1E38; color: #E8EFF8; }
         .vf-select option:disabled { color: #3B5270; }
-        .vf-select optgroup { background: #0A1628; color: #5B7BA0; font-size: 11px;
+        .vf-select optgroup { background: #0A1628; color: var(--shuma-muted); font-size: 11px;
           font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
       `}</style>
       {availableDrivers.length > 0 && vehicles.length < 10 ? (
@@ -183,7 +183,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                   <svg width="10" height="6" viewBox="0 0 10 6" fill="none"
                     style={{ transform: showDriverDropdown ? 'rotate(180deg)' : 'none',
                       transition: 'transform 0.2s', flexShrink: 0 }}>
-                    <path d="M1 1l4 4 4-4" stroke="#5B7BA0" strokeWidth="1.5"
+                    <path d="M1 1l4 4 4-4" stroke="var(--shuma-muted)" strokeWidth="1.5"
                       strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </button>
@@ -266,7 +266,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                                 {d.name}
                               </div>
                               {d.employee_id && (
-                                <div style={{ fontSize: 10, color: '#5B7BA0',
+                                <div style={{ fontSize: 10, color: 'var(--shuma-muted)',
                                   fontFamily: "'DM Sans', sans-serif" }}>
                                   {d.employee_id}
                                 </div>
@@ -314,7 +314,7 @@ export default function VehicleForm({ vehicles, onAdd, onRemove }: Props) {
                 <div style={{ marginTop: 6 }}>
                   <div style={{
                     display: 'flex', justifyContent: 'space-between',
-                    fontSize: 10, color: '#5B7BA0',
+                    fontSize: 10, color: 'var(--shuma-muted)',
                     fontFamily: "'DM Sans', sans-serif", marginBottom: 3,
                   }}>
                     <span>{VEHICLE_TYPE_LABELS[selectedVehicle.type]}</span>

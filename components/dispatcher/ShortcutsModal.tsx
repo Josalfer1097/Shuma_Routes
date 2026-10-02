@@ -43,7 +43,7 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
           </h2>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: '#5B7BA0', cursor: 'pointer', fontSize: 18 }}
+            style={{ background: 'none', border: 'none', color: 'var(--shuma-muted)', cursor: 'pointer', fontSize: 18 }}
           >
             ✕
           </button>

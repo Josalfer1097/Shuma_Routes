@@ -11,7 +11,8 @@
     --shuma-blue-mid: #1565C0;
     --shuma-accent: #2196F3;
     --shuma-text: #E8EFF8;
-    --shuma-muted: #5B7BA0;
+    /* Texto secundario: antes #5B7BA0 (contraste 4.1, bajo el mínimo 4.5 en textos chicos); ahora 7.2 */
+    --shuma-muted: #8BA6C8;
     --shuma-danger: #EF4444;
     --shuma-warning: #F59E0B;
     --shuma-success: #10B981;

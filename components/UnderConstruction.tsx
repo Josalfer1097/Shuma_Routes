@@ -37,7 +37,7 @@ export default function UnderConstruction({ pageName, icon, eta }: {
           {pageName}
         </h1>
 
-        <p style={{ fontSize: 14, color: '#5B7BA0', lineHeight: 1.6, marginBottom: 8 }}>
+        <p style={{ fontSize: 14, color: 'var(--shuma-muted)', lineHeight: 1.6, marginBottom: 8 }}>
           Esta pantalla está siendo construida por el equipo de
           Sistemas IT mientras toma café y finge que entiende
           los requerimientos.
@@ -70,7 +70,7 @@ export default function UnderConstruction({ pageName, icon, eta }: {
               padding: '10px 20px',
               background: 'transparent',
               border: '1px solid #112040',
-              borderRadius: 8, color: '#5B7BA0',
+              borderRadius: 8, color: 'var(--shuma-muted)',
               fontFamily: "'Exo 2', sans-serif",
               fontSize: 11, letterSpacing: '0.12em',
               textTransform: 'uppercase', cursor: 'pointer'

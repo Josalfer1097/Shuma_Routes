@@ -40,7 +40,7 @@ function PhotoPicker({ photoPreviews, onAdd, onRemove, fileInputRef, isCompressi
             {isCompressing ? (
               <span className="text-[10px]">…</span>
             ) : (
-              <><Camera size={16} /><span className="text-[9px]">Agregar</span></>
+              <><Camera size={16} /><span className="text-[10px]">Agregar</span></>
             )}
           </button>
         )}

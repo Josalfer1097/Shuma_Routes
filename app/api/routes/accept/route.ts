@@ -4,6 +4,19 @@ import { notifyDriverSafely } from '@/lib/push';
 import { requireAuth } from '@/lib/auth';
 import type { Route } from '@/types';
 
+/**
+ * Hora de salida HH:MM de la ruta. Acepta "HH:MM" o una fecha ISO.
+ * Antes: sin hora se guardaba 08:00 aunque la configuración dijera otra, y una fecha ISO
+ * se convertía con la zona del servidor (UTC), 6 horas desfasada.
+ */
+function toDepartureHHMM(value: string | undefined | null): string {
+  if (!value) return '08:00';
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(value)) return value.slice(0, 5);
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '08:00';
+  return d.toLocaleTimeString('en-GB', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await requireAuth(req, ['admin', 'logistics']);
@@ -85,20 +98,11 @@ export async function POST(req: NextRequest) {
       const { data: routeData, error: routeErr } = await supabaseAdmin
         .from('routes')
         .insert({
-          date: now.toISOString().split('T')[0],
+          // Fecha en Ciudad de México: en UTC, una ruta aceptada después de las 18:00 quedaba con fecha de mañana
+          date: now.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }),
           depot_id: depotId,
           return_depot_id: returnDepotId,
-          departure_time: (() => {
-            if (!route.departureTime) return '08:00';
-            // Si ya es HH:MM, usarlo directo
-            if (/^\d{2}:\d{2}$/.test(route.departureTime)) return route.departureTime;
-            // Si es ISO string, extraer la hora
-            try {
-              const d = new Date(route.departureTime);
-              if (!isNaN(d.getTime())) return d.toTimeString().slice(0, 5);
-            } catch { /* ignore */ }
-            return '08:00';
-          })(),
+          departure_time: toDepartureHHMM(route.departureTime),
           status: 'optimized',
           total_deliveries: route.stops.reduce((n, st) => n + (Array.isArray(st.address.invoices) && st.address.invoices.length > 0 ? st.address.invoices.length : 1), 0),
           total_drivers: 1,
@@ -182,17 +186,7 @@ export async function POST(req: NextRequest) {
             route_id: routeData.id,
             driver_id: driverId,
             vehicle_id: vehicleId,
-            departure_time: (() => {
-              if (!route.departureTime) return '08:00';
-              // Si ya es HH:MM, usarlo directo
-              if (/^\d{2}:\d{2}$/.test(route.departureTime)) return route.departureTime;
-              // Si es ISO string, extraer la hora
-              try {
-                const d = new Date(route.departureTime);
-                if (!isNaN(d.getTime())) return d.toTimeString().slice(0, 5);
-              } catch { /* ignore */ }
-              return '08:00';
-            })(),
+            departure_time: toDepartureHHMM(route.departureTime),
             color: route.color,
             route_order: 1,
             total_km: (route.totalDistance || 0) / 1000,
@@ -271,7 +265,7 @@ export async function POST(req: NextRequest) {
           tiempo_estimado_min: Math.round((route.totalDuration || 0) / 60),
           facturas:         deliveries.map(d => d.invoice).filter(Boolean),
           depot_id:         depotId,
-          hora_salida:      routeData.departure_time,
+          hora_salida:      routeData.departure_time ? String(routeData.departure_time).slice(0, 5) : null,
         },
         created_at: now.toISOString(),
       });
