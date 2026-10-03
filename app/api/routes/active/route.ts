@@ -37,6 +37,18 @@ export async function GET(req: NextRequest) {
       .select('id, route_id, driver_id, color, total_km, total_time_min, drivers(name, phone)')
       .in('route_id', routeIds);
 
+    // Modo resumen: solo rutas y nombres de chofer (para validar duplicados al aceptar).
+    // Evita traer todas las entregas cuando no se necesitan.
+    if (searchParams.get('summary') === '1') {
+      return NextResponse.json({
+        ok: true,
+        routes: routes.map(r => {
+          const rd = (routeDrivers || []).find(x => x.route_id === r.id);
+          return { id: r.id, driver_name: ((rd?.drivers as unknown) as { name?: string } | null)?.name ?? null };
+        }),
+      });
+    }
+
     // 3. Conteo de entregas por status para cada ruta
     const { data: deliveries } = await supabaseAdmin
       .from('deliveries')

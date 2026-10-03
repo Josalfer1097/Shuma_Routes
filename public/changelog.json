@@ -1,6 +1,9 @@
 {
   "updated": "2026-10-03",
   "items": [
+    { "type": "improve", "text": "Aceptar rutas es mas rapido: el sistema hace en paralelo las busquedas que antes hacia una por una" },
+    { "type": "improve", "text": "Abrir la confirmacion de rutas es mas rapido: solo consulta los choferes con ruta activa, sin descargar todas las entregas" },
+    { "type": "fix", "text": "La confirmacion de rutas muestra paradas y facturas por separado" },
     { "type": "improve", "text": "La bitacora de auditoria ya no puede ser modificada ni borrada por el sistema: solo se agregan registros" },
     { "type": "improve", "text": "Las rutas y entregas con informacion ligada ya no se pueden borrar por accidente" },
     { "type": "improve", "text": "Se agrego una politica de seguridad del navegador en modo de vigilancia, como paso previo a activarla por completo" },

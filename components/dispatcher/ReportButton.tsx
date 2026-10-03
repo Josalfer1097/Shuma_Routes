@@ -30,7 +30,8 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
     setIsChecking(true);
     try {
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
-      const res = await fetch(`/api/routes/active?date=${today}`, { credentials: 'include' });
+      // Modo resumen: solo nombres de chofer (antes descargaba todas las entregas de todas las rutas)
+      const res = await fetch('/api/routes/active?summary=1&date=' + today, { credentials: 'include' });
       const json = await res.json();
       if (json.ok && json.routes) {
         const existingDrivers = [];

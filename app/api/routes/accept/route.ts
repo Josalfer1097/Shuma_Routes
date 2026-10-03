@@ -43,9 +43,12 @@ export async function POST(req: NextRequest) {
     // Facturas en espera que alguien movió mientras se planeaba (no se incluyeron)
     const pendingWarnings: string[] = [];
 
-    for (const route of routes) {
-      // 1. Insertar ruta principal
-      // ── Resolver depot_id con fallback por nombre ──
+    // ── Optimización de tiempo (v7.49.1) ──
+    // Antes: ~11 consultas en fila por ruta (≈35 para 3 rutas), cada una cruzando de Vercel a Supabase.
+    // Ahora: bodegas con caché, chofer y vehículo de todas las rutas en paralelo antes del ciclo,
+    // y bitácora y avisos al celular juntos al final. En fila solo queda crear ruta, asignación y
+    // facturas: el código de ruta lo genera la base contando las del día, y en paralelo podría repetirse.
+    // ── Resolver depot_id con fallback por nombre ──
       const resolveDepotId = async (
         depotObj: { lat?: number; lng?: number; name?: string; id?: string } | null | undefined
       ): Promise<string | null> => {
@@ -93,37 +96,15 @@ export async function POST(req: NextRequest) {
         return null;
       };
 
-      const depotId       = await resolveDepotId(route.depot);
-      const returnDepotId = await resolveDepotId(
-        route.endDepot?.lat ? route.endDepot : route.depot
-      );
 
-      console.log(`[accept] depotId="${depotId}" returnDepotId="${returnDepotId}"`);
+    const depotCache = new Map<string, Promise<string | null>>();
+    const resolveDepotCached = (d: { lat?: number; lng?: number; name?: string; id?: string } | null | undefined) => {
+      const key = JSON.stringify([d?.lat ?? null, d?.lng ?? null, d?.name ?? null]);
+      if (!depotCache.has(key)) depotCache.set(key, resolveDepotId(d));
+      return depotCache.get(key) as Promise<string | null>;
+    };
 
-      const { data: routeData, error: routeErr } = await supabaseAdmin
-        .from('routes')
-        .insert({
-          // Fecha en Ciudad de México: en UTC, una ruta aceptada después de las 18:00 quedaba con fecha de mañana
-          date: now.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }),
-          depot_id: depotId,
-          return_depot_id: returnDepotId,
-          departure_time: toDepartureHHMM(route.departureTime),
-          status: 'optimized',
-          total_deliveries: route.stops.reduce((n, st) => n + (Array.isArray(st.address.invoices) && st.address.invoices.length > 0 ? st.address.invoices.length : 1), 0),
-          total_drivers: 1,
-          polyline_encoded: route.polylineEncoded || null,
-          created_by: userName,
-          version: 1,
-          is_latest: true,
-          created_at: now.toISOString(),
-          updated_at: now.toISOString(),
-        })
-        .select()
-        .single();
-
-      if (routeErr) throw new Error(`Error guardando ruta: ${routeErr.message}`);
-      accepted.push({ vehicleId: route.vehicleId, routeId: routeData.id, routeCode: routeData.route_code ?? null });
-
+    const resolveDriver = async (route: Route): Promise<{ driverId: string | null; vehicleIdFromDb: string | null }> => {
       // 2. Buscar driver_id desde user_profiles (más confiable — tiene driver_id directo)
       let driverId: string | null = null;
       let vehicleIdFromDb: string | null = null;
@@ -177,6 +158,50 @@ export async function POST(req: NextRequest) {
           .single();
         vehicleIdFromDb = vehicleData?.id || null;
       }
+
+      return { driverId, vehicleIdFromDb };
+    };
+    const driverLookups = await Promise.all(routes.map(r => resolveDriver(r)));
+
+    const auditRows: Record<string, unknown>[] = [];
+    const pushJobs: Array<() => Promise<void>> = [];
+
+    for (let routeIndex = 0; routeIndex < routes.length; routeIndex++) {
+      const route = routes[routeIndex];
+      // 1. Insertar ruta principal
+      const [depotId, returnDepotId] = await Promise.all([
+        resolveDepotCached(route.depot),
+        resolveDepotCached(route.endDepot?.lat ? route.endDepot : route.depot),
+      ]);
+
+      console.log(`[accept] depotId="${depotId}" returnDepotId="${returnDepotId}"`);
+
+      const { data: routeData, error: routeErr } = await supabaseAdmin
+        .from('routes')
+        .insert({
+          // Fecha en Ciudad de México: en UTC, una ruta aceptada después de las 18:00 quedaba con fecha de mañana
+          date: now.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }),
+          depot_id: depotId,
+          return_depot_id: returnDepotId,
+          departure_time: toDepartureHHMM(route.departureTime),
+          status: 'optimized',
+          total_deliveries: route.stops.reduce((n, st) => n + (Array.isArray(st.address.invoices) && st.address.invoices.length > 0 ? st.address.invoices.length : 1), 0),
+          total_drivers: 1,
+          polyline_encoded: route.polylineEncoded || null,
+          created_by: userName,
+          version: 1,
+          is_latest: true,
+          created_at: now.toISOString(),
+          updated_at: now.toISOString(),
+        })
+        .select()
+        .single();
+
+      if (routeErr) throw new Error(`Error guardando ruta: ${routeErr.message}`);
+      accepted.push({ vehicleId: route.vehicleId, routeId: routeData.id, routeCode: routeData.route_code ?? null });
+
+      // 2. Chofer y vehículo: ya resueltos en paralelo antes del ciclo
+      const { driverId, vehicleIdFromDb } = driverLookups[routeIndex];
 
       console.log(`[accept] FINAL driverId="${driverId}" vehicleId="${vehicleIdFromDb}" matricula="${route.matricula}"`);
 
@@ -304,8 +329,8 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 5. Audit
-      await supabaseAdmin.from('audit_log').insert({
+      // 5. Audit (se inserta junto con las demás rutas al final)
+      auditRows.push({
         action:    'Ruta aceptada y guardada',
         entity:    'ruta',
         entity_id: routeData.id,
@@ -333,14 +358,21 @@ export async function POST(req: NextRequest) {
         created_at: now.toISOString(),
       });
 
-      // Push solo al chofer asignado a esta ruta (antes llegaba a todos los choferes)
-      await notifyDriverSafely(driverId, {
+      // Push solo al chofer asignado a esta ruta (se envían todos juntos al final)
+      pushJobs.push(() => notifyDriverSafely(driverId, {
         title: '🚛 Nueva ruta asignada',
         body:  'Tienes una ruta nueva para hoy. Ingresa a la app.',
         url:   '/driver',
         tag:   'new-route',
-      }, 'accept');
+      }, 'accept'));
     }
+
+    // Bitácora (una sola inserción) y avisos al celular, en paralelo
+    const [auditResult] = await Promise.all([
+      auditRows.length > 0 ? supabaseAdmin.from('audit_log').insert(auditRows) : Promise.resolve({ error: null }),
+      ...pushJobs.map(job => job()),
+    ]);
+    if (auditResult.error) console.error('[accept] Rutas guardadas, pero falló la bitácora:', auditResult.error);
 
     return NextResponse.json({ ok: true, saved: routes.length, accepted, pendingWarnings });
   } catch (err) {

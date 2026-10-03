@@ -20,6 +20,10 @@ interface Props {
   globalDepartureTime?: string | null;
 }
 
+/** Facturas de una ruta: una parada puede llevar varias (carga desde el ERP). */
+const invoiceCount = (r: Route) =>
+  r.stops.reduce((n, st) => n + (Array.isArray(st.address.invoices) && st.address.invoices.length > 0 ? st.address.invoices.length : 1), 0);
+
 export default function AcceptRouteModal({
   isOpen,
   onClose,
@@ -133,7 +137,7 @@ export default function AcceptRouteModal({
                   ¿Deseas guardar{' '}
                   <strong className="text-shuma-text">{routes.length} ruta(s)</strong> con{' '}
                   <strong className="text-shuma-text">
-                    {routes.reduce((acc, r) => acc + r.stops.length, 0)} entregas
+                    {routes.reduce((acc, r) => acc + r.stops.length, 0) + ' paradas (' + routes.reduce((acc, r) => acc + invoiceCount(r), 0) + ' facturas)'}
                   </strong>?
                 </p>
                 {duplicateWarning && (
@@ -162,7 +166,7 @@ export default function AcceptRouteModal({
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: route.color }} />
                         <span className="font-medium text-shuma-text">{route.driverName}</span>
                         <span>·</span>
-                        <span>{route.stops.length} entregas</span>
+                        <span>{route.stops.length + ' paradas · ' + invoiceCount(route) + ' facturas'}</span>
                         <span>·</span>
                         <span>{((route.totalDistance || 0) / 1000).toFixed(1)} km</span>
                       </div>
