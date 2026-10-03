@@ -1,6 +1,10 @@
 {
   "updated": "2026-10-03",
   "items": [
+    { "type": "fix", "text": "Editar una ruta desde Rutas Activas ya no deja la pantalla trabada en la ubicacion de direcciones" },
+    { "type": "improve", "text": "Una ruta se puede editar mientras el chofer no la haya iniciado; al guardar, la nueva version reemplaza a la original sin duplicar facturas" },
+    { "type": "improve", "text": "Las facturas que se quitan al editar una ruta regresan a la Bandeja, en espera de planeacion" },
+    { "type": "improve", "text": "La ventana de la bitacora se llama simplemente Bitacora" },
     { "type": "new", "text": "En la app del chofer, las paradas con varias facturas tienen el boton Entregar las pendientes: un solo paso, con las mismas fotos como evidencia de cada factura" },
     { "type": "improve", "text": "Si alguna factura no se pudo guardar al entregar varias, la app avisa cuales hay que marcar una por una" },
     { "type": "new", "text": "La Bitacora, el Dashboard, el Historico y la Bandeja de Pendientes tambien se abren como ventanas flotantes, sin salir del despachador" },

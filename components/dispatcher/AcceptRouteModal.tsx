@@ -60,6 +60,8 @@ export default function AcceptRouteModal({
         // Antes sin hora propia se guardaba 08:00 aunque la configuración dijera otra.
         body: JSON.stringify({
           routes: routes.map(r => ({ ...r, departureTime: r.departureTime || globalDepartureTime || undefined })),
+          // Si se está editando una ruta aceptada, la nueva la reemplaza (no se suma como adicional)
+          replacesRouteId: editingRouteId || undefined,
         }),
       });
       const json = await res.json();
@@ -140,7 +142,7 @@ export default function AcceptRouteModal({
                     {routes.reduce((acc, r) => acc + r.stops.length, 0) + ' paradas (' + routes.reduce((acc, r) => acc + invoiceCount(r), 0) + ' facturas)'}
                   </strong>?
                 </p>
-                {duplicateWarning && (
+                {duplicateWarning && !editingRouteId && (
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
                     <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
                     <p className="text-xs text-amber-400 font-medium">{duplicateWarning}</p>
@@ -153,9 +155,9 @@ export default function AcceptRouteModal({
                     border: '1px solid rgba(245,158,11,0.25)',
                   }}>
                     <p style={{ fontSize: 12, color: '#fbbf24', margin: 0, fontFamily: "'DM Sans', sans-serif" }}>
-                      ✏️ Estás editando la ruta de <strong>{editingDriverName}</strong>. Al guardar se creará
-                      una nueva versión optimizada — la ruta original anterior debe cerrarse manualmente
-                      desde Rutas Activas si ya no la necesitas.
+                      ✏️ Estás editando la ruta de <strong>{editingDriverName}</strong>. Al guardar, la nueva versión
+                      reemplaza a la original: sus facturas se mueven aquí con su historial, y las que quitaste
+                      regresan a la Bandeja en espera de planeación.
                     </p>
                   </div>
                 )}

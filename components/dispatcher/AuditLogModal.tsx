@@ -462,7 +462,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   return (
     <FloatingWindow
       id="bitacora"
-      title="Bitácora de Auditoría"
+      title="Bitácora"
       subtitle="CDMX · Filtrable y exportable"
       icon={<Lock className="w-4 h-4" />}
       defaultWidth={1100}

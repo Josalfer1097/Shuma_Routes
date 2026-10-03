@@ -448,36 +448,55 @@ function DispatcherPageContent() {
   };
 
   const handleEditActiveRoute = (route: any) => {
-    // Solo permitir editar si la ruta NO tiene entregas completadas aún
-    // (editar una ruta a medias podría desincronizar el progreso del chofer)
-    const hasProgress = (route.stats?.delivered || 0) + (route.stats?.partial || 0) + (route.stats?.failed || 0) > 0;
-    if (hasProgress) {
-      showToast('Esta ruta ya tiene entregas en progreso — no se puede editar, crea una ruta adicional en su lugar', 'warn');
+    // Se puede editar mientras el chofer no haya iniciado la ruta (todas sus facturas siguen pendientes)
+    const started = (route.deliveries || []).some((d: any) => d.status && d.status !== 'pending');
+    if (started) {
+      showToast('El chofer ya inició esta ruta: ya no se puede editar. Crea una ruta adicional si hace falta.', 'warn');
       return;
     }
 
-    // Cargar las direcciones de la ruta activa en el builder
-    const addresses = (route.deliveries || []).map((d: any, idx: number) => ({
-      id: `edit-${route.id}-${idx}`,
-      name: d.address?.clientName || d.address?.name || '',
-      raw: d.address?.raw || d.address?.label || '',
-      invoice: d.address?.invoice || '',
-      merchandiseValue: d.address?.merchandiseValue || 0,
-      lat: d.address?.lat ?? null,
-      lng: d.address?.lng ?? null,
-      geocoded: d.address?.lat != null && d.address?.lng != null,
-      label: d.address?.raw || d.address?.label || '',
-    }));
+    // Antes se leían campos que el servidor no manda (d.address.clientName, d.address.lat):
+    // las paradas llegaban vacías y la ventana de "ubicando direcciones" se quedaba trabada.
+    // Ahora: facturas agrupadas por parada, con sus coordenadas y el id de cada entrega
+    // (al aceptar se MUEVEN a la ruta nueva en lugar de duplicarse).
+    const byStop = new Map<string, any[]>();
+    (route.deliveries || []).forEach((d: any) => {
+      const key = d.stop_order !== null && d.stop_order !== undefined ? 'stop-' + d.stop_order : 'id-' + d.id;
+      byStop.set(key, [...(byStop.get(key) || []), d]);
+    });
+    const addresses: Address[] = Array.from(byStop.values()).map(group => {
+      const f = group[0];
+      const hasCoords = f.lat !== null && f.lat !== undefined && f.lng !== null && f.lng !== undefined;
+      return {
+        id: 'edit-' + f.id,
+        raw: f.address || '',
+        name: f.client_name || '',
+        clientName: f.client_name || '',
+        invoice: group.map((g: any) => g.invoice).join(', '),
+        merchandiseValue: group.reduce((n: number, g: any) => n + (g.merchandise_value || 0), 0) || undefined,
+        lat: hasCoords ? f.lat : null,
+        lng: hasCoords ? f.lng : null,
+        geocoded: hasCoords,
+        label: f.address || '',
+        locationSource: 'manual',
+        invoices: group.map((g: any) => ({
+          deliveryId: g.id,
+          invoice: g.invoice,
+          date: null,
+          amount: g.merchandise_value ?? null,
+          pieces: 0,
+          items: [],
+        })),
+      };
+    });
 
-    dispatch({ type: 'SET_ADDRESSES', payload: addresses });
     setIsActiveRoutesOpen(false);
-    setActiveTabPersisted('upload');
     setIsSlideOverOpen(true);
-    showToast(`Editando ruta de ${route.driver_name} — añade o quita entregas y vuelve a optimizar`, 'ok');
+    showToast('Editando ' + (route.route_code || 'la ruta') + ' de ' + route.driver_name + ': ajusta paradas o choferes y vuelve a optimizar', 'ok');
 
-    // Guardar referencia de qué ruta se está editando (para advertir al aceptar)
     sessionStorage.setItem('shuma_editing_route_id', route.id);
     sessionStorage.setItem('shuma_editing_driver_name', route.driver_name || '');
+    void handleAddressesLoaded(addresses);
   };
 
   const handleViewOnMap = (route: any, onlyThis: boolean) => {
@@ -4005,9 +4024,9 @@ function DispatcherPageContent() {
                                 onClick={() => handleEditActiveRoute(route)}
                                 disabled={(route.stats?.delivered || 0) + (route.stats?.partial || 0) + (route.stats?.failed || 0) > 0}
                                 title={
-                                  (route.stats?.delivered || 0) + (route.stats?.partial || 0) + (route.stats?.failed || 0) > 0
-                                    ? 'No se puede editar: ya tiene entregas en progreso'
-                                    : 'Añadir o quitar entregas de esta ruta'
+                                  (route.deliveries || []).some((d: any) => d.status && d.status !== 'pending')
+                                    ? 'No se puede editar: el chofer ya inició la ruta'
+                                    : 'Cambiar paradas o chofer (mientras el chofer no la inicie)'
                                 }
                                 style={{
                                   fontSize: 10, padding: '3px 8px', borderRadius: 6,
@@ -4015,7 +4034,7 @@ function DispatcherPageContent() {
                                   border: '1px solid rgba(245,158,11,0.25)',
                                   color: '#fbbf24', cursor: 'pointer',
                                   fontFamily: "'Exo 2', sans-serif", fontWeight: 600,
-                                  opacity: (route.stats?.delivered || 0) + (route.stats?.partial || 0) + (route.stats?.failed || 0) > 0 ? 0.4 : 1,
+                                  opacity: (route.deliveries || []).some((d: any) => d.status && d.status !== 'pending') ? 0.4 : 1,
                                 }}
                               >
                                 ✏️ Editar

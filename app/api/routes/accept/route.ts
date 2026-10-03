@@ -24,7 +24,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: session.error }, { status: session.status });
     }
 
-    const { routes }: { routes: Route[] } = await req.json();
+    const { routes, replacesRouteId }: { routes: Route[]; replacesRouteId?: string | null } = await req.json();
+
+    // ── Edición de una ruta ya aceptada ──
+    // Solo mientras el chofer no la haya iniciado (todas sus facturas siguen pendientes).
+    // Las facturas se MUEVEN a la ruta nueva (mismo historial) y la ruta vieja deja de estar vigente.
+    if (replacesRouteId) {
+      const { data: oldRoute } = await supabaseAdmin
+        .from('routes').select('id, is_latest, route_code').eq('id', replacesRouteId).single();
+      if (!oldRoute || !oldRoute.is_latest) {
+        return NextResponse.json({ ok: false, error: 'La ruta que estabas editando ya no está vigente. Actualiza Rutas Activas.' }, { status: 409 });
+      }
+      const { data: started } = await supabaseAdmin
+        .from('deliveries').select('id').eq('route_id', replacesRouteId).neq('status', 'pending').limit(1);
+      if (started && started.length > 0) {
+        return NextResponse.json({ ok: false, error: 'El chofer ya inició esa ruta: ya no se puede editar. Crea una ruta adicional.' }, { status: 409 });
+      }
+    }
     const userName = session.user.fullName || session.user.username;
     const userRole = session.user.role;
 
@@ -190,6 +206,8 @@ export async function POST(req: NextRequest) {
           polyline_encoded: route.polylineEncoded || null,
           created_by: userName,
           version: 1,
+          // Si viene de editar otra ruta, queda ligada a ella como su nueva versión
+          parent_route_id: replacesRouteId || null,
           is_latest: true,
           created_at: now.toISOString(),
           updated_at: now.toISOString(),
@@ -284,14 +302,16 @@ export async function POST(req: NextRequest) {
         const ids = toMove.map(d => d.pendingId as string);
         const { data: current, error: curErr } = await supabaseAdmin
           .from('deliveries')
-          .select('id, route_id, original_route_id')
+          .select('id, route_id, original_route_id, status')
           .in('id', ids);
         if (curErr) throw new Error('Error leyendo entregas en espera: ' + curErr.message);
         const currentById = new Map((current || []).map(c => [c.id, c]));
 
         for (const d of toMove) {
           const prev = currentById.get(d.pendingId as string);
-          const { data: moved, error: mErr } = await supabaseAdmin
+          // Dos orígenes posibles: la ruta que se está editando, o la Bandeja (en espera de planeación)
+          const fromEditedRoute = Boolean(replacesRouteId && prev?.route_id === replacesRouteId);
+          let moveQuery = supabaseAdmin
             .from('deliveries')
             .update({
               route_id: d.route_id,
@@ -302,18 +322,20 @@ export async function POST(req: NextRequest) {
               is_pending: false,
               awaiting_planning: false,
               pending_since: null,
-              original_route_id: prev?.original_route_id ?? prev?.route_id ?? null,
+              // Al editar, la factura sigue siendo de la misma entrega original: no cambia su origen
+              original_route_id: fromEditedRoute ? (prev?.original_route_id ?? null) : (prev?.original_route_id ?? prev?.route_id ?? null),
               lat: d.lat,
               lng: d.lng,
               distance_m: d.distance_m,
               eta_seconds: d.eta_seconds,
               updated_at: now.toISOString(),
             })
-            .eq('id', d.pendingId as string)
-            // Solo si sigue en espera: si alguien la movió mientras tanto, no se pisa
-            .eq('is_pending', true)
-            .eq('awaiting_planning', true)
-            .select('id');
+            .eq('id', d.pendingId as string);
+          // Solo si sigue donde se leyó: si alguien la movió mientras tanto, no se pisa
+          moveQuery = fromEditedRoute
+            ? moveQuery.eq('route_id', replacesRouteId as string).eq('status', 'pending')
+            : moveQuery.eq('is_pending', true).eq('awaiting_planning', true);
+          const { data: moved, error: mErr } = await moveQuery.select('id');
           if (mErr) throw new Error('Error moviendo entrega en espera: ' + mErr.message);
           if (!moved || moved.length === 0) {
             pendingWarnings.push(d.invoice);
@@ -322,7 +344,8 @@ export async function POST(req: NextRequest) {
           const { error: evErr } = await supabaseAdmin.from('delivery_events').insert({
             delivery_id: d.pendingId,
             event_type: 'reassigned',
-            notes: 'Incluida en la planeación de la ruta ' + (routeData.route_code || routeData.id) + ' por ' + userName + '.',
+            notes: (fromEditedRoute ? 'Movida al editar la ruta, ahora en ' : 'Incluida en la planeación de la ruta ') +
+              (routeData.route_code || routeData.id) + ' por ' + userName + '.',
             created_at: now.toISOString(),
           });
           if (evErr) console.error('[accept] Entrega en espera movida, pero falló su evento:', evErr);
@@ -365,6 +388,36 @@ export async function POST(req: NextRequest) {
         url:   '/driver',
         tag:   'new-route',
       }, 'accept'));
+    }
+
+    if (replacesRouteId) {
+      const nowIso = now.toISOString();
+      // Las facturas que se quitaron en la edición no se pierden: vuelven a la Bandeja, en espera de planeación
+      const { data: removed, error: remErr } = await supabaseAdmin
+        .from('deliveries')
+        .update({ is_pending: true, awaiting_planning: true, pending_since: nowIso, updated_at: nowIso })
+        .eq('route_id', replacesRouteId)
+        .eq('status', 'pending')
+        .select('id, invoice');
+      if (remErr) throw new Error('Error regresando a la Bandeja las facturas quitadas: ' + remErr.message);
+      const { error: oldErr } = await supabaseAdmin
+        .from('routes').update({ is_latest: false, updated_at: nowIso }).eq('id', replacesRouteId);
+      if (oldErr) throw new Error('Error retirando la ruta editada: ' + oldErr.message);
+      auditRows.push({
+        action: 'Ruta reemplazada por edición',
+        entity: 'ruta',
+        entity_id: replacesRouteId,
+        user_name: userName,
+        user_role: userRole,
+        ip_address: ip,
+        user_agent: req.headers.get('user-agent') || 'unknown',
+        module: 'Rutas',
+        metadata: {
+          nuevas_rutas: accepted.map(a => a.routeCode).filter(Boolean),
+          facturas_a_bandeja: (removed || []).map(r => r.invoice),
+        },
+        created_at: nowIso,
+      });
     }
 
     // Bitácora (una sola inserción) y avisos al celular, en paralelo
