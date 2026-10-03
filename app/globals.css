@@ -246,3 +246,8 @@ html[data-font-preview="true"] [class*="text-scale-"] {
 @media (prefers-reduced-motion: reduce) {
   [style*="fadeInUp"] { animation: none !important; opacity: 1 !important; }
 }
+
+/* Ventanas flotantes: dentro de una ventana se ocultan los botones de regresar al despachador */
+.embedded [data-embed-hide] { display: none !important; }
+/* Mientras se arrastra o redimensiona una ventana, los marcos no "atrapan" el mouse */
+.window-dragging iframe { pointer-events: none; }

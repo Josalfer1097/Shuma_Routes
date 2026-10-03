@@ -186,7 +186,7 @@ export default function DashboardPage() {
           <span className="text-4xl mb-4 block">📭</span>
           <h2 className="text-white font-bold text-lg mb-2">Sin datos recientes</h2>
           <p className="text-shuma-muted text-sm mb-6">No hay rutas registradas en los últimos días.</p>
-          <Link href="/dispatcher" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold transition-colors">
+          <Link data-embed-hide href="/dispatcher" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold transition-colors">
             Ir a crear rutas
           </Link>
         </div>
@@ -378,7 +378,7 @@ export default function DashboardPage() {
       
       <header className="sticky top-0 z-50 bg-shuma-bg/90 backdrop-blur-md border-b border-shuma-border px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/dispatcher" className="w-8 h-8 flex items-center justify-center rounded-lg bg-shuma-surface hover:bg-shuma-border border border-shuma-border transition-colors text-shuma-muted hover:text-white">
+          <Link data-embed-hide href="/dispatcher" className="w-8 h-8 flex items-center justify-center rounded-lg bg-shuma-surface hover:bg-shuma-border border border-shuma-border transition-colors text-shuma-muted hover:text-white">
             ←
           </Link>
           <div>
@@ -495,6 +495,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <a
+              data-embed-hide
               href="/dispatcher"
               style={{
                 fontSize: 11, color: '#f87171', fontWeight: 700,

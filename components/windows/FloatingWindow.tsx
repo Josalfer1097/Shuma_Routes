@@ -18,6 +18,8 @@ interface Props {
   minWidth?: number;
   minHeight?: number;
   onClose: () => void;
+  /** Botones extra en la barra de título (antes de minimizar) */
+  headerExtra?: ReactNode;
   children: ReactNode;
 }
 
@@ -61,7 +63,7 @@ function loadGeometry(id: string, dw: number, dh: number, minW: number, minH: nu
 export default function FloatingWindow({
   id, title, subtitle, icon,
   defaultWidth = 680, defaultHeight = 560, minWidth = 360, minHeight = 260,
-  onClose, children,
+  onClose, headerExtra, children,
 }: Props) {
   const manager = useWindowManager();
   const [geo, setGeo] = useState<Geometry | null>(null);
@@ -132,6 +134,7 @@ export default function FloatingWindow({
     document.removeEventListener('pointermove', onPointerMove);
     document.removeEventListener('pointerup', onPointerUp);
     document.body.style.userSelect = '';
+    document.body.classList.remove('window-dragging');
     setGeo(g => { if (g) save(g); return g; });
   }, [onPointerMove, save]);
 
@@ -142,6 +145,7 @@ export default function FloatingWindow({
     e.preventDefault();
     dragRef.current = { mode, startX: e.clientX, startY: e.clientY, start: geo };
     document.body.style.userSelect = 'none';
+    document.body.classList.add('window-dragging');
     document.addEventListener('pointermove', onPointerMove);
     document.addEventListener('pointerup', onPointerUp);
   };
@@ -188,6 +192,7 @@ export default function FloatingWindow({
           <p className="text-sm font-semibold text-white truncate">{title}</p>
           {subtitle && <p className="text-[11px] text-shuma-muted truncate">{subtitle}</p>}
         </div>
+        {headerExtra}
         {manager && (
           <button onClick={() => manager.setMinimized(id, true)} className="p-1 rounded text-shuma-muted hover:text-white hover:bg-slate-800" aria-label="Minimizar" title="Minimizar">
             <Minus className="w-4 h-4" />

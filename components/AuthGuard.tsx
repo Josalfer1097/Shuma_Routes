@@ -4,6 +4,19 @@ import { useRouter, usePathname } from "next/navigation";
 
 const PUBLIC_PATHS = ['/', '/admin-login', '/driver-login'];
 
+/** Páginas que pueden abrirse dentro de una ventana flotante del despachador. */
+const EMBEDDABLE_PATHS = ['/pending', '/history', '/dashboard'];
+
+/** true si esta página está dentro de una ventana (marco) del despachador. */
+function isEmbedded(): boolean {
+  try { return window.self !== window.top; } catch { return true; }
+}
+
+/** Redirige la ventana principal del navegador (no el marco) a la dirección indicada. */
+function replaceTop(url: string): void {
+  try { (window.top || window).location.replace(url); } catch { window.location.replace(url); }
+}
+
 const LOCAL_SESSION_KEYS = ['shuma_auth', 'shuma_role', 'shuma_user', 'shuma_name'];
 
 /**
@@ -41,7 +54,7 @@ function installSessionExpiryHandler(): void {
     if (res.status === 401) {
       redirecting = true;
       LOCAL_SESSION_KEYS.forEach(k => sessionStorage.removeItem(k));
-      window.location.replace('/?sesion=expirada');
+      replaceTop('/?sesion=expirada');
       return res;
     }
 
@@ -50,7 +63,7 @@ function installSessionExpiryHandler(): void {
     if (hasSessionConflict()) {
       redirecting = true;
       LOCAL_SESSION_KEYS.forEach(k => sessionStorage.removeItem(k));
-      window.location.replace('/?sesion=otra-cuenta');
+      replaceTop('/?sesion=otra-cuenta');
     }
     return res;
   };
@@ -80,7 +93,7 @@ function installSessionConflictWatcher(): void {
     if (sessionStorage.getItem('shuma_auth') !== '1') return;
     if (!hasSessionConflict()) return;
     LOCAL_SESSION_KEYS.forEach(k => sessionStorage.removeItem(k));
-    window.location.replace('/?sesion=otra-cuenta');
+    replaceTop('/?sesion=otra-cuenta');
   });
 }
 
@@ -90,6 +103,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    // Dentro de una ventana flotante: se ocultan los botones de "regresar al despachador",
+    // y cualquier página que no deba ir en ventana (despachador, portada) salta a la ventana principal
+    if (isEmbedded()) {
+      document.documentElement.classList.add('embedded');
+      if (!EMBEDDABLE_PATHS.some(p => window.location.pathname.startsWith(p))) {
+        replaceTop(window.location.href);
+        return;
+      }
+    }
     installSessionExpiryHandler();
     installSessionConflictWatcher();
   }, []);

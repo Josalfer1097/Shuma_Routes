@@ -25,6 +25,7 @@ import { Suspense } from 'react';
 import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw, Search, Truck, Inbox, FolderOpen } from 'lucide-react';
 import ExpedienteModal from '@/components/attachments/ExpedienteModal';
 import FloatingWindow from '@/components/windows/FloatingWindow';
+import PageWindow from '@/components/windows/PageWindow';
 import { WindowManagerProvider } from '@/components/windows/WindowManager';
 import Taskbar from '@/components/windows/Taskbar';
 import DocumentsWindow from '@/components/attachments/DocumentsWindow';
@@ -390,6 +391,10 @@ function DispatcherPageContent() {
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isExpedienteOpen, setIsExpedienteOpen] = useState(false);
+  // Páginas abiertas como ventanas flotantes
+  const [openPages, setOpenPages] = useState<Array<'dashboard' | 'history' | 'pending'>>([]);
+  const openPageWindow = (p: 'dashboard' | 'history' | 'pending') => setOpenPages(prev => (prev.includes(p) ? prev : [...prev, p]));
+  const closePageWindow = (p: 'dashboard' | 'history' | 'pending') => setOpenPages(prev => prev.filter(x => x !== p));
   // Documentos de una ruta o de una entrega (ventana flotante)
   const [docsTarget, setDocsTarget] = useState<{ routeId?: string; deliveryId?: string; title: string; subtitle?: string } | null>(null);
   const [auditEntityId, setAuditEntityId] = useState<string | undefined>(undefined);
@@ -1757,9 +1762,10 @@ function DispatcherPageContent() {
                         animation: 'fadeInDown 0.15s ease-out',
                       }}>
                         {[
-                          { icon: <BarChart2 size={14} />, label: 'Dashboard', href: '/dashboard' },
-                          { icon: <History size={14} />, label: 'Histórico', href: '/history' },
-                          { icon: <Inbox size={14} />, label: 'Pendientes', href: '/pending' },
+                          // Se abren como ventanas flotantes; ↗ en su barra las abre en otra pestaña
+                          { icon: <BarChart2 size={14} />, label: 'Dashboard', action: () => { openPageWindow('dashboard'); setIsMoreMenuOpen(false); } },
+                          { icon: <History size={14} />, label: 'Histórico', action: () => { openPageWindow('history'); setIsMoreMenuOpen(false); } },
+                          { icon: <Inbox size={14} />, label: 'Pendientes', action: () => { openPageWindow('pending'); setIsMoreMenuOpen(false); } },
                           { icon: <Search size={14} />, label: 'Bitácora', action: () => { setIsAuditModalOpen(true); setIsMoreMenuOpen(false); } },
                           { icon: <FolderOpen size={14} />, label: 'Expediente', action: () => { setIsExpedienteOpen(true); setIsMoreMenuOpen(false); } },
                           { 
@@ -1779,10 +1785,7 @@ function DispatcherPageContent() {
                         ].map(item => (
                           <button
                             key={item.label}
-                            onClick={() => {
-                              if (item.action) item.action();
-                              else { window.location.href = item.href!; setIsMoreMenuOpen(false); }
-                            }}
+                            onClick={() => item.action()}
                             style={{
                               width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                               padding: '10px 14px', background: 'none', border: 'none',
@@ -4187,6 +4190,16 @@ function DispatcherPageContent() {
       <ShortcutsModal isOpen={isShortcutsModalOpen} onClose={() => setIsShortcutsModalOpen(false)} />
 
       <ExpedienteModal isOpen={isExpedienteOpen} onClose={() => setIsExpedienteOpen(false)} />
+
+      {openPages.includes('dashboard') && (
+        <PageWindow id="dashboard" title="Dashboard" icon={<BarChart2 className="w-4 h-4" />} src="/dashboard" onClose={() => closePageWindow('dashboard')} />
+      )}
+      {openPages.includes('history') && (
+        <PageWindow id="historico" title="Histórico" icon={<History className="w-4 h-4" />} src="/history" onClose={() => closePageWindow('history')} />
+      )}
+      {openPages.includes('pending') && (
+        <PageWindow id="pendientes" title="Bandeja de Pendientes" icon={<Inbox className="w-4 h-4" />} src="/pending" onClose={() => closePageWindow('pending')} />
+      )}
 
       {docsTarget && (
         <DocumentsWindow

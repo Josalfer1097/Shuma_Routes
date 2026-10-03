@@ -319,6 +319,7 @@ export default function PendingPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.push('/dispatcher')}
+                data-embed-hide
                 className="p-2 -ml-2 rounded-xl text-shuma-muted hover:text-white hover:bg-slate-800 transition-colors"
                 aria-label="Volver al despachador"
               >

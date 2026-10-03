@@ -1,6 +1,9 @@
 {
   "updated": "2026-10-03",
   "items": [
+    { "type": "new", "text": "La Bitacora, el Dashboard, el Historico y la Bandeja de Pendientes tambien se abren como ventanas flotantes, sin salir del despachador" },
+    { "type": "improve", "text": "Desde la barra de cada ventana de pagina se puede abrir en otra pestaña con el boton de flecha" },
+    { "type": "improve", "text": "La Bitacora ahora se mueve y cambia de tamaño tambien con el dedo, se minimiza y recuerda su posicion" },
     { "type": "new", "text": "Ventanas flotantes: Rutas Activas, Expediente, Documentos y las facturas de una ruta se abren como ventanas que se mueven, cambian de tamano, se maximizan y recuerdan donde las dejaste" },
     { "type": "new", "text": "Barra de tareas con las ventanas abiertas: un clic trae una ventana al frente y otro la minimiza sin perder lo que estabas viendo" },
     { "type": "improve", "text": "Las ventanas se mueven y redimensionan tambien con el dedo en tabletas; en el celular se abren a pantalla completa" },

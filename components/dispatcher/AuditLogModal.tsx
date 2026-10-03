@@ -3,6 +3,7 @@
 import DeliveryPhotos from '@/components/attachments/DeliveryPhotos';
 import { useEffect, useState, useCallback, Fragment, useRef } from 'react';
 import { X, Download, ChevronRight, ChevronDown, LogIn, LogOut, Package, Truck, RotateCcw, Lock, AlertCircle, List, Settings } from 'lucide-react';
+import FloatingWindow from '@/components/windows/FloatingWindow';
 
 interface AuditLogEntry {
   id: string;
@@ -207,39 +208,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     };
   }, [showDatePicker]);
 
-  const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
-  const [isMaximized, setIsMaximized] = useState(false);
-
-  const handleDragStart = (e: React.MouseEvent) => {
-    if (isMaximized) return;
-    // No iniciar drag si se hace click en botones del header
-    if ((e.target as HTMLElement).closest('button')) return;
-    setIsDragging(true);
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      origX:  modalPos.x,
-      origY:  modalPos.y,
-    };
-    const onMove = (ev: MouseEvent) => {
-      if (!dragRef.current) return;
-      setModalPos({
-        x: dragRef.current.origX + (ev.clientX - dragRef.current.startX),
-        y: dragRef.current.origY + (ev.clientY - dragRef.current.startY),
-      });
-    };
-    const onUp = () => {
-      setIsDragging(false);
-      dragRef.current = null;
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  };
+  // Mover, redimensionar, maximizar y minimizar: lo hace el sistema común de ventanas (FloatingWindow)
 
   const COL_MAX_WIDTHS = {
     fecha:   280,
@@ -491,90 +460,18 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
-
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          ref={modalRef}
-          className="bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-          style={isMaximized ? {
-            width: 'calc(100vw - 32px)',
-            height: 'calc(100vh - 32px)',
-            maxWidth: 'none',
-            maxHeight: 'none',
-            position: 'relative',
-            transform: 'none',
-            transition: 'none',
-            resize: 'none',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-          } : {
-            width: '90vw',
-            maxWidth: 1100,
-            maxHeight: '90vh',
-            position: 'relative',
-            transform: `translate(${modalPos.x}px, ${modalPos.y}px)`,
-            transition: isDragging ? 'none' : 'transform 0.1s ease',
-            resize: 'none',
-            overflow: 'auto',
-            minWidth: 600,
-            minHeight: 400,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-          onClick={e => e.stopPropagation()}
-        >
-          <div
-            className="flex items-center justify-between p-6 border-b border-shuma-border"
-            onMouseDown={handleDragStart}
-            style={{ cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }}
-          >
-            <div>
-              <h2 className="text-xl font-bold text-shuma-text">🔒 Bitácora de Auditoría</h2>
-              <p className="text-xs text-shuma-muted mt-1">
-                CDMX • Filtrable y exportable
-                <span style={{ marginLeft: 8, opacity: 0.4, fontSize: 10 }}>
-                  ↕↔ Arrastra para mover · ↘ Esquina para redimensionar
-                </span>
-              </p>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => {
-                  setIsMaximized(m => !m);
-                  if (!isMaximized) setModalPos({ x: 0, y: 0 }); // centrar al maximizar
-                }}
-                className="p-2 hover:bg-shuma-surface rounded-lg transition-colors"
-                title={isMaximized ? 'Restaurar' : 'Maximizar'}
-              >
-                {isMaximized ? (
-                  // Ícono restaurar (dos cuadros)
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                    className="text-shuma-muted">
-                    <rect x="8" y="8" width="13" height="13" rx="1"/>
-                    <path d="M4 16V4h12"/>
-                  </svg>
-                ) : (
-                  // Ícono maximizar (cuadro con flecha)
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                    className="text-shuma-muted">
-                    <polyline points="15 3 21 3 21 9"/>
-                    <polyline points="9 21 3 21 3 15"/>
-                    <line x1="21" y1="3" x2="14" y2="10"/>
-                    <line x1="3" y1="21" x2="10" y2="14"/>
-                  </svg>
-                )}
-              </button>
-              <button onClick={onClose} className="p-2 hover:bg-shuma-surface rounded-lg transition-colors">
-                <X className="w-5 h-5 text-shuma-muted" />
-              </button>
-            </div>
-          </div>
-
+    <FloatingWindow
+      id="bitacora"
+      title="Bitácora de Auditoría"
+      subtitle="CDMX · Filtrable y exportable"
+      icon={<Lock className="w-4 h-4" />}
+      defaultWidth={1100}
+      defaultHeight={680}
+      minWidth={600}
+      minHeight={400}
+      onClose={onClose}
+    >
+        <div className="flex flex-col h-full">
           <div className="p-4 border-b border-shuma-border/50 bg-shuma-surface/50 flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
               {[
@@ -1179,7 +1076,6 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
             )}
           </div>
         </div>
-      </div>
-    </>
+    </FloatingWindow>
   );
 }

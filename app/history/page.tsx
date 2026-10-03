@@ -137,6 +137,7 @@ export default function HistoryPage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => router.push('/dispatcher')}
+                  data-embed-hide
                   className="p-2 -ml-2 rounded-xl text-shuma-muted hover:text-white hover:bg-slate-800 transition-colors"
                 >
                   <Navigation className="w-5 h-5 rotate-180" />
