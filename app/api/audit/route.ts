@@ -142,8 +142,10 @@ export async function GET(req: NextRequest) {
     if (actionType) {
       const typeMap: Record<string, string[]> = {
         login:   ['login_success', 'login_failed', 'Cuenta bloqueada', 'Logout', 'Inicio de sesión', 'Sesión iniciada'],
-        entrega: ['Entrega completada', 'Entrega parcial', 'Entrega fallida', 'Entrega reabierta'],
-        ruta:    ['Ruta aceptada y guardada', 'Ruta iniciada', 'Ruta cerrada', 'Ruta reabierta', 'Alias actualizado'],
+        // Coincidencia parcial (ilike): "Entrega" cubre completada, parcial, fallida y reaperturas de entrega;
+        // "Ruta" cubre aceptada, editada, reemplazada, iniciada y cierres de ruta
+        entrega: ['Entrega', 'Solicitud de reapertura'],
+        ruta:    ['Ruta', 'Alias actualizado', 'Aceptación incompleta'],
         sistema: ['Cookies aceptadas', 'Sesión iniciada', 'Sesión cerrada'],
       };
       const actions = typeMap[actionType] || [];

@@ -1,6 +1,10 @@
 {
   "updated": "2026-10-03",
   "items": [
+    { "type": "improve", "text": "Al editar una ruta, la bitacora deja una sola fila Ruta editada con el codigo que reemplaza, la version, las facturas agregadas y las que regresan a la Bandeja" },
+    { "type": "new", "text": "Si al aceptar rutas algo falla a la mitad, la bitacora registra Aceptacion incompleta con las rutas que si se guardaron y el motivo" },
+    { "type": "improve", "text": "El desglose de la bitacora usa nombres claros, muestra el tiempo estimado en horas y minutos, oculta datos repetidos y deja las listas de facturas al final" },
+    { "type": "fix", "text": "Los filtros Rutas y Entregas de la bitacora incluyen ediciones, cierres, reaperturas y movimientos de la Bandeja" },
     { "type": "fix", "text": "Si dos personas aceptan rutas al mismo tiempo, ambas se guardan; antes una fallaba por codigo repetido" },
     { "type": "improve", "text": "Una ruta editada conserva su codigo con sufijo de version, por ejemplo RT-20261003-001-v2" },
     { "type": "improve", "text": "Las notificaciones con el codigo de una ruta editada abren su version vigente" },

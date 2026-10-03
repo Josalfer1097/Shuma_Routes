@@ -420,18 +420,21 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
   // Mismo código de color que el resto del sistema: fallida en rojo, parcial en ámbar, completada en verde
   const deliveryTone = (action: string): 'failed' | 'partial' | 'ok' => {
     const a = action.toLowerCase();
-    if (a.includes('fallida') || a.includes('no entregada')) return 'failed';
+    if (a.includes('fallida') || a.includes('no entregada') || a.includes('incompleta')) return 'failed';
     if (a.includes('parcial')) return 'partial';
     return 'ok';
   };
   const DELIVERY_TONE_ICON = { failed: 'text-red-400', partial: 'text-amber-400', ok: 'text-emerald-400' } as const;
   const DELIVERY_TONE_TEXT = { failed: 'text-red-300', partial: 'text-amber-300', ok: '' } as const;
+  // Listas (facturas, rutas) al final del desglose: primero los datos cortos, luego las etiquetas a lo ancho
+  const LIST_KEYS = ['facturas', 'facturas_agregadas', 'facturas_quitadas', 'facturas_a_bandeja', 'nuevas_rutas', 'rutas_guardadas'];
 
   const getActionIcon = (action: string, module: string) => {
     const a = action.toLowerCase();
     const m = module.toLowerCase();
     if (a.includes('login') || a.includes('sesión'))   return <LogIn size={13} className="text-blue-400 shrink-0" />;
     if (a.includes('logout') || a.includes('salida'))  return <LogOut size={13} className="text-slate-400 shrink-0" />;
+    if (a.includes('incompleta'))                      return <AlertCircle size={13} className="text-red-400 shrink-0" />;
     if (a.includes('entrega') || m === 'entregas')     return <Package size={13} className={DELIVERY_TONE_ICON[deliveryTone(action)] + ' shrink-0'} />;
     if (a.includes('ruta') || m === 'rutas')           return <Truck size={13} className="text-blue-400 shrink-0" />;
     if (a.includes('reapertura') || a.includes('corrección')) return <RotateCcw size={13} className="text-amber-400 shrink-0" />;
@@ -840,7 +843,9 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                           <tr className="bg-slate-900/40 border-b border-shuma-border/50">
                             <td colSpan={6} className="px-10 py-4">
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-4 gap-x-6">
-                                {Object.entries(log.metadata!).map(([key, value]) => {
+                                {Object.entries(log.metadata!)
+                                  .sort((x, y) => Number(LIST_KEYS.includes(x[0])) - Number(LIST_KEYS.includes(y[0])))
+                                  .map(([key, value]) => {
                                   // Manejo de fotos
                                   if (key === 'foto_evidencia' || key === 'fotos_evidencia') {
                                     let urls: string[] = [];
@@ -869,6 +874,9 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                                   const HIDDEN_KEYS = [
                                     'driver_id', 'route_driver_id', 'ruta_id', 'delivery_id',
                                     'request_id', 'entity_id', 'user_id', 'route_id',
+                                    'ruta_anterior_id',
+                                    // Ya lo dice la acción ("Entrega parcial"): repetirlo solo ocupa espacio
+                                    'entrega_parcial',
                                   ];
 
                                   const KEY_LABELS: Record<string, string> = {
@@ -892,12 +900,31 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                                     browser:           'Navegador',
                                     consent_type:      'Tipo Consentimiento',
                                     timestamp:         'Timestamp',
+                                    reemplaza_a:       'Reemplaza a',
+                                    version:           'Versión',
+                                    origen:            'Origen',
+                                    chofer:            'Chofer',
+                                    matricula:         'Matrícula',
+                                    fecha:             'Fecha',
+                                    hora_salida:       'Hora de salida',
+                                    total_paradas:     'Paradas',
+                                    total_entregas:    'Facturas',
+                                    total_km:          'Km',
+                                    tiempo_estimado_min: 'Tiempo estimado',
+                                    facturas_agregadas: 'Facturas agregadas',
+                                    facturas_quitadas: 'Regresan a la Bandeja',
+                                    facturas_a_bandeja: 'Regresan a la Bandeja',
+                                    nuevas_rutas:      'Nuevas rutas',
+                                    rutas_guardadas:   'Rutas guardadas',
+                                    error:             'Error',
                                   };
 
                                   if (HIDDEN_KEYS.includes(key)) return null;
                                   if ((key === 'foto_evidencia' || key === 'fotos_evidencia') && value === 'No') return null;
                                   if (value === null || value === 'null' || value === undefined) return null;
                                   if (value === false || value === 'false') return null;
+                                  // Listas vacías (por ejemplo, una edición sin facturas agregadas): no se muestran
+                                  if (Array.isArray(value) && value.length === 0) return null;
 
                                   const strVal = String(value);
                                   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strVal);
@@ -921,9 +948,12 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                                     : '';
 
                                   // Listas de facturas: etiquetas ordenadas en vez de un bloque separado por comas
-                                  const invoiceList = key === 'facturas'
-                                    ? strVal.split(',').map(x => x.trim()).filter(Boolean)
+                                  const invoiceList = LIST_KEYS.includes(key)
+                                    ? (Array.isArray(value) ? value.map(x => String(x)) : strVal.split(',')).map(x => x.trim()).filter(Boolean)
                                     : null;
+                                  const minutes = key === 'tiempo_estimado_min' ? Number(value) : NaN;
+                                  // Etiquetas: la lista de facturas desde 2; las listas de una edición siempre (aunque sea 1)
+                                  const showChips = invoiceList !== null && (invoiceList.length > 1 || (key !== 'facturas' && invoiceList.length > 0));
                                   const isMonetary = key === 'valor_mercancia' && !isNaN(Number(value));
                                   const isDateStr = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(strVal);
                                   
@@ -933,14 +963,15 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                                         dateStyle: 'short', timeStyle: 'medium'
                                       })
                                     : isMonetary ? `$${Number(value).toLocaleString('es-MX')}`
+                                    : !isNaN(minutes) ? (minutes >= 60 ? Math.floor(minutes / 60) + ' h ' + (minutes % 60) + ' min' : minutes + ' min')
                                     : displayValue;
 
                                   return (
-                                    <div key={key} className={invoiceList && invoiceList.length > 1 ? 'col-span-full' : undefined}>
+                                    <div key={key} className={showChips ? 'col-span-full' : undefined}>
                                       <p className="text-[10px] text-shuma-muted font-bold uppercase tracking-wider">
-                                        {displayKey}{invoiceList && invoiceList.length > 1 ? ' (' + invoiceList.length + ')' : ''}
+                                        {displayKey}{showChips ? ' (' + invoiceList.length + ')' : ''}
                                       </p>
-                                      {invoiceList && invoiceList.length > 1 ? (
+                                      {showChips ? (
                                         <div className="mt-1 flex flex-wrap gap-1.5">
                                           {invoiceList.map(inv => (
                                             <span key={inv} className="px-2 py-0.5 rounded-md border border-shuma-border bg-shuma-bg text-xs text-shuma-text font-mono">

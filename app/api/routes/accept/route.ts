@@ -18,6 +18,11 @@ function toDepartureHHMM(value: string | undefined | null): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Fuera del try: si algo falla a la mitad, el catch registra en la bitácora lo que sí se guardó
+  const auditRows: Record<string, unknown>[] = [];
+  const accepted: { vehicleId: string; routeId: string; routeCode: string | null }[] = [];
+  let auditCtx: { userName: string; userRole: string; ip: string; userAgent: string } | null = null;
+  let replacedCode: string | null = null;
   try {
     const session = await requireAuth(req, ['admin', 'logistics']);
     if (!session.ok) {
@@ -35,6 +40,7 @@ export async function POST(req: NextRequest) {
       if (!oldRoute || !oldRoute.is_latest) {
         return NextResponse.json({ ok: false, error: 'La ruta que estabas editando ya no está vigente. Actualiza Rutas Activas.' }, { status: 409 });
       }
+      replacedCode = oldRoute.route_code || null;
       const { data: started } = await supabaseAdmin
         .from('deliveries').select('id').eq('route_id', replacesRouteId).neq('status', 'pending').limit(1);
       if (started && started.length > 0) {
@@ -54,8 +60,7 @@ export async function POST(req: NextRequest) {
       req.headers.get('x-real-ip') ||
       'unknown';
 
-    // Código asignado a cada ruta (lo usa el Excel de asignaciones)
-    const accepted: { vehicleId: string; routeId: string; routeCode: string | null }[] = [];
+    auditCtx = { userName, userRole, ip, userAgent: req.headers.get('user-agent') || 'unknown' };
     // Facturas en espera que alguien movió mientras se planeaba (no se incluyeron)
     const pendingWarnings: string[] = [];
 
@@ -63,7 +68,7 @@ export async function POST(req: NextRequest) {
     // Antes: ~11 consultas en fila por ruta (≈35 para 3 rutas), cada una cruzando de Vercel a Supabase.
     // Ahora: bodegas con caché, chofer y vehículo de todas las rutas en paralelo antes del ciclo,
     // y bitácora y avisos al celular juntos al final. En fila solo queda crear ruta, asignación y
-    // facturas: el código de ruta lo genera la base contando las del día, y en paralelo podría repetirse.
+    // facturas. El código de ruta lo genera la base (v7.52.0: con candado, ya no se repite).
     // ── Resolver depot_id con fallback por nombre ──
       const resolveDepotId = async (
         depotObj: { lat?: number; lng?: number; name?: string; id?: string } | null | undefined
@@ -179,8 +184,9 @@ export async function POST(req: NextRequest) {
     };
     const driverLookups = await Promise.all(routes.map(r => resolveDriver(r)));
 
-    const auditRows: Record<string, unknown>[] = [];
     const pushJobs: Array<() => Promise<void>> = [];
+    // Fila de bitácora de la versión editada: al final se le agregan las facturas que regresan a la Bandeja
+    let editAuditRow: Record<string, unknown> | null = null;
 
     for (let routeIndex = 0; routeIndex < routes.length; routeIndex++) {
       const route = routes[routeIndex];
@@ -290,6 +296,8 @@ export async function POST(req: NextRequest) {
       // se MUEVEN: misma entrega, mismo historial, intentos y piezas pendientes.
       const toInsert = deliveries.filter(d => !d.pendingId).map(({ pendingId: _p, ...row }) => row);
       const toMove = deliveries.filter(d => d.pendingId);
+      // Para la bitácora de una edición: facturas que no venían en la ruta original
+      const addedInvoices: string[] = toInsert.map(d => d.invoice);
 
       if (toInsert.length > 0) {
         const { error: deliveriesErr } = await supabaseAdmin
@@ -341,6 +349,7 @@ export async function POST(req: NextRequest) {
             pendingWarnings.push(d.invoice);
             continue;
           }
+          if (!fromEditedRoute) addedInvoices.push(d.invoice);
           const { error: evErr } = await supabaseAdmin.from('delivery_events').insert({
             delivery_id: d.pendingId,
             event_type: 'reassigned',
@@ -353,8 +362,11 @@ export async function POST(req: NextRequest) {
       }
 
       // 5. Audit (se inserta junto con las demás rutas al final)
-      auditRows.push({
-        action:    'Ruta aceptada y guardada',
+      // Una edición produce UNA fila "Ruta editada" (la versión que hereda el código, -vN);
+      // si la edición genera rutas adicionales, esas quedan como aceptadas con su origen.
+      const isEditVersion = Boolean(replacesRouteId && /-v[0-9]+$/.test(routeData.route_code || ''));
+      const routeAuditRow: Record<string, unknown> = {
+        action:    isEditVersion ? 'Ruta editada' : 'Ruta aceptada y guardada',
         entity:    'ruta',
         entity_id: routeData.id,
         user_name: userName,
@@ -365,6 +377,10 @@ export async function POST(req: NextRequest) {
         metadata: {
           ruta_id:          routeData.id,
           ruta_code:        routeData.route_code || null,
+          reemplaza_a:      isEditVersion ? replacedCode : null,
+          version:          isEditVersion ? (routeData.version ?? null) : null,
+          origen:           replacesRouteId && !isEditVersion ? 'Edición de ' + (replacedCode || 'otra ruta') : null,
+          ruta_anterior_id: replacesRouteId || null,
           fecha:            routeData.date,
           chofer:           route.driverName,
           driver_id:        driverId,
@@ -375,11 +391,14 @@ export async function POST(req: NextRequest) {
           total_km:         ((route.totalDistance || 0) / 1000).toFixed(1),
           tiempo_estimado_min: Math.round((route.totalDuration || 0) / 60),
           facturas:         deliveries.map(d => d.invoice).filter(Boolean),
+          facturas_agregadas: replacesRouteId ? addedInvoices : null,
           depot_id:         depotId,
           hora_salida:      routeData.departure_time ? String(routeData.departure_time).slice(0, 5) : null,
         },
         created_at: now.toISOString(),
-      });
+      };
+      auditRows.push(routeAuditRow);
+      if (isEditVersion) editAuditRow = routeAuditRow;
 
       // Push solo al chofer asignado a esta ruta (se envían todos juntos al final)
       pushJobs.push(() => notifyDriverSafely(driverId, {
@@ -403,21 +422,28 @@ export async function POST(req: NextRequest) {
       const { error: oldErr } = await supabaseAdmin
         .from('routes').update({ is_latest: false, updated_at: nowIso }).eq('id', replacesRouteId);
       if (oldErr) throw new Error('Error retirando la ruta editada: ' + oldErr.message);
-      auditRows.push({
-        action: 'Ruta reemplazada por edición',
-        entity: 'ruta',
-        entity_id: replacesRouteId,
-        user_name: userName,
-        user_role: userRole,
-        ip_address: ip,
-        user_agent: req.headers.get('user-agent') || 'unknown',
-        module: 'Rutas',
-        metadata: {
-          nuevas_rutas: accepted.map(a => a.routeCode).filter(Boolean),
-          facturas_a_bandeja: (removed || []).map(r => r.invoice),
-        },
-        created_at: nowIso,
-      });
+      const removedInvoices = (removed || []).map(r => r.invoice);
+      if (editAuditRow) {
+        // Una sola fila por edición: lo que regresó a la Bandeja va en el mismo desglose
+        (editAuditRow.metadata as Record<string, unknown>).facturas_quitadas = removedInvoices;
+      } else {
+        auditRows.push({
+          action: 'Ruta reemplazada por edición',
+          entity: 'ruta',
+          entity_id: replacesRouteId,
+          user_name: userName,
+          user_role: userRole,
+          ip_address: ip,
+          user_agent: req.headers.get('user-agent') || 'unknown',
+          module: 'Rutas',
+          metadata: {
+            ruta_code: replacedCode,
+            nuevas_rutas: accepted.map(a => a.routeCode).filter(Boolean),
+            facturas_quitadas: removedInvoices,
+          },
+          created_at: nowIso,
+        });
+      }
     }
 
     // Bitácora (una sola inserción) y avisos al celular, en paralelo
@@ -430,6 +456,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, saved: routes.length, accepted, pendingWarnings });
   } catch (err) {
     console.error('Accept route error:', err);
+    // Si algo falló a la mitad, la bitácora conserva lo que sí se guardó y el motivo
+    if (auditCtx && (accepted.length > 0 || auditRows.length > 0)) {
+      const failRow = {
+        action:     'Aceptación incompleta',
+        entity:     'ruta',
+        entity_id:  accepted[0]?.routeId || null,
+        user_name:  auditCtx.userName,
+        user_role:  auditCtx.userRole,
+        ip_address: auditCtx.ip,
+        user_agent: auditCtx.userAgent,
+        module:     'Rutas',
+        metadata: {
+          error:           err instanceof Error ? err.message : 'Error desconocido',
+          rutas_guardadas: accepted.map(a => a.routeCode).filter(Boolean),
+          reemplaza_a:     replacedCode,
+        },
+        created_at: new Date().toISOString(),
+      };
+      const { error: failAuditErr } = await supabaseAdmin.from('audit_log').insert([...auditRows, failRow]);
+      if (failAuditErr) console.error('[accept] Tampoco se pudo registrar la falla en la bitácora:', failAuditErr);
+    }
     return NextResponse.json(
       { ok: false, error: err instanceof Error ? err.message : 'Error desconocido' },
       { status: 500 }
