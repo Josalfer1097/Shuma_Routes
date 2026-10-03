@@ -1,6 +1,9 @@
 {
   "updated": "2026-10-02",
   "items": [
+    { "type": "new", "text": "En Zonas se pueden ver las paradas de cada zona y moverlas a otra antes de optimizar, una por una o varias a la vez" },
+    { "type": "new", "text": "Excel de asignaciones renovado: hoja de resumen con totales automaticos y una hoja de ruta imprimible por chofer, con hora estimada por parada y espacio para firma de recibido" },
+    { "type": "improve", "text": "Las tarjetas de zona muestran paradas y facturas por separado" },
     { "type": "new", "text": "Boton Documentos en cada ruta y entrega de Rutas Activas y en la Bandeja de Pendientes: consulta y sube fotos o PDF de hasta 10 MB" },
     { "type": "new", "text": "Los archivos se pueden archivar con un motivo: dejan de mostrarse pero se conservan y quedan registrados en la bitacora" },
     { "type": "fix", "text": "En Rutas Activas, cada entrega muestra su factura y cliente en lugar de Sin descripcion" },

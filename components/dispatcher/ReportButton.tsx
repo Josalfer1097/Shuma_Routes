@@ -66,7 +66,7 @@ export default function ReportButton({ routes, weather, globalConfig, userName, 
     setIsExporting(true);
     try {
       const { downloadAssignmentsExcel } = await import('@/lib/assignmentsExcel');
-      await downloadAssignmentsExcel(routes, acceptedCodes, userName || 'admin');
+      await downloadAssignmentsExcel(routes, acceptedCodes, userName || 'admin', { globalDepartureTime: globalConfig?.departureTime ?? null });
     } catch (err) {
       console.error('[asignaciones] No se pudo generar el Excel:', err);
       alert('No se pudo generar el Excel de asignaciones. Intenta de nuevo.');

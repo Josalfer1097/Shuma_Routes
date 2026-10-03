@@ -64,7 +64,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-*.jsonprueba_*.csv
+prueba_*.csv
+# Archivos del ERP y hojas de trabajo locales: pueden traer datos reales de clientes
+*.xls
+*.xlsx
+# Scripts temporales que crean las herramientas al aplicar cambios
+replace*.js
+restore_*.js
 entregas_*.csv
 
 # env files sueltos (mantener .env.example versionado)

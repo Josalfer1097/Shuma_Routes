@@ -947,16 +947,63 @@ function DispatcherPageContent() {
   // Antes el número de zonas se fijaba al terminar de ubicar: un chofer agregado después
   // no recibía zona y se quedaba sin ruta.
   const prevVehicleCountRef = useRef(state.vehicles.length);
+  // true cuando el usuario movió paradas entre zonas a mano: no se reagrupa sin su permiso
+  const [zonesEdited, setZonesEdited] = useState(false);
+  const [expandedZoneId, setExpandedZoneId] = useState<string | null>(null);
+  const [selectedStops, setSelectedStops] = useState<Set<string>>(new Set());
   useEffect(() => {
     const count = state.vehicles.length;
     if (count === prevVehicleCountRef.current) return;
     prevVehicleCountRef.current = count;
     if (count === 0 || state.routes.length > 0) return;
     if (!state.addresses.some(a => a.lat !== null && a.lng !== null)) return;
+    if (zonesEdited) {
+      showToast('Cambiaste los choferes, pero tus zonas editadas a mano se conservaron. Usa "Rutas a generar" para reagrupar.');
+      return;
+    }
     setNumClusters(count);
     const result = clusterDeliveriesWithDiagnostics(state.addresses, state.vehicles, state.clusteringConfig);
     dispatch({ type: 'SET_CLUSTERS', payload: result.clusters });
-  }, [state.vehicles, state.addresses, state.routes.length, state.clusteringConfig]);
+  }, [state.vehicles, state.addresses, state.routes.length, state.clusteringConfig, zonesEdited]);
+
+  /** Confirma antes de reagrupar si hay cambios de zona hechos a mano. */
+  const confirmRegroup = (): boolean => {
+    if (!zonesEdited) return true;
+    const ok = window.confirm('Reagrupar descarta las paradas que moviste a mano entre zonas. ¿Continuar?');
+    if (ok) setZonesEdited(false);
+    return ok;
+  };
+
+  /** Mueve paradas (con todas sus facturas) a otra zona y recalcula el centro de cada zona. */
+  const moveStopsToZone = (ids: string[], toClusterId: string) => {
+    const idSet = new Set(ids);
+    const moving = state.clusters.flatMap(c => c.addresses.filter(a => idSet.has(a.id)));
+    if (moving.length === 0) return;
+    // Una zona vacía haría fallar la optimización de su chofer
+    const emptied = state.clusters.find(c => c.id !== toClusterId && c.addresses.length > 0 && c.addresses.every(a => idSet.has(a.id)));
+    if (emptied) {
+      showToast('La zona ' + emptied.name + ' quedaría vacía. Deja al menos una parada o reduce las rutas a generar.', 'error');
+      return;
+    }
+    const center = (addrs: Address[]) => {
+      const pts = addrs.filter(a => a.lat !== null && a.lng !== null);
+      if (pts.length === 0) return null;
+      return {
+        lat: pts.reduce((n, a) => n + (a.lat as number), 0) / pts.length,
+        lng: pts.reduce((n, a) => n + (a.lng as number), 0) / pts.length,
+      };
+    };
+    const next = state.clusters.map(c => {
+      let addrs = c.addresses.filter(a => !idSet.has(a.id));
+      if (c.id === toClusterId) addrs = [...addrs, ...moving];
+      return { ...c, addresses: addrs, centroid: center(addrs) || c.centroid };
+    });
+    dispatch({ type: 'SET_CLUSTERS', payload: next });
+    setZonesEdited(true);
+    setSelectedStops(new Set());
+    const target = state.clusters.find(c => c.id === toClusterId);
+    showToast(moving.length + (moving.length === 1 ? ' parada movida a ' : ' paradas movidas a ') + (target?.name || 'otra zona'), 'ok');
+  };
   const [showInlineVehicleForm, setShowInlineVehicleForm] = useState(false);
   const [hiddenRouteIds, setHiddenRouteIds] = useState<string[]>([]);
 
@@ -1064,6 +1111,8 @@ function DispatcherPageContent() {
     dispatch({ type: 'SET_ADDRESSES', payload: addresses });
     // Lo que la revisión del Excel dejó fuera (una carga nueva reemplaza lo anterior)
     setReviewLeftOut(leftOut);
+    // Carga nueva: las zonas se calculan desde cero
+    setZonesEdited(false);
 
     // Depósito por defecto: centro de CDMX (ajustable)
     const depotResult = { lat: 19.4326, lng: -99.1332, label: 'Depósito CDMX' };
@@ -1197,7 +1246,7 @@ function DispatcherPageContent() {
         setActiveTabPersisted('zones');
       }, 2000);
     }
-  }, [state.vehicles, state.clusteringConfig, setActiveTabPersisted, setReviewLeftOut]);
+  }, [state.vehicles, state.clusteringConfig, setActiveTabPersisted, setReviewLeftOut, setZonesEdited]);
 
   // Helper para persistencia
   const saveRoutesData = useCallback((newRoutes: Route[]) => {
@@ -3349,6 +3398,7 @@ function DispatcherPageContent() {
                   setIsSlideOverOpen(false);
                 }}
                 onRegroup={() => {
+                  if (!confirmRegroup()) return;
                   const regenerated = clusterDeliveries(state.addresses, state.vehicles, state.clusteringConfig, numClusters);
                   dispatch({ type: 'SET_CLUSTERS', payload: regenerated });
                 }}
@@ -3394,6 +3444,7 @@ function DispatcherPageContent() {
                       : state.vehicles.length * 2)}
                     value={numClusters}
                     onChange={(e) => {
+                      if (!confirmRegroup()) return;
                       const n = Number(e.target.value);
                       setNumClusters(n);
                       const regenerated = clusterDeliveries(
@@ -3478,6 +3529,24 @@ function DispatcherPageContent() {
               </div>
             </div>
 
+            {zonesEdited && (
+              <div className="flex items-start justify-between gap-3 p-3 mb-2 rounded-lg border border-blue-500/30 bg-blue-500/10">
+                <p className="text-[11px] text-blue-100">
+                  Zonas ajustadas a mano. Se respetan al optimizar con <span className="font-semibold">Optimizar Rutas</span> de esta pantalla;
+                  el botón de Google en Direcciones reparte libremente.
+                </p>
+                <button
+                  onClick={() => {
+                    if (!confirmRegroup()) return;
+                    dispatch({ type: 'SET_CLUSTERS', payload: clusterDeliveries(state.addresses, state.vehicles, state.clusteringConfig, numClusters) });
+                  }}
+                  className="shrink-0 text-[11px] text-blue-300 hover:text-white underline underline-offset-2"
+                >
+                  Descartar cambios
+                </button>
+              </div>
+            )}
+
             <ul className="space-y-2">
               {state.clusters.map((cluster, idx) => {
                 const assignedVehicle = state.vehicles[idx];
@@ -3486,7 +3555,10 @@ function DispatcherPageContent() {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h4 className="text-sm font-bold text-slate-200">{cluster.name}</h4>
-                        <p className="text-xs text-shuma-muted">{cluster.addresses.length} entregas</p>
+                        <p className="text-xs text-shuma-muted">
+                          {cluster.addresses.length + (cluster.addresses.length === 1 ? ' parada · ' : ' paradas · ') +
+                            cluster.addresses.reduce((n, a) => n + (a.invoices && a.invoices.length > 0 ? a.invoices.length : 1), 0) + ' facturas'}
+                        </p>
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
@@ -3517,6 +3589,8 @@ function DispatcherPageContent() {
                         placeholder="Sin límite"
                         onChange={(e) => {
                           if (!assignedVehicle) return;
+                          // Cambiar la capacidad reagrupa: descartaría lo movido a mano
+                          if (!confirmRegroup()) return;
                           const val = parseInt(e.target.value) || 0;
                           const caps = [...state.clusteringConfig.vehicleCapacities];
                           const idxCap = caps.findIndex(c => c.vehicleId === assignedVehicle.id);
@@ -3530,6 +3604,74 @@ function DispatcherPageContent() {
                         }}
                         className="w-full bg-slate-900 border border-shuma-border rounded-md p-1.5 text-xs text-slate-200 outline-none"
                       />
+                    </div>
+
+                    {/* Paradas de la zona: se pueden mover a otra zona antes de optimizar */}
+                    <div className="mt-2">
+                      <button
+                        onClick={() => { setExpandedZoneId(expandedZoneId === cluster.id ? null : cluster.id); setSelectedStops(new Set()); }}
+                        className="text-[11px] text-blue-300 hover:text-white underline underline-offset-2"
+                      >
+                        {(expandedZoneId === cluster.id ? 'Ocultar' : 'Ver y mover') + ' paradas (' + cluster.addresses.length + ')'}
+                      </button>
+                      {expandedZoneId === cluster.id && (() => {
+                        const others = state.clusters
+                          .map((c, i) => ({ c, driver: state.vehicles[i]?.driverName }))
+                          .filter(x => x.c.id !== cluster.id);
+                        const selectedHere = cluster.addresses.filter(a => selectedStops.has(a.id)).map(a => a.id);
+                        const zoneLabel = (x: { c: Cluster; driver?: string }) => x.c.name + (x.driver ? ' · ' + x.driver : '');
+                        return (
+                          <div className="mt-2 grid gap-1.5">
+                            {selectedHere.length > 0 && others.length > 0 && (
+                              <div className="flex items-center gap-2 p-2 rounded-md bg-blue-500/10 border border-blue-500/30">
+                                <span className="text-[11px] text-blue-200 shrink-0">{selectedHere.length + ' seleccionada(s)'}</span>
+                                <select
+                                  value=""
+                                  onChange={e => { if (e.target.value) moveStopsToZone(selectedHere, e.target.value); }}
+                                  className="flex-1 min-w-0 bg-slate-900 border border-shuma-border rounded-md p-1 text-[11px] text-slate-200"
+                                >
+                                  <option value="">Mover seleccionadas a…</option>
+                                  {others.map(x => <option key={x.c.id} value={x.c.id}>{zoneLabel(x)}</option>)}
+                                </select>
+                              </div>
+                            )}
+                            <ul className="max-h-64 overflow-y-auto divide-y divide-slate-700/50 rounded-md border border-shuma-border">
+                              {cluster.addresses.map(a => {
+                                const nInv = a.invoices && a.invoices.length > 0 ? a.invoices.length : 1;
+                                return (
+                                  <li key={a.id} className="flex items-center gap-2 px-2 py-1.5">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedStops.has(a.id)}
+                                      onChange={() => setSelectedStops(prev => {
+                                        const n = new Set(prev);
+                                        if (n.has(a.id)) n.delete(a.id); else n.add(a.id);
+                                        return n;
+                                      })}
+                                      aria-label={'Seleccionar ' + (a.clientName || a.name)}
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-[11px] text-slate-100 truncate">{(a.clientName || a.name || 'Cliente') + ' · ' + nInv + (nInv === 1 ? ' factura' : ' facturas')}</p>
+                                      <p className="text-[10px] text-shuma-muted truncate" title={a.raw}>{a.raw}</p>
+                                    </div>
+                                    {others.length > 0 && (
+                                      <select
+                                        value=""
+                                        onChange={e => { if (e.target.value) moveStopsToZone([a.id], e.target.value); }}
+                                        className="shrink-0 w-28 bg-slate-900 border border-shuma-border rounded-md p-1 text-[10px] text-slate-200"
+                                        aria-label="Mover a otra zona"
+                                      >
+                                        <option value="">Mover a…</option>
+                                        {others.map(x => <option key={x.c.id} value={x.c.id}>{zoneLabel(x)}</option>)}
+                                      </select>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </li>
                 );
