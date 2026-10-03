@@ -1,6 +1,9 @@
 {
-  "updated": "2026-10-02",
+  "updated": "2026-10-03",
   "items": [
+    { "type": "new", "text": "En la app del chofer, las facturas de un mismo cliente en la misma direccion se muestran como una sola parada, con cada factura dentro para marcarla" },
+    { "type": "improve", "text": "La app del chofer numera por parada y muestra cuantas facturas lleva atendidas en cada una" },
+    { "type": "improve", "text": "Los botones de Google Maps y Waze aparecen una sola vez por parada" },
     { "type": "new", "text": "En Zonas se pueden ver las paradas de cada zona y moverlas a otra antes de optimizar, una por una o varias a la vez" },
     { "type": "new", "text": "Excel de asignaciones renovado: hoja de resumen con totales automaticos y una hoja de ruta imprimible por chofer, con hora estimada por parada y espacio para firma de recibido" },
     { "type": "improve", "text": "Las tarjetas de zona muestran paradas y facturas por separado" },

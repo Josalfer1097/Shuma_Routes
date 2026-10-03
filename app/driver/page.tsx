@@ -80,6 +80,35 @@ interface DriverRoute {
 
 type ModalType = 'deliver' | 'partial' | 'failed' | 'reopen' | 'closeRoute' | null;
 
+/** Una parada = un lugar de visita. Puede tener varias facturas (mismo orden de visita). */
+interface StopGroup {
+  stopNumber: number;
+  items: Array<{ stop: DeliveryStop; idx: number }>;
+}
+
+/**
+ * Agrupa las facturas por parada (mismo número de orden), conservando el orden de la ruta.
+ * Antes cada factura se mostraba como una parada distinta: un cliente con 10 facturas
+ * aparecía como 10 paradas seguidas en la misma dirección.
+ */
+function groupStops(stops: DeliveryStop[]): StopGroup[] {
+  const groups: StopGroup[] = [];
+  const byKey = new Map<string, StopGroup>();
+  stops.forEach((stop, idx) => {
+    const key = stop.sequence !== null && stop.sequence !== undefined ? 'seq-' + stop.sequence : 'id-' + stop.id;
+    let g = byKey.get(key);
+    if (!g) {
+      g = { stopNumber: groups.length + 1, items: [] };
+      byKey.set(key, g);
+      groups.push(g);
+    }
+    g.items.push({ stop, idx });
+  });
+  return groups;
+}
+
+const isDoneStatus = (s: string) => s === 'delivered' || s === 'completed' || s === 'partial' || s === 'failed';
+
 export default function DriverPage() {
   const router = useRouter();
   const [route, setRoute]             = useState<DriverRoute | null>(null);
@@ -565,7 +594,7 @@ export default function DriverPage() {
                 ¡Listo para salir!
               </h2>
               <p className="text-shuma-muted text-sm max-w-xs">
-                Tienes <span className="text-white font-semibold">{route.stops.length} entregas</span> programadas
+                Tienes <span className="text-white font-semibold">{groupStops(route.stops).length + ' paradas'}</span> con {route.stops.length + ' facturas'} programadas
                 para hoy. Presiona el botón cuando estés en camino.
               </p>
             </div>
@@ -573,8 +602,8 @@ export default function DriverPage() {
             {/* Info de ruta */}
             <div className="w-full max-w-xs bg-shuma-surface border border-shuma-border rounded-2xl p-4 space-y-2 text-left">
               <div className="flex justify-between text-sm">
-                <span className="text-shuma-muted">Entregas</span>
-                <span className="text-white font-semibold">{route.stops.length}</span>
+                <span className="text-shuma-muted">Paradas · facturas</span>
+                <span className="text-white font-semibold">{groupStops(route.stops).length + ' · ' + route.stops.length}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-shuma-muted">Distancia</span>
@@ -763,6 +792,128 @@ export default function DriverPage() {
     );
   }
 
+
+  // ── Parada con varias facturas: una tarjeta, navegación una sola vez y cada factura con sus acciones ──
+  const renderGroupCard = (group: StopGroup) => {
+    const first = group.items[0].stop;
+    const total = group.items.length;
+    const done = group.items.filter(it => isDoneStatus(it.stop.status)).length;
+    const anyFailed = group.items.some(it => it.stop.status === 'failed');
+    const anyPartial = group.items.some(it => it.stop.status === 'partial');
+    const allDone = done === total;
+    const groupKey = 'group-' + first.id;
+    const isExpanded = expandedStops.has(groupKey) || !allDone;
+    const canAct = route?.closureStatus !== 'approved' && route?.closureStatus !== 'requested';
+
+    const tone = !allDone
+      ? 'border-blue-500/30 bg-shuma-surface/40'
+      : anyFailed ? 'border-red-500/30 bg-red-900/10'
+      : anyPartial ? 'border-amber-500/30 bg-amber-900/10'
+      : 'border-emerald-500/30 bg-emerald-900/10';
+
+    return (
+      <div key={groupKey} className={'rounded-2xl border overflow-hidden shadow-sm ' + tone}>
+        <div className="p-3.5" onClick={() => toggleExpand(groupKey)}>
+          <div className="flex items-start gap-3">
+            <div className={'w-9 h-9 shrink-0 rounded-full flex items-center justify-center font-bold text-sm border ' +
+              (allDone ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-slate-800 text-slate-300 border-shuma-border')}>
+              {allDone ? '✓' : group.stopNumber}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className={'font-semibold text-sm leading-tight ' + (allDone ? 'text-slate-400' : 'text-white')}>
+                  {first.address.clientName || first.address.name}
+                </h3>
+                {isExpanded
+                  ? <ChevronUp size={14} className="text-shuma-muted shrink-0 mt-0.5" />
+                  : <ChevronDown size={14} className="text-shuma-muted shrink-0 mt-0.5" />}
+              </div>
+              <p className="text-xs font-semibold text-blue-300 mt-0.5">
+                {'📄 ' + total + ' facturas en esta parada · ' + done + ' de ' + total + ' atendidas'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {isExpanded && (
+          <div className="px-3.5 pb-3 pt-0 border-t border-shuma-border/30">
+            <p className="text-xs text-shuma-muted mt-2.5 leading-relaxed">{'📍 ' + first.address.raw}</p>
+
+            {!allDone && (
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <button
+                  onClick={() => window.open('https://www.google.com/maps/dir/?api=1&destination=' + first.address.lat + ',' + first.address.lng + '&travelmode=driving', '_blank')}
+                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-semibold touch-manipulation active:bg-blue-500/20 transition-colors"
+                >
+                  <Navigation size={13} />
+                  Google Maps
+                </button>
+                <button
+                  onClick={() => window.open('https://waze.com/ul?ll=' + first.address.lat + ',' + first.address.lng + '&navigate=yes', '_blank')}
+                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-semibold touch-manipulation active:bg-purple-500/20 transition-colors"
+                >
+                  Waze
+                </button>
+              </div>
+            )}
+
+            <ul className="mt-3 space-y-2">
+              {group.items.map(({ stop, idx }) => {
+                const st = stop.status;
+                const pending = !isDoneStatus(st);
+                const label = st === 'delivered' || st === 'completed' ? '✓ Entregada'
+                  : st === 'partial' ? '◑ Parcial'
+                  : st === 'failed' ? '✗ No entregada' + (stop.notes ? ' — ' + stop.notes : '')
+                  : 'Pendiente';
+                const labelCls = st === 'delivered' || st === 'completed' ? 'text-emerald-400'
+                  : st === 'partial' ? 'text-amber-400'
+                  : st === 'failed' ? 'text-red-400' : 'text-slate-300';
+                return (
+                  <li key={stop.id} className={'rounded-xl border p-2.5 ' + (justDeliveredId === stop.id ? 'border-emerald-400 bg-emerald-500/10' : 'border-shuma-border bg-shuma-bg/40')}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-mono text-blue-300">{stop.address.invoice || 'Sin factura'}</span>
+                      <span className={'text-[11px] font-semibold ' + labelCls}>{label}</span>
+                    </div>
+                    {canAct && pending && (
+                      <div className="grid grid-cols-3 gap-1.5 mt-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openModal('deliver', stop, idx); }}
+                          className="flex items-center justify-center gap-1 py-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 rounded-lg text-[11px] font-semibold touch-manipulation active:bg-emerald-500/20"
+                        >
+                          <CheckCircle size={14} /> Entregada
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openModal('partial', stop, idx); }}
+                          className="flex items-center justify-center gap-1 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/25 rounded-lg text-[11px] font-semibold touch-manipulation active:bg-amber-500/20"
+                        >
+                          ◑ Parcial
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openModal('failed', stop, idx); }}
+                          className="flex items-center justify-center gap-1 py-2 bg-red-500/10 text-red-400 border border-red-500/25 rounded-lg text-[11px] font-semibold touch-manipulation active:bg-red-500/20"
+                        >
+                          <XCircle size={14} /> No
+                        </button>
+                      </div>
+                    )}
+                    {canAct && !pending && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openModal('reopen', stop, idx); }}
+                        className="w-full mt-2 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg text-[11px] font-semibold touch-manipulation active:bg-amber-500/20"
+                      >
+                        Solicitar reapertura
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-shuma-bg flex flex-col">
@@ -816,7 +967,7 @@ export default function DriverPage() {
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs text-slate-300 font-medium">
               <span>{pct}% completado</span>
-              <span>{processed}/{route.stops.length}</span>
+              <span>{processed + '/' + route.stops.length + ' facturas'}</span>
             </div>
             <div className="w-full bg-slate-800/80 rounded-full h-2 overflow-hidden">
               <div className="h-2 rounded-full transition-all duration-700"
@@ -885,7 +1036,10 @@ export default function DriverPage() {
 
         {/* ── LISTA DE entregas ── */}
         <main className="flex-1 overflow-y-auto p-3 pb-24 space-y-2.5">
-          {route.stops.map((stop, idx) => {
+          {groupStops(route.stops).map(group => {
+            // Varias facturas en la misma parada: una sola tarjeta agrupada
+            if (group.items.length > 1) return renderGroupCard(group);
+            const { stop, idx } = group.items[0];
             const isDelivered = stop.status === 'delivered' || stop.status === 'completed';
             const isPartial   = stop.status === 'partial';
             const isFailed    = stop.status === 'failed';
@@ -942,7 +1096,7 @@ export default function DriverPage() {
                         isPartial   ? 'bg-amber-500 text-white border-amber-400' :
                         isFailed    ? 'bg-red-500 text-white border-red-400' :
                                       'bg-slate-800 text-slate-300 border-shuma-border'}`}>
-                      {isDelivered ? '✓' : isPartial ? '◑' : isFailed ? '✗' : idx + 1}
+                      {isDelivered ? '✓' : isPartial ? '◑' : isFailed ? '✗' : group.stopNumber}
                     </div>
 
                     <div className="flex-1 min-w-0">
