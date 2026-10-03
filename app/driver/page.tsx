@@ -306,7 +306,19 @@ export default function DriverPage() {
     };
   }, [driverId, fetchRoute]);
 
+  // "Entregar todas": demás facturas pendientes de la misma parada (la primera va en selectedStop)
+  const [batchTargets, setBatchTargets] = useState<Array<{ stop: DeliveryStop; idx: number }>>([]);
+  const [batchProgress, setBatchProgress] = useState<string | null>(null);
+
+  const openBatchDeliver = (items: Array<{ stop: DeliveryStop; idx: number }>) => {
+    if (items.length === 0) return;
+    openModal('deliver', items[0].stop, items[0].idx);
+    setBatchTargets(items.slice(1));
+  };
+
   const openModal = (type: ModalType, stop: DeliveryStop, index: number) => {
+    setBatchTargets([]);
+    setBatchProgress(null);
     setActiveModal(type);
     setSelectedStop({ stop, index });
     setNotes('');
@@ -316,6 +328,8 @@ export default function DriverPage() {
   };
 
   const closeModal = () => {
+    setBatchTargets([]);
+    setBatchProgress(null);
     setActiveModal(null);
     setSelectedStop(null);
     setNotes('');
@@ -409,10 +423,52 @@ export default function DriverPage() {
       const json = await res.json();
       if (!json.ok) throw new Error('Error al actualizar');
 
+      const doneIdx = new Set<number>([selectedStop.index]);
+      const failedInvoices: string[] = [];
+
+      // "Entregar todas": cada factura restante de la parada recibe COPIA de las fotos
+      // (cada una con su propia evidencia en el Expediente) y se marca por el camino normal
+      if (status === 'completed' && batchTargets.length > 0) {
+        const sourceIds = photoUrls.filter(u => u.startsWith('attachment:')).map(u => u.slice('attachment:'.length));
+        for (let k = 0; k < batchTargets.length; k++) {
+          const t = batchTargets[k];
+          setBatchProgress('Entregando factura ' + (k + 2) + ' de ' + (batchTargets.length + 1) + '…');
+          try {
+            let urls: string[] = [];
+            if (sourceIds.length > 0) {
+              const cp = await fetch('/api/driver/copy-photo', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sourceAttachmentIds: sourceIds, deliveryId: t.stop.id }),
+              });
+              const cpJson = await cp.json();
+              if (!cp.ok || !cpJson.ok) throw new Error(cpJson.error || 'No se copiaron las fotos');
+              urls = cpJson.urls;
+            }
+            const r2 = await fetch('/api/driver/deliver', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ deliveryId: t.stop.id, status, notes: notes || '', partialQuantity: null, photoUrls: urls, driverName }),
+            });
+            const j2 = await r2.json();
+            if (!j2.ok) throw new Error('Error al actualizar');
+            doneIdx.add(t.idx);
+          } catch (e) {
+            console.error('[entregar todas] Falló la factura', t.stop.address.invoice, e);
+            failedInvoices.push(t.stop.address.invoice || t.stop.id);
+          }
+        }
+      }
+
       const newStops = route.stops.map((s, i) =>
-        i === selectedStop.index ? { ...s, status, notes } : s
+        doneIdx.has(i) ? { ...s, status, notes } : s
       );
       setRoute({ ...route, stops: newStops });
+      if (failedInvoices.length > 0) {
+        alert('Se entregaron ' + doneIdx.size + ' facturas, pero estas no se pudieron guardar: ' + failedInvoices.join(', ') + '. Márcalas una por una.');
+      }
       if (status === 'completed') {
         setJustDeliveredId(selectedStop.stop.id);
         setTimeout(() => setJustDeliveredId(null), 1800);
@@ -857,6 +913,16 @@ export default function DriverPage() {
               </div>
             )}
 
+            {canAct && group.items.filter(it => !isDoneStatus(it.stop.status)).length >= 2 && (
+              <button
+                onClick={() => openBatchDeliver(group.items.filter(it => !isDoneStatus(it.stop.status)))}
+                className="w-full mt-3 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold touch-manipulation active:bg-emerald-700"
+              >
+                <CheckCircle size={15} />
+                {'Entregar las ' + group.items.filter(it => !isDoneStatus(it.stop.status)).length + ' pendientes'}
+              </button>
+            )}
+
             <ul className="mt-3 space-y-2">
               {group.items.map(({ stop, idx }) => {
                 const st = stop.status;
@@ -1246,9 +1312,24 @@ export default function DriverPage() {
           <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-shuma-surface border border-shuma-border rounded-2xl w-full max-w-sm shadow-2xl">
               <div className="p-5">
-                <h2 className="text-base font-bold text-white mb-1">¿Confirmar entrega completa?</h2>
+                <h2 className="text-base font-bold text-white mb-1">
+                  {batchTargets.length > 0
+                    ? '¿Confirmar entrega de ' + (batchTargets.length + 1) + ' facturas?'
+                    : '¿Confirmar entrega completa?'}
+                </h2>
                 <p className="text-sm text-shuma-muted">{selectedStop.stop.address.clientName}</p>
-                {selectedStop.stop.address.invoice && (
+                {batchTargets.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {[selectedStop.stop, ...batchTargets.map(t => t.stop)].map(st => (
+                      <span key={st.id} className="text-xs font-mono text-blue-300 bg-blue-500/10 px-2 py-1 rounded-md border border-blue-500/20">
+                        {st.address.invoice || 'Sin factura'}
+                      </span>
+                    ))}
+                    <p className="w-full text-[11px] text-shuma-muted mt-1">Las fotos que tomes se guardan como evidencia de cada una.</p>
+                  </div>
+                )}
+                {batchProgress && <p className="text-xs text-amber-300 mt-2">{batchProgress}</p>}
+                {batchTargets.length === 0 && selectedStop.stop.address.invoice && (
                   <p className="text-sm font-mono text-blue-400 mt-2 bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/20 inline-block">
                     📄 {selectedStop.stop.address.invoice}
                   </p>

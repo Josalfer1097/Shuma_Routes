@@ -1,6 +1,8 @@
 {
   "updated": "2026-10-03",
   "items": [
+    { "type": "new", "text": "En la app del chofer, las paradas con varias facturas tienen el boton Entregar las pendientes: un solo paso, con las mismas fotos como evidencia de cada factura" },
+    { "type": "improve", "text": "Si alguna factura no se pudo guardar al entregar varias, la app avisa cuales hay que marcar una por una" },
     { "type": "new", "text": "La Bitacora, el Dashboard, el Historico y la Bandeja de Pendientes tambien se abren como ventanas flotantes, sin salir del despachador" },
     { "type": "improve", "text": "Desde la barra de cada ventana de pagina se puede abrir en otra pestaña con el boton de flecha" },
     { "type": "improve", "text": "La Bitacora ahora se mueve y cambia de tamaño tambien con el dedo, se minimiza y recuerda su posicion" },
