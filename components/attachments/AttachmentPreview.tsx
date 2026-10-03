@@ -68,6 +68,8 @@ export default function AttachmentPreview({
       // stopPropagation: en React el clic "sube" a quien abrió la vista previa (Expediente o bitácora)
       onClick={e => { e.stopPropagation(); onClose(); }}
       role="dialog"
+      // Marca de capa superior: las ventanas no se cierran con Esc mientras esta vista esté abierta
+      data-overlay-top="true"
       aria-label={'Vista previa de ' + item.file_name}
     >
       <div className="max-w-4xl w-full max-h-full flex flex-col gap-3" onClick={e => e.stopPropagation()}>

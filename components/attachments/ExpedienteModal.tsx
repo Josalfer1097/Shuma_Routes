@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { FolderOpen, X } from 'lucide-react';
+import { FolderOpen } from 'lucide-react';
+import FloatingWindow from '@/components/windows/FloatingWindow';
 import AttachmentThumb from './AttachmentThumb';
 import AttachmentPreview from './AttachmentPreview';
 import { CATEGORY_LABEL, formatDateMx, type AttachmentItem } from './types';
@@ -98,12 +98,6 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
       .catch(err => console.error('[Expediente] No se pudieron cargar los choferes:', err));
   }, [isOpen, drivers.length]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !preview) onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose, preview]);
 
   // Agrupa conservando el orden (lo más reciente primero)
   const groups = useMemo(() => {
@@ -121,25 +115,18 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
   const clearFilters = () => { setQInput(''); setQ(''); setDriverId(''); setCategory(''); setFormat(''); setFrom(''); setTo(''); };
   const inputCls = 'px-3 py-2 rounded-lg bg-shuma-bg border border-shuma-border text-xs text-shuma-text focus:outline-none focus:border-blue-400';
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9980] bg-black/50 flex items-center justify-center p-3" onClick={onClose}>
-      <div
-        className="w-full max-w-5xl h-[85vh] flex flex-col rounded-2xl border border-shuma-border bg-slate-950 shadow-2xl"
-        onClick={e => e.stopPropagation()}
-        role="dialog"
-        aria-label="Expediente"
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-shuma-border">
-          <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <FolderOpen className="w-5 h-5 text-amber-300" /> Expediente
-            </h2>
-            <p className="text-[11px] text-shuma-muted">Fotos y documentos de rutas y facturas · archivos privados</p>
-          </div>
-          <button onClick={onClose} className="text-shuma-muted hover:text-white" aria-label="Cerrar">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+  return (
+    <FloatingWindow
+      id="expediente"
+      title="Expediente"
+      subtitle="Fotos y documentos de rutas y facturas · archivos privados"
+      icon={<FolderOpen className="w-4 h-4" />}
+      defaultWidth={980}
+      defaultHeight={640}
+      minWidth={420}
+      onClose={onClose}
+    >
+      <div className="flex flex-col h-full">
 
         <div className="px-5 py-3 border-b border-shuma-border grid gap-2 grid-cols-2 lg:grid-cols-7">
           <input
@@ -242,7 +229,6 @@ export default function ExpedienteModal({ isOpen, onClose }: { isOpen: boolean; 
           onArchive={canEdit ? onArchive : undefined}
         />
       )}
-    </div>,
-    document.body
+    </FloatingWindow>
   );
 }

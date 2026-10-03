@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Paperclip, Upload, X } from 'lucide-react';
+import { Paperclip, Upload } from 'lucide-react';
+import FloatingWindow from '@/components/windows/FloatingWindow';
 import AttachmentThumb from './AttachmentThumb';
 import AttachmentPreview from './AttachmentPreview';
 import { CATEGORY_LABEL, formatDateMx, type AttachmentItem } from './types';
@@ -57,11 +57,6 @@ export default function DocumentsWindow({
 
   useEffect(() => { void load(); }, [load]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && preview === null) onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose, preview]);
 
   const onPick = (f: File | null) => {
     setUploadMsg(null);
@@ -92,26 +87,18 @@ export default function DocumentsWindow({
     setItems(prev => prev.filter(i => i.id !== item.id));
   };
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-label={'Documentos de ' + title}
-      className="fixed z-[9985] right-4 top-16 w-[min(440px,calc(100vw-2rem))] max-h-[80vh] flex flex-col rounded-xl border border-shuma-border bg-slate-900/95 backdrop-blur shadow-2xl"
+  return (
+    <FloatingWindow
+      id="documentos"
+      title={'Documentos · ' + title}
+      subtitle={subtitle}
+      icon={<Paperclip className="w-4 h-4" />}
+      defaultWidth={460}
+      defaultHeight={560}
+      minWidth={340}
+      onClose={onClose}
     >
-      <div className="flex items-start justify-between gap-2 px-4 py-3 border-b border-shuma-border">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-white flex items-center gap-1.5">
-            <Paperclip className="w-4 h-4 text-amber-300 shrink-0" />
-            <span className="truncate">{'Documentos · ' + title}</span>
-          </p>
-          {subtitle && <p className="text-[11px] text-shuma-muted mt-0.5 truncate">{subtitle}</p>}
-        </div>
-        <button onClick={onClose} className="text-shuma-muted hover:text-white" aria-label="Cerrar">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="overflow-y-auto px-4 py-3 grid gap-3">
+      <div className="px-4 py-3 grid gap-3">
         {loading && <p className="text-xs text-shuma-muted">Cargando documentos…</p>}
         {error && <p className="text-xs text-red-300">{error}</p>}
         {!loading && !error && items.length === 0 && (
@@ -180,7 +167,6 @@ export default function DocumentsWindow({
           onArchive={canEdit ? onArchive : undefined}
         />
       )}
-    </div>,
-    document.body
+    </FloatingWindow>
   );
 }

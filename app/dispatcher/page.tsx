@@ -24,6 +24,9 @@ import { useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import { BarChart2, History, LogOut, Maximize2, Minimize2, RefreshCw, Search, Truck, Inbox, FolderOpen } from 'lucide-react';
 import ExpedienteModal from '@/components/attachments/ExpedienteModal';
+import FloatingWindow from '@/components/windows/FloatingWindow';
+import { WindowManagerProvider } from '@/components/windows/WindowManager';
+import Taskbar from '@/components/windows/Taskbar';
 import DocumentsWindow from '@/components/attachments/DocumentsWindow';
 import { useEasterEgg } from '@/hooks/useEasterEgg';
 import EasterEggOverlay from '@/components/EasterEggOverlay';
@@ -3793,26 +3796,19 @@ function DispatcherPageContent() {
 
       {/* ── Modal: Rutas Activas ── */}
       {isActiveRoutesOpen && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-            style={{ zIndex: 9998 }}
-            onClick={() => setIsActiveRoutesOpen(false)}
-          />
-          <div
-            className="fixed inset-0 flex items-center justify-center p-4"
-            style={{ zIndex: 9999, pointerEvents: 'none' }}
-          >
-            <div
-              className="pointer-events-auto bg-shuma-bg border border-shuma-border rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col"
-              style={{ maxHeight: 'min(85vh, 640px)' }}
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between p-5 border-b border-shuma-border shrink-0">
+        <FloatingWindow
+          id="rutas-activas"
+          title="Rutas Activas"
+          icon={<Truck className="w-4 h-4" />}
+          defaultWidth={720}
+          defaultHeight={620}
+          minWidth={380}
+          onClose={() => setIsActiveRoutesOpen(false)}
+        >
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-shuma-border shrink-0">
                 <div>
-                  <h2 className="text-lg font-bold text-shuma-text">🚚 Rutas Activas</h2>
-                  <p className="text-xs text-shuma-muted mt-0.5">
+                  <p className="text-xs text-shuma-muted">
                     {new Date().toLocaleDateString('es-MX', {
                       weekday: 'long', day: 'numeric', month: 'long',
                       timeZone: 'America/Mexico_City'
@@ -3840,12 +3836,6 @@ function DispatcherPageContent() {
                     className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-colors"
                   >
                     ↻ Actualizar
-                  </button>
-                  <button
-                    onClick={() => setIsActiveRoutesOpen(false)}
-                    className="p-2 hover:bg-shuma-surface rounded-lg transition-colors text-shuma-muted hover:text-shuma-text"
-                  >
-                    ✕
                   </button>
                 </div>
               </div>
@@ -4191,8 +4181,7 @@ function DispatcherPageContent() {
                 </button>
               </div>
             </div>
-          </div>
-        </>
+        </FloatingWindow>
       )}
 
       <ShortcutsModal isOpen={isShortcutsModalOpen} onClose={() => setIsShortcutsModalOpen(false)} />
@@ -4470,7 +4459,11 @@ function ConfigPanel({
 export default function DispatcherPage() {
   return (
     <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center text-white bg-[#060D14]">Cargando...</div>}>
-      <DispatcherPageContent />
+      {/* Ventanas flotantes (Expediente, Documentos, Rutas Activas…) y su barra de tareas */}
+      <WindowManagerProvider>
+        <DispatcherPageContent />
+        <Taskbar />
+      </WindowManagerProvider>
     </Suspense>
   );
 }
