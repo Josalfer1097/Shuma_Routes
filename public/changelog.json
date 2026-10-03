@@ -1,6 +1,9 @@
 {
   "updated": "2026-10-03",
   "items": [
+    { "type": "improve", "text": "La bitacora de auditoria ya no puede ser modificada ni borrada por el sistema: solo se agregan registros" },
+    { "type": "improve", "text": "Las rutas y entregas con informacion ligada ya no se pueden borrar por accidente" },
+    { "type": "improve", "text": "Se agrego una politica de seguridad del navegador en modo de vigilancia, como paso previo a activarla por completo" },
     { "type": "new", "text": "En la app del chofer, las facturas de un mismo cliente en la misma direccion se muestran como una sola parada, con cada factura dentro para marcarla" },
     { "type": "improve", "text": "La app del chofer numera por parada y muestra cuantas facturas lleva atendidas en cada una" },
     { "type": "improve", "text": "Los botones de Google Maps y Waze aparecen una sola vez por parada" },
