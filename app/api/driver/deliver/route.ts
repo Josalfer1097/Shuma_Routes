@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     // 1. Obtener datos completos de la entrega para la bitácora
     const { data: delivery } = await supabaseAdmin
       .from('deliveries')
-      .select('id, invoice, client_name, address, route_id, route_driver_id, stop_order, merchandise_value')
+      .select('id, invoice, client_name, address, route_id, route_driver_id, stop_order, merchandise_value, status')
       .eq('id', deliveryId)
       .single();
 
@@ -29,29 +29,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Entrega no encontrada' }, { status: 404 });
     }
 
-    // 2. Verificar pertenencia: la entrega debe estar asignada a UN route_driver
-    //    cuyo driver_id sea el del chofer autenticado (sesión, no body)
-    const { data: routeDriver } = await supabaseAdmin
-      .from('route_drivers')
-      .select('driver_id')
-      .eq('id', delivery.route_driver_id)
-      .single();
+    // 2. Pertenencia (route_drivers) y código de la ruta, en paralelo:
+    //    cada consulta a Supabase cuesta ~150 ms, en fila sumaban 300 ms
+    const [{ data: routeDriver }, { data: route }] = await Promise.all([
+      supabaseAdmin
+        .from('route_drivers')
+        .select('driver_id')
+        .eq('id', delivery.route_driver_id)
+        .single(),
+      delivery.route_id
+        ? supabaseAdmin
+            .from('routes')
+            .select('route_code, date')
+            .eq('id', delivery.route_id)
+            .single()
+        : Promise.resolve({ data: null }),
+    ]);
 
+    // La entrega debe estar asignada a UN route_driver cuyo driver_id sea el del chofer autenticado (sesión, no body)
     if (!routeDriver || routeDriver.driver_id !== session.user.driverId) {
       return NextResponse.json({ ok: false, error: 'No tienes permiso sobre esta entrega' }, { status: 403 });
     }
 
-    // 2. Obtener route_code de la ruta
-    const { data: route } = delivery?.route_id ? await supabaseAdmin
-      .from('routes')
-      .select('route_code, date')
-      .eq('id', delivery.route_id)
-      .single() : { data: null };
-
-    // 3. Actualizar status de la entrega
     const newStatus = status === 'completed' ? 'delivered'
                     : status === 'partial'   ? 'partial'
                     : 'failed';
+    const serializedPhotos = photoUrls.length > 0 ? JSON.stringify(photoUrls) : null;
+
+    // 3. Registrar en delivery_events ANTES de cambiar el estado: guarda las fotos.
+    //    Si falla, la entrega sigue pendiente y el chofer puede reintentar sin perder evidencia.
+    const { error: eventErr } = await supabaseAdmin.from('delivery_events').insert({
+      delivery_id: deliveryId,
+      event_type:  newStatus,
+      notes:       notes || null,
+      photo_url:   serializedPhotos,
+      created_at:  new Date().toISOString(),
+    });
+    if (eventErr) throw new Error('Error registrando el evento de la entrega: ' + eventErr.message);
+
+    // 4. Actualizar status de la entrega
     const { error: updateErr } = await supabaseAdmin
       .from('deliveries')
       .update({
@@ -63,19 +79,8 @@ export async function POST(req: NextRequest) {
 
     if (updateErr) throw updateErr;
 
-    const serializedPhotos = photoUrls.length > 0 ? JSON.stringify(photoUrls) : null;
-
-    // 4. Registrar en delivery_events
-    await supabaseAdmin.from('delivery_events').insert({
-      delivery_id: deliveryId,
-      event_type:  newStatus,
-      notes:       notes || null,
-      photo_url:   serializedPhotos,
-      created_at:  new Date().toISOString(),
-    });
-
-    // 5. Bitácora DETALLADA
-    await supabaseAdmin.from('audit_log').insert({
+    // 5. Bitácora DETALLADA (la entrega ya quedó registrada: si falla, se reporta en el log del servidor)
+    const { error: auditErr } = await supabaseAdmin.from('audit_log').insert({
       action:    status === 'completed' ? 'Entrega completada' 
                : status === 'partial'   ? 'Entrega parcial'
                : 'Entrega fallida',
@@ -99,11 +104,12 @@ export async function POST(req: NextRequest) {
         entrega_parcial:   status === 'partial',
         cantidad_parcial:  partialQuantity || null,
         fotos_evidencia:   photoUrls.length > 0 ? `${photoUrls.length} fotos` : 'No',
-        estado_anterior:   'pending',
+        estado_anterior:   delivery.status || null,
         estado_nuevo:      newStatus,
       },
       created_at: new Date().toISOString(),
     });
+    if (auditErr) console.error('[driver/deliver] Entrega registrada, pero falló la bitácora:', auditErr);
 
     // Notificar al admin cuando hay una entrega completada o fallida
     if (status === 'completed' || status === 'failed') {

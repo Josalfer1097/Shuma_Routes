@@ -19,11 +19,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Falta el código de ruta' }, { status: 400 });
     }
 
-    // La versión vigente de la ruta (una ruta reoptimizada conserva el código)
-    const { data: route, error: rErr } = await supabaseAdmin
+    // La versión vigente de la ruta. Una ruta editada hereda el código con sufijo de versión
+    // (RT-20261003-001 → RT-20261003-001-v2): una notificación con cualquier versión abre la vigente.
+    const baseCode = code.replace(/-v[0-9]+$/, '');
+    const isFamilyCode = /^RT-[0-9]{8}-[0-9]+$/.test(baseCode);
+    let routeQuery = supabaseAdmin
       .from('routes')
-      .select('id, route_code, route_alias, date, status, closure_status')
-      .eq('route_code', code)
+      .select('id, route_code, route_alias, date, status, closure_status, is_latest');
+    routeQuery = isFamilyCode
+      ? routeQuery.or('route_code.eq.' + baseCode + ',route_code.like.' + baseCode + '-v%')
+      : routeQuery.eq('route_code', code);
+    const { data: route, error: rErr } = await routeQuery
       .order('is_latest', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(1)

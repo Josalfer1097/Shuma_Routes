@@ -1,6 +1,11 @@
 {
   "updated": "2026-10-03",
   "items": [
+    { "type": "fix", "text": "Si dos personas aceptan rutas al mismo tiempo, ambas se guardan; antes una fallaba por codigo repetido" },
+    { "type": "improve", "text": "Una ruta editada conserva su codigo con sufijo de version, por ejemplo RT-20261003-001-v2" },
+    { "type": "improve", "text": "Las notificaciones con el codigo de una ruta editada abren su version vigente" },
+    { "type": "fix", "text": "Las fotos de evidencia se registran antes de marcar la entrega; si algo falla, la entrega sigue pendiente y se puede reintentar" },
+    { "type": "improve", "text": "Marcar una entrega es mas rapido: el chofer espera una consulta menos" },
     { "type": "fix", "text": "Editar una ruta desde Rutas Activas ya no deja la pantalla trabada en la ubicacion de direcciones" },
     { "type": "improve", "text": "Una ruta se puede editar mientras el chofer no la haya iniciado; al guardar, la nueva version reemplaza a la original sin duplicar facturas" },
     { "type": "improve", "text": "Las facturas que se quitan al editar una ruta regresan a la Bandeja, en espera de planeacion" },

@@ -83,7 +83,7 @@ export default function RouteInvoicesPopover({ routeCode, onClose }: { routeCode
   return (
     <FloatingWindow
       id="facturas-ruta"
-      title={'Facturas · ' + (route?.route_alias || routeCode)}
+      title={'Facturas · ' + (route?.route_alias || route?.route_code || routeCode)}
       subtitle={route ? (route.driver_name || 'Sin chofer') + (route.date ? ' · ' + route.date : '') : undefined}
       icon={<Truck className="w-4 h-4" />}
       defaultWidth={400}

@@ -8,6 +8,9 @@ import PrivacyBanner from '@/components/PrivacyBanner';
 const exo2 = Exo_2({ subsets: ['latin'], variable: '--font-exo-2' });
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans' });
 
+// Origen de Supabase desde la variable de entorno (antes estaba escrito a mano: rompía al migrar de proyecto)
+const supabaseOrigin = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
+
 export const metadata: Metadata = {
   title: 'Shuma Rutas · Optimización de Entregas',
   description: 'Sistema interno de optimización de rutas de entrega para Shuma',
@@ -40,10 +43,10 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${exo2.variable} ${dmSans.variable}`}>
       <head>
-        <link rel="preconnect" href="https://krejdjxllpgpcqygdjcd.supabase.co" />
+        {supabaseOrigin && <link rel="preconnect" href={supabaseOrigin} />}
         <link rel="preconnect" href="https://maps.googleapis.com" />
-        <link rel="preconnect" href="https://api.openweathermap.org" />
-        <link rel="dns-prefetch" href="https://krejdjxllpgpcqygdjcd.supabase.co" />
+        <link rel="preconnect" href="https://openweathermap.org" />
+        {supabaseOrigin && <link rel="dns-prefetch" href={supabaseOrigin} />}
         <link rel="dns-prefetch" href="https://maps.googleapis.com" />
       </head>
       <body className="antialiased font-sans">
