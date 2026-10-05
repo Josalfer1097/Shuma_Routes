@@ -145,7 +145,7 @@ export async function GET(req: NextRequest) {
         // Coincidencia parcial (ilike): "Entrega" cubre completada, parcial, fallida y reaperturas de entrega;
         // "Ruta" cubre aceptada, editada, reemplazada, iniciada y cierres de ruta
         entrega: ['Entrega', 'Solicitud de reapertura'],
-        ruta:    ['Ruta', 'Alias actualizado', 'Aceptación incompleta'],
+        ruta:    ['Ruta', 'Alias actualizado', 'Aceptación'],
         sistema: ['Cookies aceptadas', 'Sesión iniciada', 'Sesión cerrada'],
       };
       const actions = typeMap[actionType] || [];

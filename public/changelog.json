@@ -1,6 +1,10 @@
 {
   "updated": "2026-10-03",
   "items": [
+    { "type": "improve", "text": "Aceptar o editar rutas es todo o nada: si algo falla, no queda ninguna ruta a medias ni una ruta editada oculta con sus entregas" },
+    { "type": "fix", "text": "Si dos personas editan la misma ruta al mismo tiempo, solo una edicion se guarda y la otra recibe un aviso claro" },
+    { "type": "improve", "text": "Aceptar y editar rutas es mucho mas rapido: todo se guarda en una sola llamada a la base" },
+    { "type": "improve", "text": "Si una aceptacion falla, la bitacora registra Aceptacion fallida con el motivo y confirma que no se guardo nada" },
     { "type": "improve", "text": "Al editar una ruta, la bitacora deja una sola fila Ruta editada con el codigo que reemplaza, la version, las facturas agregadas y las que regresan a la Bandeja" },
     { "type": "new", "text": "Si al aceptar rutas algo falla a la mitad, la bitacora registra Aceptacion incompleta con las rutas que si se guardaron y el motivo" },
     { "type": "improve", "text": "El desglose de la bitacora usa nombres claros, muestra el tiempo estimado en horas y minutos, oculta datos repetidos y deja las listas de facturas al final" },

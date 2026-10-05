@@ -434,7 +434,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
     const m = module.toLowerCase();
     if (a.includes('login') || a.includes('sesión'))   return <LogIn size={13} className="text-blue-400 shrink-0" />;
     if (a.includes('logout') || a.includes('salida'))  return <LogOut size={13} className="text-slate-400 shrink-0" />;
-    if (a.includes('incompleta'))                      return <AlertCircle size={13} className="text-red-400 shrink-0" />;
+    if (a.includes('aceptación'))                      return <AlertCircle size={13} className="text-red-400 shrink-0" />;
     if (a.includes('entrega') || m === 'entregas')     return <Package size={13} className={DELIVERY_TONE_ICON[deliveryTone(action)] + ' shrink-0'} />;
     if (a.includes('ruta') || m === 'rutas')           return <Truck size={13} className="text-blue-400 shrink-0" />;
     if (a.includes('reapertura') || a.includes('corrección')) return <RotateCcw size={13} className="text-amber-400 shrink-0" />;
@@ -917,6 +917,7 @@ export default function AuditLogModal({ isOpen, onClose, userRole, initialEntity
                                     nuevas_rutas:      'Nuevas rutas',
                                     rutas_guardadas:   'Rutas guardadas',
                                     error:             'Error',
+                                    resultado:         'Resultado',
                                   };
 
                                   if (HIDDEN_KEYS.includes(key)) return null;
